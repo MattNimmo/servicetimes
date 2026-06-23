@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { PcoCollection } from "@/lib/pco/types";
+
 const PCO_BASE_URL = "https://api.planningcenteronline.com";
 export const PCO_SERVICES_VERSION = "2018-11-01";
 
@@ -63,4 +65,47 @@ export async function pcoGet<T>(path: string): Promise<T> {
   }
 
   return (await response.json()) as T;
+}
+
+function normalizeNextPath(next: string) {
+  const url = new URL(next, PCO_BASE_URL);
+
+  if (url.origin !== PCO_BASE_URL || !url.pathname.startsWith("/services/v2/")) {
+    throw new Error("PCO pagination left the Services v2 API boundary");
+  }
+
+  return `${url.pathname}${url.search}`;
+}
+
+export async function pcoGetAll<T, I = never>(
+  path: string,
+): Promise<PcoCollection<T, I>> {
+  const data: T[] = [];
+  const included = new Map<string, I>();
+  let next: string | null = path;
+  let pages = 0;
+
+  while (next) {
+    if (pages >= 25) {
+      throw new Error("PCO pagination exceeded the 25-page safety limit");
+    }
+
+    const page: PcoCollection<T, I> = await pcoGet(next);
+    data.push(...page.data);
+
+    for (const resource of page.included ?? []) {
+      const identifiable = resource as { type?: string; id?: string };
+      const key = `${identifiable.type ?? "unknown"}:${identifiable.id ?? included.size}`;
+      included.set(key, resource);
+    }
+
+    next = page.links?.next ? normalizeNextPath(page.links.next) : null;
+    pages += 1;
+  }
+
+  return {
+    data,
+    included: [...included.values()],
+    meta: { count: data.length, total_count: data.length },
+  };
 }
