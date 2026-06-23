@@ -40,7 +40,23 @@ The first live result and its backend consequences are recorded in
 npm run dev
 npm run lint
 npm run build
+npm run db:start
+npm run db:reset
+npm run db:test
+npm run db:lint
 ```
+
+## Database
+
+The versioned schema lives in `supabase/migrations`; deterministic campus,
+service-slot, section, element, and alias configuration lives in
+`supabase/seed.sql`. Raw Planning Center values are never replaced by Admin
+changes. Slot decisions, bucket changes, and timing corrections are stored as
+occurrence-level overlays with revision and audit history.
+
+Local database commands require a Docker-compatible runtime. Once a hosted
+Supabase project exists, link it with `npx supabase link --project-ref <ref>` and
+deploy reviewed migrations with `npx supabase db push`.
 
 ## Security boundary
 
