@@ -47,8 +47,10 @@ not automatic corrections.
 No zero-allotment-over-three-seconds or timer-bleed candidate appeared in this
 latest-plan sample.
 
-## Backend consequence
+## Implemented backend consequence
 
-The first migration needs explicit PlanTime selection state and occurrence-level
-slot assignment. Raw PCO values remain immutable; approved planned or actual
-corrections are database overlays for that service occurrence only.
+Commit `79cf60d` implements explicit PlanTime selection state,
+occurrence-level slot assignment, immutable raw PCO evidence, review incidents,
+and revisioned planned/actual correction overlays. The migration executes
+successfully in embedded PostgreSQL. Applying it to the hosted Supabase project
+and running the Docker-backed pgTAP suite remain pending.

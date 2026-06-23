@@ -6,8 +6,26 @@ Plan-versus-actual service timing for Emmanuel Christian Center.
 
 - Next.js App Router + TypeScript
 - Planning Center Services API (read-only, version `2018-11-01`)
-- Supabase/Postgres (next build slice)
+- Supabase/Postgres
 - Vercel
+
+## Build status — 2026-06-23
+
+Shipped to `main`:
+
+- `e149bd4` — Next.js/TypeScript scaffold and GET-only PCO client.
+- `a883c04` — live four-campus PCO data-shape probe and validation report.
+- `79cf60d` — executable Supabase migration, deterministic seeds, RLS lockdown,
+  correction overlays, append-only audit history, and pgTAP tests.
+
+The hosted Supabase project is connected to GitHub. It is not yet linked to the
+local Supabase CLI or Codex MCP, and the migration has not been confirmed as
+applied remotely. No production data has been ingested. The next slice is:
+
+1. connect Codex MCP read-only and link the Supabase CLI to the project;
+2. dry-run and apply the migration, then run the database tests;
+3. build the normalizer and golden taxonomy tests;
+4. build atomic PCO ingestion and load one representative weekend.
 
 ## Local setup
 
@@ -54,9 +72,10 @@ service-slot, section, element, and alias configuration lives in
 changes. Slot decisions, bucket changes, and timing corrections are stored as
 occurrence-level overlays with revision and audit history.
 
-Local database commands require a Docker-compatible runtime. Once a hosted
-Supabase project exists, link it with `npx supabase link --project-ref <ref>` and
-deploy reviewed migrations with `npx supabase db push`.
+Local database commands require a Docker-compatible runtime. Link the existing
+hosted project with `npx supabase link --project-ref <ref>`, inspect the pending
+work with `npx supabase db push --dry-run`, and deploy only the reviewed
+migration with `npx supabase db push`.
 
 ## Security boundary
 
