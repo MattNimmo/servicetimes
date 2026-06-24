@@ -32,9 +32,9 @@ export type NormalizedItem = NormalizableItem & {
   resolutionSource: "alias" | "structural" | "unmapped";
 };
 
-type TaxonomyConfig = {
-  sectionAliases: SectionAlias[];
-  elementAliases: ElementAlias[];
+export type TaxonomyConfig = {
+  sectionAliases: readonly SectionAlias[];
+  elementAliases: readonly ElementAlias[];
 };
 
 type AliasBase = {
@@ -63,7 +63,7 @@ function aliasMatches(alias: AliasBase, normalizedTitle: string) {
 }
 
 function findAlias<T extends AliasBase>(
-  aliases: T[],
+  aliases: readonly T[],
   normalizedTitle: string,
   campusCode: string,
 ) {
@@ -84,7 +84,7 @@ function findAlias<T extends AliasBase>(
 export function resolveSection(
   rawTitle: string,
   campusCode: string,
-  aliases: SectionAlias[],
+  aliases: readonly SectionAlias[],
 ) {
   return (
     findAlias(aliases, normalizePcoTitle(rawTitle), campusCode)?.sectionKey ??
@@ -96,7 +96,7 @@ export function resolveElement(
   rawTitle: string,
   campusCode: string,
   sectionKey: string,
-  aliases: ElementAlias[],
+  aliases: readonly ElementAlias[],
 ) {
   const sectionAliases = aliases.filter(
     (alias) => alias.sectionKey === sectionKey,

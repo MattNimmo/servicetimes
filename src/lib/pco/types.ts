@@ -29,6 +29,7 @@ export type PcoPlan = {
     series_title: string | null;
     sort_date: string;
     total_length: number;
+    updated_at?: string;
   };
 };
 
@@ -54,7 +55,7 @@ export type PcoItem = {
     item_type: "song" | "header" | "media" | "item";
     length: number;
     sequence: number;
-    service_position: "pre" | "during" | "post";
+    service_position: "pre" | "during" | "post" | null;
   };
   relationships?: Record<string, PcoRelationship>;
 };
