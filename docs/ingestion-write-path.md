@@ -5,20 +5,18 @@ Status: **implemented** (2026-06-24).
 ## Why
 
 `persistIngestionPlan` (`src/lib/pco/ingestion-writer.ts`) is the only code that
-calls the atomic `ingest_pco_plan` RPC, and it currently has **no caller**. The
-preview path (`previewLatestPcoIngestion` → `fetchLatestCompletedPlan` →
-`buildIngestionPlan`) is fully wired but is GET-only, dev-only, and
-`dryRun: true` end to end. There is no way to actually persist a weekend.
+calls the atomic `ingest_pco_plan` RPC. Both the controlled script and recurring
+route delegate to this boundary.
 
 This slice adds the missing entry point so the first controlled production load
 (roadmap step 4) can run, then reconciled (step 5).
 
-## Decision: script first, route + cron later
+## Decision: script first, then route + cron
 
 Build a **server-side one-off script**, not a deployed route, for the first
-load. Rationale: a write endpoint is premature surface area before a single
-weekend has been validated by hand. The recurring product ingestion (an authed
-POST route + Vercel Cron) is a **separate follow-up PR** — see "Deferred" below.
+load. Rationale: a write endpoint was premature surface area before a single
+weekend had been validated by hand. The recurring route was added after the
+controlled loads proved the write and reconciliation path.
 
 ## Existing building blocks (do not reimplement)
 
@@ -134,19 +132,22 @@ existing `server-only` imports remain enforced.
 - SLP: committed as ingest run 1 and fully reconciled (9am and 11am auto).
 - ELK: committed as ingest run 2 and fully reconciled (9am and 11am auto).
 - LV: committed as ingest run 3 and fully reconciled (10am auto).
-- MG: held before commit. Its 9am production PlanTime has a zero-length LIVE
-  window and its 11am PlanTime has incomplete LIVE bounds; both correctly remain
-  in review state. Re-run the dry run after the PCO source data is corrected or
-  explicitly dispositioned.
+- MG: committed as ingest run 4 and fully reconciled. Its 9am zero-length LIVE
+  window and 11am incomplete LIVE bounds remain review-state evidence, not
+  approved headline actuals.
 
 Combined-title and song rollup candidates remain intentionally unmapped. Their
-review evidence was persisted for the three loaded campuses rather than
+review evidence was persisted for the loaded campuses rather than
 fabricating element-level precision.
 
-## Deferred to a follow-up PR (not in this slice)
+## Recurring ingestion
 
-- **Authed POST route + Vercel Cron** for recurring production ingestion. Open
-  question to settle then: auth mechanism — Vercel `CRON_SECRET` (Bearer) for the
-  scheduled path vs a shared-secret header for manual triggers. This route must
-  **not** reuse the preview's `NODE_ENV === 'production' → 404` gate (it must run
-  in prod) and therefore needs real auth instead.
+`/api/pco/ingest` supports the GET request used by Vercel Cron and a POST for
+manual triggers. Both use the same `CRON_SECRET` bearer authentication and
+require `ENABLE_PCO_INGESTION_WRITES=true`. The route intentionally does not use
+the development preview's production 404 gate.
+
+`vercel.json` schedules the GET for `0 14 * * 1` (Monday 14:00 UTC). The runner
+previews all four campuses before starting writes. A preview failure causes zero
+writes; write results are reported per campus because the database transaction
+boundary remains one whole PCO plan.
