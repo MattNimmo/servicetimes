@@ -22,13 +22,11 @@ Shipped to `main`:
 - `7797ada` — merged four-campus zero-write ingestion preview.
 - `27a760b` — merged taxonomy review classification and approved mappings.
 
-Merged from `codex/atomic-ingestion`:
-
-- deployable deterministic configuration for hosted projects;
-- slot-scoped review evidence and incident supersession;
-- one-call transactional, idempotent PCO ingestion RPC;
-- server-only writer guarded by `ENABLE_PCO_INGESTION_WRITES=true`;
-- 23 application unit tests and 42 database assertions total.
+- `973e2a9` — merged atomic PCO ingestion: deployable deterministic
+  configuration for hosted projects, slot-scoped review evidence and incident
+  supersession, the one-call transactional/idempotent `ingest_pco_plan` RPC, and
+  a server-only writer guarded by `ENABLE_PCO_INGESTION_WRITES=true`. 23
+  application unit tests and 42 database assertions total.
 
 The hosted Supabase project is connected to GitHub, and CI runs a clean reset,
 the full pgTAP suite, and `supabase db lint` against a real Postgres on every
@@ -36,11 +34,23 @@ pull request. On 2026-06-24 all four migrations were applied to the hosted
 project (`vtleuqtipsxbsdaodcqo`) via `supabase db push`; remote migration
 history matches local. The schema, RLS lockdown, occurrence guards, seeded
 configuration, and the `ingest_pco_plan` RPC are live. No production timing
-data has been ingested yet. The remaining slice is:
+data has been ingested yet.
 
-1. load one representative weekend with `ENABLE_PCO_INGESTION_WRITES=true` for
-   the single controlled ingestion call;
-2. return the write flag to false and reconcile every expected slot and item.
+The atomic writer has no caller, so the next slice builds a server-side
+`scripts/ingest-weekend.ts` (dry-run by default, `--commit` to write, `--verify`
+to reconcile) — fully specified in
+[`docs/ingestion-write-path.md`](docs/ingestion-write-path.md). The slice is:
+
+1. build the single-campus ingestion script with dry-run, commit, and verify
+   modes, plus an orchestration unit test;
+2. dry-run, then load **SLP** with `ENABLE_PCO_INGESTION_WRITES=true` for the
+   single controlled call (the 9am slot is the first reconciliation focus; the
+   11am PlanTime lands in the same atomic plan);
+3. return the write flag to false, reconcile via the service-role read, then
+   repeat for ELK / MG / LV.
+
+A recurring authed POST route plus Vercel Cron is a deferred follow-up (auth
+mechanism to be settled then); see the spec's "Deferred" section.
 
 ## Local setup
 
