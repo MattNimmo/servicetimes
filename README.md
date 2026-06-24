@@ -28,14 +28,15 @@ The hosted Supabase project is connected to GitHub. Codex MCP is authenticated,
 project-scoped, and read-only. Live validation on 2026-06-23 confirmed
 PostgreSQL 17.6, no `public` tables, no migration history, empty generated
 application types, and no security or performance advisor findings. The
-Supabase CLI is authenticated, but the current account does not have the
-project-management privilege required by `supabase link`. No migration or
-production data has been applied remotely. The next slice is:
+Supabase CLI is authenticated, but its token is rejected by the project-status
+endpoint during `supabase link` even though the dashboard identity is the
+project Owner. No migration or production data has been applied remotely. The
+next slice is:
 
 1. run a clean local reset, pgTAP suite, and database lint with a compatible
    container runtime;
-2. grant the CLI account the required Supabase project role, link the CLI, and
-   verify the hosted project's recovery posture;
+2. resolve the Supabase CLI token/link mismatch and verify the hosted project's
+   recovery posture;
 3. dry-run and apply the reviewed migration to the hosted project;
 4. build atomic, idempotent PCO ingestion with a dry-run mode;
 5. load one representative weekend and reconcile every expected slot and item.
