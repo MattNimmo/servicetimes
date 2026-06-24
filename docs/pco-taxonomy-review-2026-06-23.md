@@ -8,9 +8,8 @@ values were changed.
 
 | Classification | Count | Treatment |
 | --- | ---: | --- |
-| Combined title | 5 | Manual bucket or planned-time split; never auto-alias |
+| Combined title | 6 | Manual bucket or planned-time split; never auto-alias |
 | Rollup review | 5 | Decide whether the song is a child of a timed parent |
-| Missing alias | 2 | Approve a durable alias or leave occurrence unmapped |
 | Section mismatch | 1 | Review the source header before moving buckets |
 
 ## Combined titles
@@ -18,6 +17,8 @@ values were changed.
 - SLP: `Host Pastor//New Guest`
 - SLP: `Salvation Response//Connect Card`
 - MG: `Salvation Response/Next steps`
+- ELK: `Salvation Response CC` (Salvation Response plus Connect Card; local
+  after the broadcast LIVE time)
 - LV: `Host Pastor//Close Worship`
 - LV: `Final Prayer//Dismissal`
 
@@ -35,12 +36,9 @@ Song titles should not become durable aliases. They need an occurrence-level
 decision about whether they roll up under the surrounding timed worship or
 response parent.
 
-## Missing aliases
+## Approved alias
 
-- MG local: `Closing Prayer` — likely candidate for `local.final_prayer`, pending
-  approval.
-- ELK live: `Salvation Response CC` — section placement and whether `CC` means
-  Connect Card must be confirmed before mapping.
+- `Closing Prayer` maps to `local.final_prayer`.
 
 ## Section mismatch
 

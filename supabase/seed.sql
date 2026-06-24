@@ -112,7 +112,8 @@ values
   ('local', 'worship response', 'exact', 10, 'local.worship_response'),
   ('local', 'worship response song', 'exact', 10, 'local.worship_response'),
   ('local', 'salvation response', 'exact', 10, 'local.salvation'),
-  ('local', 'final prayer', 'exact', 10, 'local.final_prayer')
+  ('local', 'final prayer', 'exact', 10, 'local.final_prayer'),
+  ('local', 'closing prayer', 'exact', 10, 'local.final_prayer')
 on conflict (campus_id, section_key, raw_title_normalized, match_type) do update set
   priority = excluded.priority,
   element_key = excluded.element_key;
