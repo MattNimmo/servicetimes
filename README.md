@@ -22,7 +22,7 @@ Shipped to `main`:
 - `7797ada` — merged four-campus zero-write ingestion preview.
 - `27a760b` — merged taxonomy review classification and approved mappings.
 
-In review on `codex/atomic-ingestion`:
+Merged from `codex/atomic-ingestion`:
 
 - deployable deterministic configuration for hosted projects;
 - slot-scoped review evidence and incident supersession;
@@ -30,23 +30,17 @@ In review on `codex/atomic-ingestion`:
 - server-only writer guarded by `ENABLE_PCO_INGESTION_WRITES=true`;
 - 23 application unit tests and 42 database assertions total.
 
-The hosted Supabase project is connected to GitHub. Codex MCP is authenticated,
-project-scoped, and read-only. Live validation on 2026-06-23 confirmed
-PostgreSQL 17.6, no `public` tables, no migration history, empty generated
-application types, and no security or performance advisor findings. The
-Supabase CLI is authenticated, but its token is rejected by the project-status
-endpoint during `supabase link` even though the dashboard identity is the
-project Owner. No migration or production data has been applied remotely. The
-next slice is:
+The hosted Supabase project is connected to GitHub, and CI runs a clean reset,
+the full pgTAP suite, and `supabase db lint` against a real Postgres on every
+pull request. On 2026-06-24 all four migrations were applied to the hosted
+project (`vtleuqtipsxbsdaodcqo`) via `supabase db push`; remote migration
+history matches local. The schema, RLS lockdown, occurrence guards, seeded
+configuration, and the `ingest_pco_plan` RPC are live. No production timing
+data has been ingested yet. The remaining slice is:
 
-1. run a clean local reset, pgTAP suite, and database lint with a compatible
-   container runtime;
-2. resolve the Supabase CLI token/link mismatch and verify the hosted project's
-   recovery posture;
-3. dry-run and apply the reviewed migration to the hosted project;
-4. load one representative weekend with the write flag enabled only for the
-   controlled ingestion call;
-5. return the write flag to false and reconcile every expected slot and item.
+1. load one representative weekend with `ENABLE_PCO_INGESTION_WRITES=true` for
+   the single controlled ingestion call;
+2. return the write flag to false and reconcile every expected slot and item.
 
 ## Local setup
 
