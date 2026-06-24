@@ -18,19 +18,28 @@ Shipped to `main`:
 - `79cf60d` — executable Supabase migration, deterministic seeds, RLS lockdown,
   correction overlays, append-only audit history, and pgTAP tests.
 
-The hosted Supabase project is connected to GitHub. It is not yet linked to the
-local Supabase CLI or Codex MCP, and the migration has not been confirmed as
-applied remotely. No production data has been ingested. The next slice is:
+In review on `codex/supabase-foundation`:
 
-1. strengthen database invariants and run a clean local reset, pgTAP suite,
-   database lint, application lint, and production build;
-2. connect Codex MCP read-only, link the Supabase CLI, and verify the hosted
-   project's PostgreSQL version, migration history, existing objects, and
+- forward-only campus and occurrence boundary migration with expanded pgTAP;
+- pure PCO title/taxonomy normalizer with 11 golden unit tests;
+- project-scoped, read-only Supabase MCP configuration.
+
+The hosted Supabase project is connected to GitHub. Codex MCP is authenticated,
+project-scoped, and read-only. Live validation on 2026-06-23 confirmed
+PostgreSQL 17.6, no `public` tables, no migration history, empty generated
+application types, and no security or performance advisor findings. The
+Supabase CLI is authenticated, but its token is rejected by the project-status
+endpoint during `supabase link` even though the dashboard identity is the
+project Owner. No migration or production data has been applied remotely. The
+next slice is:
+
+1. run a clean local reset, pgTAP suite, and database lint with a compatible
+   container runtime;
+2. resolve the Supabase CLI token/link mismatch and verify the hosted project's
    recovery posture;
 3. dry-run and apply the reviewed migration to the hosted project;
-4. build the pure normalizer with golden taxonomy fixtures;
-5. build atomic, idempotent PCO ingestion with a dry-run mode;
-6. load one representative weekend and reconcile every expected slot and item.
+4. build atomic, idempotent PCO ingestion with a dry-run mode;
+5. load one representative weekend and reconcile every expected slot and item.
 
 ## Local setup
 
@@ -63,6 +72,7 @@ The first live result and its backend consequences are recorded in
 npm run dev
 npm run lint
 npm run build
+npm test
 npm run db:start
 npm run db:reset
 npm run db:test
