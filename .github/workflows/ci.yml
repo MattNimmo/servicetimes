@@ -40,3 +40,37 @@ jobs:
 
       - name: Build application
         run: npm run build
+
+  database:
+    name: Reset, test, and lint database
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start local Supabase
+        run: npm run db:start
+
+      - name: Reset database from migrations and seeds
+        run: npm run db:reset
+
+      - name: Run pgTAP tests
+        run: npm run db:test
+
+      - name: Lint database
+        run: npm run db:lint
+
+      - name: Stop local Supabase
+        if: always()
+        run: npm run db:stop
