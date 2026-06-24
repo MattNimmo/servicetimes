@@ -33,8 +33,15 @@ the full pgTAP suite, and `supabase db lint` against a real Postgres on every
 pull request. On 2026-06-24 all four migrations were applied to the hosted
 project (`vtleuqtipsxbsdaodcqo`) via `supabase db push`; remote migration
 history matches local. The schema, RLS lockdown, occurrence guards, seeded
-configuration, and the `ingest_pco_plan` RPC are live. No production timing
-data has been ingested yet.
+configuration, and the `ingest_pco_plan` RPC are live.
+
+On 2026-06-24 the first controlled production loads completed and reconciled:
+SLP (ingest run 1), ELK (run 2), and LV (run 3), all for the 2026-06-21 service
+date. Every persisted plan, PlanTime, item, ItemTime, slot assignment, and open
+incident matched its dry-run plan. MG remains intentionally uncommitted because
+its 9am PlanTime has a zero-length LIVE window and its 11am PlanTime has
+incomplete LIVE bounds. The write flag was enabled only for each atomic command
+and is off by default.
 
 The atomic writer is called only by the server-side
 `scripts/ingest-weekend.ts` runner (dry-run by default, `--commit` to write,
@@ -42,12 +49,10 @@ The atomic writer is called only by the server-side
 [`docs/ingestion-write-path.md`](docs/ingestion-write-path.md). The remaining
 controlled rollout is:
 
-1. merge the tested single-campus ingestion runner;
-2. load **SLP** with `ENABLE_PCO_INGESTION_WRITES=true` for the
-   single controlled call (the 9am slot is the first reconciliation focus; the
-   11am PlanTime lands in the same atomic plan);
-3. return the write flag to false, reconcile via the service-role read, then
-   repeat for ELK / MG / LV.
+1. resolve or explicitly disposition MG's invalid production LIVE bounds;
+2. dry-run MG again and require valid 9am / 11am slot reconciliation before its
+   first commit;
+3. design the authenticated recurring ingestion route and schedule.
 
 A recurring authed POST route plus Vercel Cron is a deferred follow-up (auth
 mechanism to be settled then); see the spec's "Deferred" section.
