@@ -79,8 +79,8 @@ select throws_ok(
 );
 
 select results_eq(
-  $$select is_generated::text from information_schema.columns where table_schema = 'public' and table_name = 'plan_times' and column_name = 'actual_service_seconds'$$,
-  $$values ('ALWAYS'::text)$$,
+  $$select is_generated = 'ALWAYS' from information_schema.columns where table_schema = 'public' and table_name = 'plan_times' and column_name = 'actual_service_seconds'$$,
+  $$values (true)$$,
   'PlanTime actual duration is generated from raw LIVE bounds'
 );
 

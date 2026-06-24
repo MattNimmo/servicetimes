@@ -85,9 +85,9 @@ declare
   ingest_run_id bigint;
   entry jsonb;
   incident_record public.review_incidents%rowtype;
-  plan_time_id bigint;
-  slot_id bigint;
-  item_id bigint;
+  resolved_plan_time_id bigint;
+  resolved_slot_id bigint;
+  resolved_item_id bigint;
   item_pco_id text;
   service_date date;
   plan_time_count integer;
@@ -159,14 +159,14 @@ begin
   for entry in
     select value from jsonb_array_elements(coalesce(payload->'planTimes', '[]'::jsonb))
   loop
-    slot_id := null;
+    resolved_slot_id := null;
     if nullif(entry->>'detectedSlotLabel', '') is not null then
-      select s.id into slot_id
+      select s.id into resolved_slot_id
         from public.service_slots s
         where s.campus_id = campus_record.id
           and s.slot_label = entry->>'detectedSlotLabel';
 
-      if slot_id is null then
+      if resolved_slot_id is null then
         raise exception 'unknown slot % for campus %',
           entry->>'detectedSlotLabel', campus_record.code
           using errcode = '22023';
@@ -189,7 +189,7 @@ begin
     ) values (
       entry->>'pcoPlanTimeId',
       plan_record.id,
-      slot_id,
+      resolved_slot_id,
       entry->>'slotResolutionState',
       nullif(entry->>'pcoName', ''),
       entry->>'timeType',
@@ -267,17 +267,17 @@ begin
   for entry in
     select value from jsonb_array_elements(coalesce(payload->'itemTimes', '[]'::jsonb))
   loop
-    select i.id into item_id
+    select i.id into resolved_item_id
       from public.items i
       where i.pco_item_id = entry->>'pcoItemId'
         and i.plan_id = plan_record.id;
 
-    select pt.id into plan_time_id
+    select pt.id into resolved_plan_time_id
       from public.plan_times pt
       where pt.pco_plan_time_id = entry->>'pcoPlanTimeId'
         and pt.plan_id = plan_record.id;
 
-    if item_id is null or plan_time_id is null then
+    if resolved_item_id is null or resolved_plan_time_id is null then
       raise exception 'ItemTime % references an unknown item or PlanTime',
         entry->>'pcoItemTimeId'
         using errcode = '23503';
@@ -296,8 +296,8 @@ begin
       pulled_at
     ) values (
       entry->>'pcoItemTimeId',
-      item_id,
-      plan_time_id,
+      resolved_item_id,
+      resolved_plan_time_id,
       nullif(entry->>'pcoLengthSeconds', '')::integer,
       nullif(entry->>'lengthOffsetSeconds', '')::integer,
       nullif(entry->>'liveStartAt', '')::timestamptz,
@@ -321,16 +321,16 @@ begin
   for entry in
     select value from jsonb_array_elements(coalesce(payload->'incidents', '[]'::jsonb))
   loop
-    plan_time_id := null;
-    slot_id := null;
+    resolved_plan_time_id := null;
+    resolved_slot_id := null;
 
     if nullif(entry->>'planTimeId', '') is not null then
-      select pt.id into plan_time_id
+      select pt.id into resolved_plan_time_id
         from public.plan_times pt
         where pt.pco_plan_time_id = entry->>'planTimeId'
           and pt.plan_id = plan_record.id;
 
-      if plan_time_id is null then
+      if resolved_plan_time_id is null then
         raise exception 'incident references unknown PlanTime %', entry->>'planTimeId'
           using errcode = '23503';
       end if;
@@ -338,7 +338,7 @@ begin
       insert into public.review_incidents (
         plan_time_id, kind, source_fingerprint, detail, evidence
       ) values (
-        plan_time_id,
+        resolved_plan_time_id,
         entry->>'kind',
         entry->>'sourceFingerprint',
         entry->>'detail',
@@ -351,12 +351,12 @@ begin
         evidence = excluded.evidence
       returning * into incident_record;
     else
-      select s.id into slot_id
+      select s.id into resolved_slot_id
         from public.service_slots s
         where s.campus_id = campus_record.id
           and s.slot_label = entry->>'slotLabel';
 
-      if slot_id is null then
+      if resolved_slot_id is null then
         raise exception 'slot-scoped incident references unknown slot %', entry->>'slotLabel'
           using errcode = '23503';
       end if;
@@ -365,7 +365,7 @@ begin
         plan_id, slot_id, kind, source_fingerprint, detail, evidence
       ) values (
         plan_record.id,
-        slot_id,
+        resolved_slot_id,
         entry->>'kind',
         entry->>'sourceFingerprint',
         entry->>'detail',
@@ -386,18 +386,18 @@ begin
       select value #>> '{}'
         from jsonb_array_elements(coalesce(entry->'itemIds', '[]'::jsonb))
     loop
-      select i.id into item_id
+      select i.id into resolved_item_id
         from public.items i
         where i.pco_item_id = item_pco_id
           and i.plan_id = plan_record.id;
 
-      if item_id is null then
+      if resolved_item_id is null then
         raise exception 'incident references unknown item %', item_pco_id
           using errcode = '23503';
       end if;
 
       insert into public.review_incident_items (incident_id, item_id)
-      values (incident_record.id, item_id);
+      values (incident_record.id, resolved_item_id);
     end loop;
   end loop;
 
