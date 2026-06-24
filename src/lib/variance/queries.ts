@@ -172,6 +172,13 @@ async function openIncidents(planId: number, planTimeIds: number[]) {
   });
 }
 
+async function allPlanTimeIds(planId: number) {
+  return readRows<{ id: number }>("plan_times", {
+    plan_id: `eq.${planId}`,
+    select: "id",
+  });
+}
+
 async function unmappedCount(campus: string, serviceDate: string) {
   const rows = await readRows<{ id: number }>("unmapped_items", {
     campus: `eq.${campus}`,
@@ -192,15 +199,18 @@ export async function listServiceDates(code: string) {
 
   const dates = await Promise.all(
     plans.map(async (plan) => {
-      const planTimes = await readRows<{ id: number }>("effective_plan_times", {
-        plan_id: `eq.${plan.id}`,
-        effective_slot_id: "not.is.null",
-        time_type: "eq.service",
-        is_manually_excluded: "eq.false",
-        select: "id",
-      });
+      const [planTimes, everyPlanTime] = await Promise.all([
+        readRows<{ id: number }>("effective_plan_times", {
+          plan_id: `eq.${plan.id}`,
+          effective_slot_id: "not.is.null",
+          time_type: "eq.service",
+          is_manually_excluded: "eq.false",
+          select: "id",
+        }),
+        allPlanTimeIds(plan.id),
+      ]);
       const [incidents, unmapped] = await Promise.all([
-        openIncidents(plan.id, planTimes.map(({ id }) => id)),
+        openIncidents(plan.id, everyPlanTime.map(({ id }) => id)),
         unmappedCount(campus.code, plan.service_date),
       ]);
       return {
@@ -228,7 +238,7 @@ export async function getVarianceDashboard(code: string, serviceDate: string) {
   const plan = plans[0];
   if (!plan) return { campus, plan: null };
 
-  const [planTimes, slots, elements, unmapped] = await Promise.all([
+  const [planTimes, everyPlanTime, slots, elements, unmapped] = await Promise.all([
     readRows<EffectivePlanTime>("effective_plan_times", {
       plan_id: `eq.${plan.id}`,
       effective_slot_id: "not.is.null",
@@ -237,6 +247,7 @@ export async function getVarianceDashboard(code: string, serviceDate: string) {
       select:
         "id,effective_slot_id,planned_target_seconds,actual_service_seconds,slot_resolution_state",
     }),
+    allPlanTimeIds(plan.id),
     readRows<ServiceSlot>("service_slots", {
       campus_id: `eq.${campus.id}`,
       is_active: "eq.true",
@@ -250,7 +261,7 @@ export async function getVarianceDashboard(code: string, serviceDate: string) {
     }),
     unmappedCount(campus.code, plan.service_date),
   ]);
-  const incidents = await openIncidents(plan.id, planTimes.map(({ id }) => id));
+  const incidents = await openIncidents(plan.id, everyPlanTime.map(({ id }) => id));
 
   return {
     campus,
