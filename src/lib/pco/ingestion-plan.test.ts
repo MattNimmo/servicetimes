@@ -318,7 +318,7 @@ describe("buildIngestionPlan", () => {
             "item",
             120,
           ),
-          pcoItem("unknown", 6, "Closing Prayer", "item", 60),
+          pcoItem("unknown", 6, "Campus Prayer", "item", 60),
           pcoItem("unknown-header", 7, "Campus Custom", "header", 0),
           pcoItem("orphan", 8, "Pastor Moment", "item", 60),
         ],
@@ -360,5 +360,60 @@ describe("buildIngestionPlan", () => {
       rollup_review: 1,
       section_mismatch: 1,
     });
+  });
+
+  it("maps Closing Prayer to the approved Final Prayer element", () => {
+    const result = buildIngestionPlan(
+      campus,
+      {
+        plan,
+        planTimes: [productionTime],
+        items: [
+          pcoItem("header-local", 1, "Local", "header", 0),
+          pcoItem("closing-prayer", 2, "Closing Prayer", "item", 60),
+        ],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(result.items[1]).toMatchObject({
+      sectionKey: "local",
+      elementKey: "local.final_prayer",
+      resolutionSource: "alias",
+    });
+  });
+
+  it("recognizes ELK Salvation Response CC as a combined local moment", () => {
+    const elk = PCO_CAMPUSES.find(({ code }) => code === "ELK")!;
+    const result = buildIngestionPlan(
+      elk,
+      {
+        plan,
+        planTimes: [planTime("elk-time", "2026-06-21T14:00:00Z")],
+        items: [
+          pcoItem("header-live", 1, "Live", "header", 0),
+          pcoItem(
+            "salvation-connect-card",
+            2,
+            "Salvation Response CC",
+            "item",
+            120,
+          ),
+        ],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(result.taxonomyReview).toContainEqual(
+      expect.objectContaining({
+        pcoItemId: "salvation-connect-card",
+        reason: "combined_title",
+        currentSectionKey: "live",
+        suggestedSectionKey: "local",
+        suggestedElementKey: null,
+      }),
+    );
   });
 });

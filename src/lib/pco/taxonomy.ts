@@ -37,6 +37,7 @@ export const PCO_TAXONOMY = {
     ["local", "worship response song", "local.worship_response"],
     ["local", "salvation response", "local.salvation"],
     ["local", "final prayer", "local.final_prayer"],
+    ["local", "closing prayer", "local.final_prayer"],
   ].map(([sectionKey, rawTitleNormalized, elementKey]) => ({
     campusCode: null,
     sectionKey,
@@ -45,4 +46,11 @@ export const PCO_TAXONOMY = {
     priority: 10,
     elementKey,
   })),
+  combinedTitleRules: [
+    {
+      campusCode: "ELK",
+      rawTitleNormalized: "salvation response cc",
+      suggestedSectionKey: "local",
+    },
+  ],
 } satisfies TaxonomyConfig;

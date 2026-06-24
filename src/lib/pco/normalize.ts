@@ -17,6 +17,12 @@ export type ElementAlias = {
   elementKey: string;
 };
 
+export type CombinedTitleRule = {
+  campusCode: string | null;
+  rawTitleNormalized: string;
+  suggestedSectionKey: string | null;
+};
+
 export type NormalizableItem = {
   id: string;
   sequence: number;
@@ -35,6 +41,7 @@ export type NormalizedItem = NormalizableItem & {
 export type TaxonomyConfig = {
   sectionAliases: readonly SectionAlias[];
   elementAliases: readonly ElementAlias[];
+  combinedTitleRules?: readonly CombinedTitleRule[];
 };
 
 type AliasBase = {

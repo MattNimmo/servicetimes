@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import {
   normalizePlanItems,
+  normalizePcoTitle,
   resolveElement,
   type TaxonomyConfig,
 } from "@/lib/pco/normalize";
@@ -274,11 +275,17 @@ function buildTaxonomyReview(
     let reason: TaxonomyReviewReason;
     let suggestedSectionKey: string | null = null;
     let suggestedElementKey: string | null = null;
+    const combinedTitleRule = taxonomy.combinedTitleRules?.find(
+      (rule) =>
+        (rule.campusCode === null || rule.campusCode === campusCode) &&
+        rule.rawTitleNormalized === normalizePcoTitle(item.rawTitle),
+    );
 
     if (item.itemType === "song") {
       reason = "rollup_review";
-    } else if (/\/{1,2}/.test(item.rawTitle)) {
+    } else if (combinedTitleRule || /\/{1,2}/.test(item.rawTitle)) {
       reason = "combined_title";
+      suggestedSectionKey = combinedTitleRule?.suggestedSectionKey ?? null;
     } else if (item.sectionKey === null) {
       reason = "missing_section";
     } else {
