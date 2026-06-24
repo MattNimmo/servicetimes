@@ -22,10 +22,15 @@ The hosted Supabase project is connected to GitHub. It is not yet linked to the
 local Supabase CLI or Codex MCP, and the migration has not been confirmed as
 applied remotely. No production data has been ingested. The next slice is:
 
-1. connect Codex MCP read-only and link the Supabase CLI to the project;
-2. dry-run and apply the migration, then run the database tests;
-3. build the normalizer and golden taxonomy tests;
-4. build atomic PCO ingestion and load one representative weekend.
+1. strengthen database invariants and run a clean local reset, pgTAP suite,
+   database lint, application lint, and production build;
+2. connect Codex MCP read-only, link the Supabase CLI, and verify the hosted
+   project's PostgreSQL version, migration history, existing objects, and
+   recovery posture;
+3. dry-run and apply the reviewed migration to the hosted project;
+4. build the pure normalizer with golden taxonomy fixtures;
+5. build atomic, idempotent PCO ingestion with a dry-run mode;
+6. load one representative weekend and reconcile every expected slot and item.
 
 ## Local setup
 
