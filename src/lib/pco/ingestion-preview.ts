@@ -1,17 +1,10 @@
 import "server-only";
 
+import { buildCampusPlan } from "@/lib/pco/build-campus-plan";
 import { PCO_CAMPUSES } from "@/lib/pco/campuses";
-import { fetchLatestCompletedPlan } from "@/lib/pco/fetch-plan";
-import { buildIngestionPlan } from "@/lib/pco/ingestion-plan";
-import { PCO_TAXONOMY } from "@/lib/pco/taxonomy";
-
-async function previewCampus(campus: (typeof PCO_CAMPUSES)[number]) {
-  const bundle = await fetchLatestCompletedPlan(campus.serviceTypeId);
-  return buildIngestionPlan(campus, bundle, PCO_TAXONOMY);
-}
 
 export async function previewLatestPcoIngestion() {
-  const results = await Promise.allSettled(PCO_CAMPUSES.map(previewCampus));
+  const results = await Promise.allSettled(PCO_CAMPUSES.map(buildCampusPlan));
 
   return {
     ok: results.every(({ status }) => status === "fulfilled"),

@@ -1,20 +1,16 @@
 import "server-only";
 
+import { buildCampusPlan } from "@/lib/pco/build-campus-plan";
 import { PCO_CAMPUSES } from "@/lib/pco/campuses";
-import { fetchLatestCompletedPlan } from "@/lib/pco/fetch-plan";
-import { buildIngestionPlan } from "@/lib/pco/ingestion-plan";
 import { persistIngestionPlan } from "@/lib/pco/ingestion-writer";
-import { PCO_TAXONOMY } from "@/lib/pco/taxonomy";
 
 type Dependencies = {
-  fetchPlan: typeof fetchLatestCompletedPlan;
-  buildPlan: typeof buildIngestionPlan;
+  buildCampusPlan: typeof buildCampusPlan;
   persistPlan: typeof persistIngestionPlan;
 };
 
 const defaultDependencies: Dependencies = {
-  fetchPlan: fetchLatestCompletedPlan,
-  buildPlan: buildIngestionPlan,
+  buildCampusPlan,
   persistPlan: persistIngestionPlan,
 };
 
@@ -26,10 +22,7 @@ export async function runRecurringPcoIngestion(
   dependencies: Dependencies = defaultDependencies,
 ) {
   const previews = await Promise.allSettled(
-    PCO_CAMPUSES.map(async (campus) => {
-      const bundle = await dependencies.fetchPlan(campus.serviceTypeId);
-      return dependencies.buildPlan(campus, bundle, PCO_TAXONOMY);
-    }),
+    PCO_CAMPUSES.map(dependencies.buildCampusPlan),
   );
 
   if (previews.some(({ status }) => status === "rejected")) {

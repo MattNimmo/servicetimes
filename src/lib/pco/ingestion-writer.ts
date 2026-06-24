@@ -1,14 +1,9 @@
 import "server-only";
 
 import type { IngestionPlan } from "@/lib/pco/ingestion-plan";
+import { requireSupabaseEnv } from "@/lib/supabase/rest";
 
 const WRITE_FLAG = "ENABLE_PCO_INGESTION_WRITES";
-
-function requireEnv(name: "NEXT_PUBLIC_SUPABASE_URL" | "SUPABASE_SERVICE_ROLE_KEY") {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing required server environment variable: ${name}`);
-  return value;
-}
 
 export async function persistIngestionPlan(plan: IngestionPlan) {
   if (process.env[WRITE_FLAG] !== "true") {
@@ -19,8 +14,8 @@ export async function persistIngestionPlan(plan: IngestionPlan) {
     throw new Error("Only a validated dry-run ingestion plan can be persisted");
   }
 
-  const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const supabaseUrl = requireSupabaseEnv("NEXT_PUBLIC_SUPABASE_URL");
+  const serviceRoleKey = requireSupabaseEnv("SUPABASE_SERVICE_ROLE_KEY");
   const response = await fetch(`${supabaseUrl}/rest/v1/rpc/ingest_pco_plan`, {
     method: "POST",
     headers: {

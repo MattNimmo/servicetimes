@@ -1,6 +1,7 @@
 # Build plan — product layer (post-ingestion)
 
-Status: **approved** (2026-06-24). First slice (Phase 1) ready for implementation.
+Status: **Phase 0 and Phase 1 implemented** (2026-06-24). Migration deployment,
+production auth secrets, and the login rate-limit gate remain operational steps.
 
 ## Context
 
@@ -28,12 +29,12 @@ better; reuse what exists; do not fabricate precision the data doesn't have.**
 
 ## Roadmap
 
-- **Phase 0 — ingestion cleanup** (small, do first): apply the review trims
+- **Phase 0 — ingestion cleanup** (**implemented**): apply the review trims
   (extract the shared Supabase REST helper — see Phase 1; collapse the duplicated
   per-campus fetch+build into one `buildCampusPlan(campus)`; drop the redundant
   verifier "open incident count" check); fix the five current test-file type
   errors; add a `typecheck` (`tsc --noEmit`) step to CI so test types cannot rot.
-- **Phase 1 — auth gate + viewer variance dashboard** (this slice; specified below).
+- **Phase 1 — auth gate + viewer variance dashboard** (**implemented**; specified below).
 - **Phase 2 — operator admin panel: review & correction workflow.** Resolve
   `review_incidents` (kept/corrected/excluded), write `correction_sets` /
   `correction_values`, `plan_time_slot_resolutions`, `item_bucket_overrides`,
@@ -245,3 +246,16 @@ Edit:
 ### Out of scope for this slice
 Corrections/incident resolution writes (Phase 2), approved campus reference
 targets and recommendations (Phase 3), and any client-side Supabase SDK.
+
+### Deployment gates
+
+1. Merge only after application CI and the clean Supabase reset/pgTAP/lint job
+   pass, then deploy `20260624030000_variance_views.sql` through the linked CLI.
+2. Configure production `NEXT_PUBLIC_SUPABASE_URL`,
+   `SUPABASE_SERVICE_ROLE_KEY`, `AUTH_SESSION_SECRET`, `VIEWER_PASSWORD`, and
+   `OPERATOR_PASSWORD`; keep every secret except the project URL server-only.
+3. Configure and verify the Vercel Firewall rate-limit rule for `/login` before
+   distributing either shared password.
+4. Exercise viewer and operator login, then validate SLP, ELK, LV, and MG against
+   the loaded 2026-06-21 data. MG must show review pills; ELK/LV bundle overlap
+   must affect only involved element rows.

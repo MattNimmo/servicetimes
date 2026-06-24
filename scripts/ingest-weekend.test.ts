@@ -35,8 +35,7 @@ const plan = {
 
 function dependencies() {
   return {
-    fetchPlan: vi.fn().mockResolvedValue({}),
-    buildPlan: vi.fn().mockReturnValue(plan),
+    buildCampusPlan: vi.fn().mockResolvedValue(plan),
     persistPlan: vi.fn().mockResolvedValue({
       ingestRunId: 17,
       pcoPlanId: "plan-1",
@@ -59,7 +58,9 @@ describe("ingest-weekend", () => {
 
     await runIngestionCli([], deps);
 
-    expect(deps.fetchPlan).toHaveBeenCalledWith("31424");
+    expect(deps.buildCampusPlan).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "SLP", serviceTypeId: "31424" }),
+    );
     expect(deps.persistPlan).not.toHaveBeenCalled();
     expect(deps.log).toHaveBeenCalledWith(expect.stringContaining("Dry-run: SLP"));
   });
@@ -99,6 +100,6 @@ describe("ingest-weekend", () => {
     await expect(runIngestionCli(["--verify"], deps)).rejects.toThrow(
       "Standalone --verify requires --ingest-run-id",
     );
-    expect(deps.fetchPlan).not.toHaveBeenCalled();
+    expect(deps.buildCampusPlan).not.toHaveBeenCalled();
   });
 });

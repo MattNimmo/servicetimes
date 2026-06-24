@@ -56,7 +56,8 @@ describe("verifyIngestionPlan", () => {
       item_times: [{ id: 50 }],
       review_incidents: [{ kind: "timer_bleed" }],
     };
-    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+    const fetchMock = vi.fn(async (...args: [URL | RequestInfo, RequestInit?]) => {
+      const [input] = args;
       const url = new URL(input.toString());
       const table = url.pathname.split("/").at(-1) ?? "";
       return Response.json(rowsByTable[table] ?? []);
