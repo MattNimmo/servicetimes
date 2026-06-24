@@ -299,4 +299,66 @@ describe("buildIngestionPlan", () => {
       }),
     );
   });
+
+  it("classifies unmapped taxonomy rows without silently assigning them", () => {
+    const result = buildIngestionPlan(
+      campus,
+      {
+        plan,
+        planTimes: [productionTime],
+        items: [
+          pcoItem("header-worship", 1, "Praise & Worship", "header", 0),
+          pcoItem("song", 2, "Worthy", "song", 300),
+          pcoItem("close-worship", 3, "Close Worship", "item", 60),
+          pcoItem("header-local", 4, "Local", "header", 0),
+          pcoItem(
+            "combined",
+            5,
+            "Salvation Response//Connect Card",
+            "item",
+            120,
+          ),
+          pcoItem("unknown", 6, "Closing Prayer", "item", 60),
+          pcoItem("unknown-header", 7, "Campus Custom", "header", 0),
+          pcoItem("orphan", 8, "Pastor Moment", "item", 60),
+        ],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(result.taxonomyReview).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pcoItemId: "song",
+          reason: "rollup_review",
+        }),
+        expect.objectContaining({
+          pcoItemId: "close-worship",
+          reason: "section_mismatch",
+          suggestedSectionKey: "mid_service",
+          suggestedElementKey: "mid.close_worship",
+        }),
+        expect.objectContaining({
+          pcoItemId: "combined",
+          reason: "combined_title",
+        }),
+        expect.objectContaining({
+          pcoItemId: "unknown",
+          reason: "missing_alias",
+        }),
+        expect.objectContaining({
+          pcoItemId: "orphan",
+          reason: "missing_section",
+        }),
+      ]),
+    );
+    expect(result.summary.taxonomyReviewByReason).toMatchObject({
+      combined_title: 1,
+      missing_alias: 1,
+      missing_section: 1,
+      rollup_review: 1,
+      section_mismatch: 1,
+    });
+  });
 });

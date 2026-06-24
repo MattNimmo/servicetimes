@@ -24,9 +24,11 @@ In review on `codex/pco-ingestion`:
 
 - shared read-only latest-plan fetch for the probe and ingestion preview;
 - deterministic production-slot selection and row-shaped ingestion batches;
-- source fingerprints, review incidents, reconciliation evidence, and 17 unit
+- source fingerprints, review incidents, reconciliation evidence, and 18 unit
   tests total;
 - development-only four-campus preview with an explicit zero-write guarantee.
+- classified taxonomy review candidates with no silent bucket assignment; see
+  [`docs/pco-taxonomy-review-2026-06-23.md`](docs/pco-taxonomy-review-2026-06-23.md).
 
 The hosted Supabase project is connected to GitHub. Codex MCP is authenticated,
 project-scoped, and read-only. Live validation on 2026-06-23 confirmed

@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 
-import { normalizePlanItems, type TaxonomyConfig } from "@/lib/pco/normalize";
+import {
+  normalizePlanItems,
+  resolveElement,
+  type TaxonomyConfig,
+} from "@/lib/pco/normalize";
 import type { PCO_CAMPUSES } from "@/lib/pco/campuses";
 import type {
   PcoItem,
@@ -31,6 +35,13 @@ export type IngestionIncident = {
   detail: string;
   evidence: unknown;
 };
+
+export type TaxonomyReviewReason =
+  | "rollup_review"
+  | "combined_title"
+  | "section_mismatch"
+  | "missing_section"
+  | "missing_alias";
 
 type PlanBundle = {
   plan: PcoPlan;
@@ -234,6 +245,75 @@ function bundleOverlapIncidents(
   });
 }
 
+function buildTaxonomyReview(
+  items: Array<{
+    pcoItemId: string;
+    rawTitle: string;
+    itemType: PcoItem["attributes"]["item_type"];
+    plannedSeconds: number;
+    sectionKey: string | null;
+    elementKey: string | null;
+  }>,
+  campusCode: string,
+  taxonomy: TaxonomyConfig,
+) {
+  const sectionKeys = [
+    ...new Set(taxonomy.elementAliases.map(({ sectionKey }) => sectionKey)),
+  ];
+
+  return items.flatMap((item) => {
+    if (
+      item.itemType === "header" ||
+      item.elementKey !== null ||
+      item.rawTitle.length === 0 ||
+      item.plannedSeconds <= 0
+    ) {
+      return [];
+    }
+
+    let reason: TaxonomyReviewReason;
+    let suggestedSectionKey: string | null = null;
+    let suggestedElementKey: string | null = null;
+
+    if (item.itemType === "song") {
+      reason = "rollup_review";
+    } else if (/\/{1,2}/.test(item.rawTitle)) {
+      reason = "combined_title";
+    } else if (item.sectionKey === null) {
+      reason = "missing_section";
+    } else {
+      for (const sectionKey of sectionKeys) {
+        if (sectionKey === item.sectionKey) continue;
+        const elementKey = resolveElement(
+          item.rawTitle,
+          campusCode,
+          sectionKey,
+          taxonomy.elementAliases,
+        );
+        if (!elementKey) continue;
+        suggestedSectionKey = sectionKey;
+        suggestedElementKey = elementKey;
+        break;
+      }
+
+      reason = suggestedElementKey ? "section_mismatch" : "missing_alias";
+    }
+
+    return [
+      {
+        pcoItemId: item.pcoItemId,
+        rawTitle: item.rawTitle,
+        itemType: item.itemType,
+        plannedSeconds: item.plannedSeconds,
+        currentSectionKey: item.sectionKey,
+        reason,
+        suggestedSectionKey,
+        suggestedElementKey,
+      },
+    ];
+  });
+}
+
 export function buildIngestionPlan(
   campus: PcoCampus,
   bundle: PlanBundle,
@@ -424,6 +504,15 @@ export function buildIngestionPlan(
   }
 
   incidents.push(...bundleOverlapIncidents(bundle.items, assignments));
+  const taxonomyReview = buildTaxonomyReview(items, campus.code, taxonomy);
+  const taxonomyReviewByReason = Object.fromEntries(
+    [...new Set(taxonomyReview.map(({ reason }) => reason))]
+      .sort()
+      .map((reason) => [
+        reason,
+        taxonomyReview.filter((candidate) => candidate.reason === reason).length,
+      ]),
+  );
 
   return {
     campus: campus.code,
@@ -446,6 +535,7 @@ export function buildIngestionPlan(
         `${right.kind}:${right.planTimeId}:${right.slotLabel}`,
       ),
     ),
+    taxonomyReview,
     summary: {
       productionSlotCount: campus.slots.length,
       matchedSlotCount: assignments.size,
@@ -459,6 +549,7 @@ export function buildIngestionPlan(
         ({ itemType, elementKey, plannedSeconds }) =>
           itemType !== "header" && elementKey === null && plannedSeconds > 0,
       ).length,
+      taxonomyReviewByReason,
       incidentCount: incidents.length,
     },
   };
