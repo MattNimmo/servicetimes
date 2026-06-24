@@ -54,6 +54,13 @@ triggers. Both require `Authorization: Bearer <CRON_SECRET>` and the independent
 `ENABLE_PCO_INGESTION_WRITES=true` kill switch. Every campus is previewed before
 any writes begin, and each campus write remains atomic and idempotent.
 
+The product layer adds signed shared-role authentication and server-rendered
+variance pages at `/variance`. Slot and element views show planned-versus-actual
+timing while preserving review-state evidence; unapproved campus reference
+targets are deliberately not displayed. See
+[`docs/product-layer-build-plan.md`](docs/product-layer-build-plan.md) for the
+implemented slice and its remaining production deployment gates.
+
 ## Local setup
 
 ```bash

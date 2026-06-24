@@ -2,12 +2,11 @@ import { pathToFileURL } from "node:url";
 
 import { loadEnvConfig } from "@next/env";
 
+import { buildCampusPlan } from "@/lib/pco/build-campus-plan";
 import { PCO_CAMPUSES } from "@/lib/pco/campuses";
-import { fetchLatestCompletedPlan } from "@/lib/pco/fetch-plan";
-import { buildIngestionPlan, type IngestionPlan } from "@/lib/pco/ingestion-plan";
+import type { IngestionPlan } from "@/lib/pco/ingestion-plan";
 import { verifyIngestionPlan } from "@/lib/pco/ingestion-verifier";
 import { persistIngestionPlan } from "@/lib/pco/ingestion-writer";
-import { PCO_TAXONOMY } from "@/lib/pco/taxonomy";
 
 type CliOptions = {
   campus: string;
@@ -17,16 +16,14 @@ type CliOptions = {
 };
 
 type Dependencies = {
-  fetchPlan: typeof fetchLatestCompletedPlan;
-  buildPlan: typeof buildIngestionPlan;
+  buildCampusPlan: typeof buildCampusPlan;
   persistPlan: typeof persistIngestionPlan;
   verifyPlan: typeof verifyIngestionPlan;
   log: (message: string) => void;
 };
 
 const defaultDependencies: Dependencies = {
-  fetchPlan: fetchLatestCompletedPlan,
-  buildPlan: buildIngestionPlan,
+  buildCampusPlan,
   persistPlan: persistIngestionPlan,
   verifyPlan: verifyIngestionPlan,
   log: console.log,
@@ -94,8 +91,7 @@ export async function runIngestionCli(
   const campus = PCO_CAMPUSES.find(({ code }) => code === options.campus);
   if (!campus) throw new Error(`Unknown campus code: ${options.campus}`);
 
-  const bundle = await dependencies.fetchPlan(campus.serviceTypeId);
-  const plan = dependencies.buildPlan(campus, bundle, PCO_TAXONOMY);
+  const plan = await dependencies.buildCampusPlan(campus);
   printDryRun(plan, dependencies.log);
 
   let ingestRunId = options.ingestRunId;

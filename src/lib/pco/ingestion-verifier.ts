@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { IngestionPlan } from "@/lib/pco/ingestion-plan";
+import { readRows } from "@/lib/supabase/rest";
 
 type VerificationCheck = {
   check: string;
@@ -13,34 +14,6 @@ export type IngestionVerification = {
   ok: boolean;
   checks: VerificationCheck[];
 };
-
-function requireEnv(name: "NEXT_PUBLIC_SUPABASE_URL" | "SUPABASE_SERVICE_ROLE_KEY") {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing required server environment variable: ${name}`);
-  return value;
-}
-
-async function readRows<T>(table: string, params: Record<string, string>) {
-  const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
-  const url = new URL(`/rest/v1/${table}`, supabaseUrl);
-  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
-
-  const response = await fetch(url, {
-    headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
-    },
-    cache: "no-store",
-    signal: AbortSignal.timeout(30_000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Ingestion verification read failed for ${table} (${response.status})`);
-  }
-
-  return (await response.json()) as T[];
-}
 
 function groupedKinds(incidents: Array<{ kind: string }>) {
   const counts = new Map<string, number>();
@@ -155,7 +128,6 @@ export async function verifyIngestionPlan(
 
   checks.push(
     check("item time count", plan.summary.itemTimeCount, itemTimes.length),
-    check("open incident count", plan.summary.incidentCount, incidents.length),
     check("open incidents by kind", groupedKinds(plan.incidents), groupedKinds(incidents)),
   );
 
