@@ -19,16 +19,16 @@ Shipped to `main`:
   correction overlays, append-only audit history, and pgTAP tests.
 - `bd8427a` — merged occurrence guardrails, pure PCO taxonomy normalizer,
   project-scoped read-only Supabase MCP, and GitHub CI.
+- `7797ada` — merged four-campus zero-write ingestion preview.
+- `27a760b` — merged taxonomy review classification and approved mappings.
 
-In review on `codex/pco-ingestion`:
+In review on `codex/atomic-ingestion`:
 
-- shared read-only latest-plan fetch for the probe and ingestion preview;
-- deterministic production-slot selection and row-shaped ingestion batches;
-- source fingerprints, review incidents, reconciliation evidence, and 20 unit
-  tests total;
-- development-only four-campus preview with an explicit zero-write guarantee.
-- classified taxonomy review candidates with no silent bucket assignment; see
-  [`docs/pco-taxonomy-review-2026-06-23.md`](docs/pco-taxonomy-review-2026-06-23.md).
+- deployable deterministic configuration for hosted projects;
+- slot-scoped review evidence and incident supersession;
+- one-call transactional, idempotent PCO ingestion RPC;
+- server-only writer guarded by `ENABLE_PCO_INGESTION_WRITES=true`;
+- 23 application unit tests and 42 database assertions total.
 
 The hosted Supabase project is connected to GitHub. Codex MCP is authenticated,
 project-scoped, and read-only. Live validation on 2026-06-23 confirmed
@@ -44,10 +44,9 @@ next slice is:
 2. resolve the Supabase CLI token/link mismatch and verify the hosted project's
    recovery posture;
 3. dry-run and apply the reviewed migration to the hosted project;
-4. review the live preview's unmapped taxonomy candidates and approve intended
-   aliases or rollup relationships;
-5. add the atomic database writer behind the validated dry-run planner;
-6. load one representative weekend and reconcile every expected slot and item.
+4. load one representative weekend with the write flag enabled only for the
+   controlled ingestion call;
+5. return the write flag to false and reconcile every expected slot and item.
 
 ## Local setup
 
@@ -97,9 +96,10 @@ npm run db:lint
 
 The versioned schema lives in `supabase/migrations`; deterministic campus,
 service-slot, section, element, and alias configuration lives in
-`supabase/seed.sql`. Raw Planning Center values are never replaced by Admin
-changes. Slot decisions, bucket changes, and timing corrections are stored as
-occurrence-level overlays with revision and audit history.
+`supabase/seed.sql` and is mirrored by a deployable configuration migration.
+Raw Planning Center values are never replaced by Admin changes. Slot decisions,
+bucket changes, and timing corrections are stored as occurrence-level overlays
+with revision and audit history.
 
 Local database commands require a Docker-compatible runtime. Link the existing
 hosted project with `npx supabase link --project-ref <ref>`, inspect the pending
@@ -112,6 +112,10 @@ migration with `npx supabase db push`.
 Center credentials never cross the server boundary. The dedicated PCO user owns
 the external read-only permission boundary; the code reinforces it by providing
 no write transport.
+
+`src/lib/pco/ingestion-writer.ts` is the separate database write boundary. It
+uses only the server-side Supabase service-role key, refuses unvalidated input,
+and remains disabled unless `ENABLE_PCO_INGESTION_WRITES` is exactly `true`.
 
 Planning Center requires HTTP Basic Auth for Personal Access Tokens, a User-Agent
 header, and supports pinning `X-PCO-API-Version` per request.

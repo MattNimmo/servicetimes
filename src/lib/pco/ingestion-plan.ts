@@ -561,3 +561,5 @@ export function buildIngestionPlan(
     },
   };
 }
+
+export type IngestionPlan = ReturnType<typeof buildIngestionPlan>;
