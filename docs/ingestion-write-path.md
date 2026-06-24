@@ -1,6 +1,6 @@
 # Ingestion write path — implementation spec
 
-Status: **ready for implementation** (2026-06-24). Scoped for codex to pick up.
+Status: **implemented** (2026-06-24).
 
 ## Why
 
@@ -45,8 +45,10 @@ also land in the same atomic call. Reconcile both; just verify 9am first.
 
 ## Script: `scripts/ingest-weekend.ts`
 
-Run with `tsx` (or `node --import tsx`) against production env vars. Single-campus
-per invocation (the RPC payload is single-campus).
+Run with `npm run ingest --` against production env vars. The command uses the
+React server condition so the existing `server-only` protections remain intact
+outside the Next.js runtime. It is single-campus per invocation (the RPC payload
+is single-campus).
 
 ### Arguments
 
@@ -54,7 +56,8 @@ per invocation (the RPC payload is single-campus).
 | --- | --- | --- |
 | `--campus <CODE>` | `SLP` | Campus code to ingest (first run: `SLP`). |
 | `--commit` | absent | Without it, **dry-run only**: print the plan summary and exit 0 without calling the writer. With it, call `persistIngestionPlan`. |
-| `--verify` | absent | After a commit (or standalone), run the reconciliation read (below) and print the comparison. |
+| `--verify` | absent | After a commit, run the reconciliation read (below) and print the comparison. Standalone use also requires `--ingest-run-id <ID>`. |
+| `--ingest-run-id <ID>` | absent | Identifies the exact prior run for standalone verification; commit-and-verify uses the RPC's returned ID automatically. |
 
 ### Flow
 

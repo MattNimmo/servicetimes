@@ -36,14 +36,14 @@ history matches local. The schema, RLS lockdown, occurrence guards, seeded
 configuration, and the `ingest_pco_plan` RPC are live. No production timing
 data has been ingested yet.
 
-The atomic writer has no caller, so the next slice builds a server-side
-`scripts/ingest-weekend.ts` (dry-run by default, `--commit` to write, `--verify`
-to reconcile) — fully specified in
-[`docs/ingestion-write-path.md`](docs/ingestion-write-path.md). The slice is:
+The atomic writer is called only by the server-side
+`scripts/ingest-weekend.ts` runner (dry-run by default, `--commit` to write,
+`--verify` to reconcile) — documented in
+[`docs/ingestion-write-path.md`](docs/ingestion-write-path.md). The remaining
+controlled rollout is:
 
-1. build the single-campus ingestion script with dry-run, commit, and verify
-   modes, plus an orchestration unit test;
-2. dry-run, then load **SLP** with `ENABLE_PCO_INGESTION_WRITES=true` for the
+1. merge the tested single-campus ingestion runner;
+2. load **SLP** with `ENABLE_PCO_INGESTION_WRITES=true` for the
    single controlled call (the 9am slot is the first reconciliation focus; the
    11am PlanTime lands in the same atomic plan);
 3. return the write flag to false, reconcile via the service-role read, then
