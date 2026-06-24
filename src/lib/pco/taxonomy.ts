@@ -1,0 +1,48 @@
+import type { TaxonomyConfig } from "@/lib/pco/normalize";
+
+export const PCO_TAXONOMY = {
+  sectionAliases: [
+    ["pre service", "exact", 10, "pre_service"],
+    ["^praise (&|and) worship$", "regex", 20, "worship_open"],
+    ["^mid[- ]?service$", "regex", 30, "mid_service"],
+    ["^live( stream| time| message.*)?$", "regex", 40, "live"],
+    [
+      "^(local|local response|location disconnect|live response)$",
+      "regex",
+      50,
+      "local",
+    ],
+    ["online disconnect", "exact", 60, "post_service"],
+  ].map(([rawTitleNormalized, matchType, priority, sectionKey]) => ({
+    campusCode: null,
+    rawTitleNormalized: rawTitleNormalized as string,
+    matchType: matchType as "exact" | "regex",
+    priority: priority as number,
+    sectionKey: sectionKey as string,
+  })),
+  elementAliases: [
+    ["pre_service", "countdown video", "pre.countdown"],
+    ["worship_open", "worship bundle", "worship.open"],
+    ["worship_open", "musical worship bundle", "worship.open"],
+    ["mid_service", "close worship", "mid.close_worship"],
+    ["mid_service", "greet and seat", "mid.greet"],
+    ["mid_service", "meet & greet", "mid.greet"],
+    ["mid_service", "announcements", "mid.announcements.general"],
+    ["mid_service", "offering", "mid.offering.general"],
+    ["mid_service", "hosted moment", "mid.hosted_moment"],
+    ["live", "bumper", "live.bumper"],
+    ["live", "bumper video", "live.bumper"],
+    ["live", "message", "live.message"],
+    ["local", "worship response", "local.worship_response"],
+    ["local", "worship response song", "local.worship_response"],
+    ["local", "salvation response", "local.salvation"],
+    ["local", "final prayer", "local.final_prayer"],
+  ].map(([sectionKey, rawTitleNormalized, elementKey]) => ({
+    campusCode: null,
+    sectionKey,
+    rawTitleNormalized,
+    matchType: "exact" as const,
+    priority: 10,
+    elementKey,
+  })),
+} satisfies TaxonomyConfig;

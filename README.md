@@ -17,12 +17,16 @@ Shipped to `main`:
 - `a883c04` — live four-campus PCO data-shape probe and validation report.
 - `79cf60d` — executable Supabase migration, deterministic seeds, RLS lockdown,
   correction overlays, append-only audit history, and pgTAP tests.
+- `bd8427a` — merged occurrence guardrails, pure PCO taxonomy normalizer,
+  project-scoped read-only Supabase MCP, and GitHub CI.
 
-In review on `codex/supabase-foundation`:
+In review on `codex/pco-ingestion`:
 
-- forward-only campus and occurrence boundary migration with expanded pgTAP;
-- pure PCO title/taxonomy normalizer with 11 golden unit tests;
-- project-scoped, read-only Supabase MCP configuration.
+- shared read-only latest-plan fetch for the probe and ingestion preview;
+- deterministic production-slot selection and row-shaped ingestion batches;
+- source fingerprints, review incidents, reconciliation evidence, and 17 unit
+  tests total;
+- development-only four-campus preview with an explicit zero-write guarantee.
 
 The hosted Supabase project is connected to GitHub. Codex MCP is authenticated,
 project-scoped, and read-only. Live validation on 2026-06-23 confirmed
@@ -38,8 +42,10 @@ next slice is:
 2. resolve the Supabase CLI token/link mismatch and verify the hosted project's
    recovery posture;
 3. dry-run and apply the reviewed migration to the hosted project;
-4. build atomic, idempotent PCO ingestion with a dry-run mode;
-5. load one representative weekend and reconcile every expected slot and item.
+4. review the live preview's unmapped taxonomy candidates and approve intended
+   aliases or rollup relationships;
+5. add the atomic database writer behind the validated dry-run planner;
+6. load one representative weekend and reconcile every expected slot and item.
 
 ## Local setup
 
@@ -62,6 +68,12 @@ for the four allowlisted campuses. The development-only, GET-only probe checks
 service targets and live durations, plan-time labels, item/header shapes,
 possible bundle overlap, zero-allotment timers, and possible timer bleed. It
 does not write to Planning Center or a database.
+
+Open `http://localhost:3000/api/pco/ingestion-preview` to build the exact
+read-only ingestion plan for the latest completed plan at each campus. The
+preview resolves configured production slots, normalizes taxonomy, fingerprints
+raw ItemTimes, and emits review incidents and row-shaped output. It performs
+zero database writes and returns 404 in production.
 
 The first live result and its backend consequences are recorded in
 [`docs/pco-data-shape-validation-2026-06-23.md`](docs/pco-data-shape-validation-2026-06-23.md).

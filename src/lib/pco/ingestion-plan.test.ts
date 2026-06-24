@@ -1,0 +1,302 @@
+import { describe, expect, it } from "vitest";
+
+import { PCO_CAMPUSES } from "@/lib/pco/campuses";
+import {
+  buildIngestionPlan,
+  sourceFingerprint,
+} from "@/lib/pco/ingestion-plan";
+import { PCO_TAXONOMY } from "@/lib/pco/taxonomy";
+import type {
+  PcoItem,
+  PcoItemTime,
+  PcoPlan,
+  PcoPlanTime,
+} from "@/lib/pco/types";
+
+const campus = PCO_CAMPUSES.find(({ code }) => code === "LV")!;
+
+const plan: PcoPlan = {
+  type: "Plan",
+  id: "plan-1",
+  attributes: {
+    title: "Weekend Service",
+    series_title: "Test Series",
+    sort_date: "2026-06-21T15:00:00Z",
+    total_length: 4500,
+    updated_at: "2026-06-22T12:00:00Z",
+  },
+};
+
+function planTime(
+  id: string,
+  startsAt: string,
+  options: Partial<PcoPlanTime["attributes"]> = {},
+): PcoPlanTime {
+  return {
+    type: "PlanTime",
+    id,
+    attributes: {
+      starts_at: startsAt,
+      ends_at: new Date(Date.parse(startsAt) + 75 * 60 * 1_000).toISOString(),
+      live_starts_at: startsAt,
+      live_ends_at: new Date(Date.parse(startsAt) + 70 * 60 * 1_000).toISOString(),
+      name: "Service",
+      recorded: true,
+      time_type: "service",
+      ...options,
+    },
+  };
+}
+
+function pcoItem(
+  id: string,
+  sequence: number,
+  title: string,
+  itemType: PcoItem["attributes"]["item_type"],
+  length: number,
+): PcoItem {
+  return {
+    type: "Item",
+    id,
+    attributes: {
+      title,
+      item_type: itemType,
+      length,
+      sequence,
+      service_position: "during",
+    },
+  };
+}
+
+function itemTime(
+  id: string,
+  pcoItemId: string,
+  pcoPlanTimeId: string,
+  length: number,
+  liveStartAt: string | null,
+  liveEndAt: string | null,
+): PcoItemTime {
+  return {
+    type: "ItemTime",
+    id,
+    attributes: {
+      exclude: false,
+      length,
+      length_offset: 0,
+      live_start_at: liveStartAt,
+      live_end_at: liveEndAt,
+    },
+    relationships: {
+      item: { data: { type: "Item", id: pcoItemId } },
+      plan_time: { data: { type: "PlanTime", id: pcoPlanTimeId } },
+      plan: { data: { type: "Plan", id: plan.id } },
+    },
+  };
+}
+
+const productionTime = planTime("time-production", "2026-06-21T15:00:00Z");
+const runThroughTime = planTime("time-run-through", "2026-06-21T13:00:00Z", {
+  name: "Run Through",
+  live_ends_at: "2026-06-21T13:20:00Z",
+});
+const items = [
+  pcoItem("header-live", 1, "Live Time", "header", 0),
+  pcoItem("message", 2, "Message", "item", 3600),
+  pcoItem("header-local", 3, "Local Response", "header", 0),
+  pcoItem("final-prayer", 4, "Final Prayer", "item", 600),
+];
+const completeItemTimes = [
+  itemTime(
+    "item-time-message",
+    "message",
+    productionTime.id,
+    3600,
+    "2026-06-21T15:00:00Z",
+    "2026-06-21T16:00:00Z",
+  ),
+  itemTime(
+    "item-time-prayer",
+    "final-prayer",
+    productionTime.id,
+    600,
+    "2026-06-21T16:00:00Z",
+    "2026-06-21T16:10:00Z",
+  ),
+];
+
+describe("sourceFingerprint", () => {
+  it("is stable across object key order", () => {
+    expect(sourceFingerprint({ b: 2, a: 1 })).toBe(
+      sourceFingerprint({ a: 1, b: 2 }),
+    );
+  });
+});
+
+describe("buildIngestionPlan", () => {
+  it("resolves the production slot and emits row-shaped normalized data", () => {
+    const result = buildIngestionPlan(
+      campus,
+      {
+        plan,
+        planTimes: [runThroughTime, productionTime],
+        items,
+        itemTimes: completeItemTimes,
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(result.dryRun).toBe(true);
+    expect(result.plan.serviceDate).toBe("2026-06-21");
+    expect(result.summary).toMatchObject({
+      productionSlotCount: 1,
+      matchedSlotCount: 1,
+      autoResolvedSlotCount: 1,
+      unmappedItemCount: 0,
+    });
+    expect(
+      result.planTimes.find(
+        ({ pcoPlanTimeId }) => pcoPlanTimeId === productionTime.id,
+      ),
+    ).toMatchObject({
+      detectedSlotLabel: "10am",
+      slotResolutionState: "auto",
+      actualServiceSeconds: 4200,
+    });
+    expect(
+      result.items.find(({ pcoItemId }) => pcoItemId === "message"),
+    ).toMatchObject({
+      sectionKey: "live",
+      elementKey: "live.message",
+      resolutionSource: "alias",
+    });
+    expect(
+      result.incidents.filter(({ kind }) => kind === "reconciliation_gap"),
+    ).toHaveLength(0);
+    expect(result.incidents).toContainEqual(
+      expect.objectContaining({
+        kind: "slot_resolution",
+        planTimeId: runThroughTime.id,
+      }),
+    );
+    expect(result.itemTimes[0].sourceFingerprint).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("refuses to guess when multiple PlanTimes match one production slot", () => {
+    const duplicate = planTime("time-duplicate", "2026-06-21T15:05:00Z");
+    const result = buildIngestionPlan(
+      campus,
+      {
+        plan,
+        planTimes: [productionTime, duplicate],
+        items: [],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(result.summary.autoResolvedSlotCount).toBe(0);
+    expect(result.planTimes.every(({ detectedSlotLabel }) => !detectedSlotLabel)).toBe(
+      true,
+    );
+    expect(result.incidents).toContainEqual(
+      expect.objectContaining({
+        kind: "slot_resolution",
+        slotLabel: "10am",
+        detail: "2 PlanTimes matched the 10am production slot.",
+      }),
+    );
+  });
+
+  it("keeps a matched zero-window slot in review state", () => {
+    const zeroWindow = planTime("time-zero", "2026-06-21T15:00:00Z", {
+      live_ends_at: "2026-06-21T15:00:00Z",
+    });
+    const result = buildIngestionPlan(
+      campus,
+      { plan, planTimes: [zeroWindow], items: [], itemTimes: [] },
+      PCO_TAXONOMY,
+    );
+
+    expect(result.summary).toMatchObject({
+      matchedSlotCount: 1,
+      autoResolvedSlotCount: 0,
+    });
+    expect(result.planTimes[0]).toMatchObject({
+      detectedSlotLabel: "10am",
+      slotResolutionState: "review",
+    });
+    expect(result.incidents).toContainEqual(
+      expect.objectContaining({ kind: "zero_live_window" }),
+    );
+  });
+
+  it("flags bad timer evidence and a reconciliation gap", () => {
+    const anomalousItems = [
+      pcoItem("header-live", 1, "Live", "header", 0),
+      pcoItem("bad-timer", 2, "Message", "item", 0),
+      pcoItem("open-timer", 3, "Bumper", "media", 30),
+    ];
+    const anomalousTimes = [
+      itemTime(
+        "bad-item-time",
+        "bad-timer",
+        productionTime.id,
+        0,
+        "2026-06-21T15:00:00Z",
+        "2026-06-21T15:11:40Z",
+      ),
+      itemTime(
+        "open-item-time",
+        "open-timer",
+        productionTime.id,
+        30,
+        "2026-06-21T15:11:40Z",
+        null,
+      ),
+    ];
+    const result = buildIngestionPlan(
+      campus,
+      {
+        plan,
+        planTimes: [productionTime],
+        items: anomalousItems,
+        itemTimes: anomalousTimes,
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(new Set(result.incidents.map(({ kind }) => kind))).toEqual(
+      new Set([
+        "missing_item_end",
+        "reconciliation_gap",
+        "timer_bleed",
+        "zero_allotment",
+      ]),
+    );
+  });
+
+  it("reports timed worship parents and songs as review candidates", () => {
+    const result = buildIngestionPlan(
+      campus,
+      {
+        plan,
+        planTimes: [productionTime],
+        items: [
+          pcoItem("header-worship", 1, "Praise & Worship", "header", 0),
+          pcoItem("worship-bundle", 2, "Worship Bundle", "item", 1200),
+          pcoItem("song-1", 3, "Song One", "song", 300),
+          pcoItem("song-2", 4, "Song Two", "song", 360),
+        ],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(result.incidents).toContainEqual(
+      expect.objectContaining({
+        kind: "bundle_overlap",
+        itemIds: ["worship-bundle", "song-1", "song-2"],
+      }),
+    );
+  });
+});

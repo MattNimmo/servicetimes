@@ -1,12 +1,10 @@
 import "server-only";
 
 import { PCO_CAMPUSES } from "@/lib/pco/campuses";
-import { pcoGet, pcoGetAll, PCO_SERVICES_VERSION } from "@/lib/pco/client";
+import { PCO_SERVICES_VERSION } from "@/lib/pco/client";
+import { fetchLatestCompletedPlan } from "@/lib/pco/fetch-plan";
 import type {
-  PcoCollection,
   PcoItem,
-  PcoItemTime,
-  PcoPlan,
   PcoPlanTime,
   PcoRelationship,
 } from "@/lib/pco/types";
@@ -137,43 +135,9 @@ function bundleCandidates(items: PcoItem[]) {
   });
 }
 
-async function findLatestCompletedPlan(serviceTypeId: string) {
-  const plans = await pcoGet<PcoCollection<PcoPlan>>(
-    `/services/v2/service_types/${serviceTypeId}/plans?filter=past&order=-sort_date&per_page=10`,
-  );
-
-  for (const plan of plans.data) {
-    const planTimes = await pcoGetAll<PcoPlanTime>(
-      `/services/v2/service_types/${serviceTypeId}/plans/${plan.id}/plan_times?per_page=100`,
-    );
-    const hasCompletedService = planTimes.data.some((planTime) => {
-      const attributes = planTime.attributes;
-      return (
-        attributes.time_type === "service" &&
-        attributes.recorded &&
-        durationSeconds(attributes.live_starts_at, attributes.live_ends_at) !== null
-      );
-    });
-
-    if (hasCompletedService) return { plan, planTimes: planTimes.data };
-  }
-
-  throw new Error(
-    `No completed service was found in the latest ${plans.data.length} plans`,
-  );
-}
-
 async function probeCampus(campus: (typeof PCO_CAMPUSES)[number]) {
-  const { plan, planTimes } = await findLatestCompletedPlan(
-    campus.serviceTypeId,
-  );
-  const itemsResponse = await pcoGetAll<PcoItem, PcoItemTime>(
-    `/services/v2/service_types/${campus.serviceTypeId}/plans/${plan.id}/items?include=item_times&per_page=100`,
-  );
-  const items = itemsResponse.data;
-  const itemTimes = (itemsResponse.included ?? []).filter(
-    (resource): resource is PcoItemTime => resource.type === "ItemTime",
-  );
+  const { plan, planTimes, items, itemTimes } =
+    await fetchLatestCompletedPlan(campus.serviceTypeId);
   const itemById = new Map(items.map((item) => [item.id, item]));
   const planTimeById = new Map(planTimes.map((planTime) => [planTime.id, planTime]));
 
@@ -304,7 +268,7 @@ async function probeCampus(campus: (typeof PCO_CAMPUSES)[number]) {
       itemTimeCount: itemTimes.length,
       itemTypes: countBy(items.map((item) => item.attributes.item_type)),
       servicePositions: countBy(
-        items.map((item) => item.attributes.service_position),
+        items.map((item) => item.attributes.service_position ?? "null"),
       ),
       headers: items
         .filter((item) => item.attributes.item_type === "header")
