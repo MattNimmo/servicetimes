@@ -107,7 +107,7 @@ Print a table of expected vs actual; non-zero diff = FAIL with a non-zero exit.
 
 ## Testing
 
-Add `scripts/ingest-weekend.test.ts` (mirror `ingestion-writer.test.ts`):
+`scripts/ingest-weekend.test.ts` covers the orchestration boundary:
 
 - Mocks `fetchLatestCompletedPlan` and `persistIngestionPlan`.
 - Asserts dry-run mode never calls the writer.
@@ -126,7 +126,22 @@ The writer and the RPC are already covered (23 unit tests, 42 pgTAP assertions).
 4. Return `ENABLE_PCO_INGESTION_WRITES` to `false`.
 5. Spot-check the 9am slot end to end, then repeat for ELK / MG / LV.
 
-Add an `ingest` script to `package.json` (`tsx scripts/ingest-weekend.ts`).
+The `ingest` package script runs the CLI with the React server condition so the
+existing `server-only` imports remain enforced.
+
+### Initial rollout status — 2026-06-24
+
+- SLP: committed as ingest run 1 and fully reconciled (9am and 11am auto).
+- ELK: committed as ingest run 2 and fully reconciled (9am and 11am auto).
+- LV: committed as ingest run 3 and fully reconciled (10am auto).
+- MG: held before commit. Its 9am production PlanTime has a zero-length LIVE
+  window and its 11am PlanTime has incomplete LIVE bounds; both correctly remain
+  in review state. Re-run the dry run after the PCO source data is corrected or
+  explicitly dispositioned.
+
+Combined-title and song rollup candidates remain intentionally unmapped. Their
+review evidence was persisted for the three loaded campuses rather than
+fabricating element-level precision.
 
 ## Deferred to a follow-up PR (not in this slice)
 
