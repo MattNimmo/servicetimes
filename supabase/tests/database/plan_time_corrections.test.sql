@@ -1,6 +1,6 @@
 begin;
 
-select plan(11);
+select plan(10);
 
 select has_view(
   'public',
