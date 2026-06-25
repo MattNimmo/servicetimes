@@ -82,6 +82,12 @@ function occurrenceContext(incident: OpenReviewIncident) {
   return parts.join(" · ");
 }
 
+function servicePositionLabel(position: "pre" | "during" | "post" | null) {
+  if (position === "pre") return "Pre service";
+  if (position === "post") return "Post service";
+  return "Live flow";
+}
+
 function groupByServiceDate(incidents: OpenReviewIncident[]) {
   const grouped = new Map<string, DateGroup>();
 
@@ -427,6 +433,10 @@ export default async function OperatorReviewPage({ searchParams }: ReviewPagePro
     selectedDate && selectedOccurrence
       ? `/operator/review?campus=${selectedDate.campusCode}&date=${selectedDate.serviceDate}&occurrence=${encodeURIComponent(selectedOccurrence.key)}`
       : "/operator/review";
+  const selectedOccurrenceItems = selectedOccurrence?.incidents[0]?.occurrenceItems ?? [];
+  const highlightedItemIds = new Set(
+    selectedOccurrence?.incidents.flatMap((incident) => incident.items.map((item) => item.id)) ?? [],
+  );
 
   return (
     <main className="min-h-screen bg-[#121210] text-zinc-100">
@@ -578,7 +588,7 @@ export default async function OperatorReviewPage({ searchParams }: ReviewPagePro
                   </div>
                 </div>
 
-                <div className="mt-6 rounded-md border border-zinc-800 bg-zinc-900/40 px-6">
+              <div className="mt-6 rounded-md border border-zinc-800 bg-zinc-900/40 px-6">
                   {selectedOccurrence.incidents.map((incident) => (
                     <IncidentPanel
                       key={incident.id}
@@ -587,6 +597,81 @@ export default async function OperatorReviewPage({ searchParams }: ReviewPagePro
                     />
                   ))}
                 </div>
+
+                {selectedOccurrenceItems.length > 0 && (
+                  <div className="mt-6 overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/40">
+                    <div className="grid grid-cols-[4.5rem_minmax(0,1.5fr)_9rem_9rem_8rem] gap-3 border-b border-zinc-800 px-5 py-3 font-mono text-[11px] tracking-[0.18em] text-zinc-500 uppercase">
+                      <span>Order</span>
+                      <span>Service flow</span>
+                      <span>Planned</span>
+                      <span>Current</span>
+                      <span>Review</span>
+                    </div>
+                    <ul className="divide-y divide-zinc-800">
+                      {selectedOccurrenceItems.map((item, index) => {
+                        const highlighted = highlightedItemIds.has(item.id);
+                        const nextPosition = selectedOccurrenceItems[index - 1]?.servicePosition;
+                        const showPositionBreak =
+                          item.itemType !== "header" && item.servicePosition !== nextPosition;
+                        return (
+                          <li key={`occurrence-item:${item.id}`}>
+                            {showPositionBreak && (
+                              <div className="border-b border-zinc-800 bg-zinc-950/70 px-5 py-2 font-mono text-[11px] tracking-[0.18em] text-zinc-500 uppercase">
+                                {servicePositionLabel(item.servicePosition)}
+                              </div>
+                            )}
+                            {item.itemType === "header" ? (
+                              <div className="grid grid-cols-[4.5rem_minmax(0,1.5fr)_9rem_9rem_8rem] gap-3 bg-zinc-950/70 px-5 py-3">
+                                <span className="text-zinc-500">{item.sequence}</span>
+                                <span className="font-mono text-sm tracking-[0.18em] text-zinc-300 uppercase">
+                                  {item.title}
+                                </span>
+                                <span />
+                                <span />
+                                <span />
+                              </div>
+                            ) : (
+                              <div
+                                className={`grid grid-cols-[4.5rem_minmax(0,1.5fr)_9rem_9rem_8rem] gap-3 px-5 py-4 text-sm ${
+                                  highlighted ? "bg-amber-950/15" : ""
+                                }`}
+                              >
+                                <span className="text-zinc-500">{item.sequence}</span>
+                                <div className="min-w-0">
+                                  <p className="truncate font-medium text-zinc-100">
+                                    {item.title}
+                                  </p>
+                                  <p className="mt-1 truncate text-xs text-zinc-500">
+                                    {item.elementKey ?? item.sectionKey ?? "unmapped"}
+                                  </p>
+                                </div>
+                                <span className="text-zinc-300">
+                                  {formatDuration(item.plannedSeconds)}
+                                </span>
+                                <span className="text-zinc-400">
+                                  {item.actualSeconds !== null
+                                    ? formatDuration(item.actualSeconds)
+                                    : "not timed"}
+                                </span>
+                                <span>
+                                  {highlighted ? (
+                                    <span className="rounded-full border border-amber-800/70 bg-amber-950/40 px-2 py-1 font-mono text-[11px] text-amber-300 uppercase">
+                                      review
+                                    </span>
+                                  ) : (
+                                    <span className="font-mono text-[11px] text-zinc-600 uppercase">
+                                      clear
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
               </div>
             </>
           )}
