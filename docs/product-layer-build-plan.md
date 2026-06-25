@@ -1,7 +1,8 @@
 # Build plan — product layer (post-ingestion)
 
-Status: **Phase 0 and Phase 1 implemented** (2026-06-24). Migration deployment,
-production auth secrets, and the login rate-limit gate remain operational steps.
+Status: **Phase 0 and Phase 1 implemented** (2026-06-24). **Phase 2A is in
+progress**: operator review queue plus kept/excluded incident resolution.
+Production auth secrets and the login rate-limit gate remain operational steps.
 
 ## Context
 
@@ -35,7 +36,10 @@ better; reuse what exists; do not fabricate precision the data doesn't have.**
   verifier "open incident count" check); fix the five current test-file type
   errors; add a `typecheck` (`tsc --noEmit`) step to CI so test types cannot rot.
 - **Phase 1 — auth gate + viewer variance dashboard** (**implemented**; specified below).
-- **Phase 2 — operator admin panel: review & correction workflow.** Resolve
+- **Phase 2A — operator review queue** (**in progress**): list open
+  `review_incidents` behind the operator gate and resolve incidents as
+  `kept`/`excluded` through one audited database RPC.
+- **Phase 2B — operator admin panel: correction workflow.** Resolve
   `review_incidents` (kept/corrected/excluded), write `correction_sets` /
   `correction_values`, `plan_time_slot_resolutions`, `item_bucket_overrides`,
   with `admin_audit_log` coverage. Operator-only. Consumes `unmapped_items`.
@@ -243,7 +247,24 @@ Edit:
    the queries. Run `npm test`, `npm run lint`, `tsc --noEmit`, and (with Docker
    in CI) `npm run db:test` / `db:lint` for the new view.
 
-### Out of scope for this slice
+### Phase 2A slice — operator review queue + resolution
+
+This slice creates the first operator-only write path without changing timing
+math yet:
+
+- `/operator/review` lists every open `review_incidents` row with campus, service
+  date, slot/PlanTime context, affected item titles, and a dashboard deep link.
+- `resolveReviewIncidentAction` calls `requireRole("operator")` before writing;
+  viewer sessions and direct action POSTs are rejected by the server-side gate.
+- `public.resolve_review_incident(...)` is the only write primitive. It locks the
+  incident, allows only `kept` or `excluded`, updates `resolved_at` /
+  `resolved_by`, and inserts one `admin_audit_log` record in the same
+  transaction.
+- This intentionally does **not** create corrections, item bucket overrides, or
+  slot remaps. Those remain Phase 2B because they need correction-specific forms
+  and validation rules.
+
+### Out of scope for Phase 1
 Corrections/incident resolution writes (Phase 2), approved campus reference
 targets and recommendations (Phase 3), and any client-side Supabase SDK.
 
