@@ -75,6 +75,8 @@ export type OpenReviewIncident = {
   serviceDate: string;
   planTitle: string;
   planTimeName: string | null;
+  planTimeStartsAt: string | null;
+  planTimeLiveStartsAt: string | null;
   slotLabel: string | null;
   plannedTargetSeconds: number | null;
   actualServiceSeconds: number | null;
@@ -245,6 +247,8 @@ export async function listOpenReviewIncidents(): Promise<OpenReviewIncident[]> {
         serviceDate: plan.service_date,
         planTitle: plan.title ?? plan.series_title ?? "Weekend service",
         planTimeName: planTime?.pco_name ?? null,
+        planTimeStartsAt: planTime?.starts_at ?? null,
+        planTimeLiveStartsAt: planTime?.live_starts_at ?? null,
         slotLabel:
           incident.slot_id === null
             ? null
