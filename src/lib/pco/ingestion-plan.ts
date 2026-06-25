@@ -135,7 +135,12 @@ function incident(
 
 function isNonProductionPlanTime(planTime: Pick<PcoPlanTime, "attributes">) {
   const name = planTime.attributes.name?.trim().toLowerCase() ?? "";
-  return planTime.attributes.time_type === "rehearsal" || name.includes("rehearsal");
+  return (
+    planTime.attributes.time_type === "rehearsal" ||
+    /rehearsal|run[ -]?through|walk[ -]?through|tech[ -]?team|translation|instrumentalists|vocalists|broadcast audio/.test(
+      name,
+    )
+  );
 }
 
 function assignSlots(campus: PcoCampus, planTimes: PcoPlanTime[]) {
@@ -206,21 +211,24 @@ function assignSlots(campus: PcoCampus, planTimes: PcoPlanTime[]) {
   return { assignments, incidents };
 }
 
-function bundleOverlapIncidents(
+function analyzeTimedBundles(
   items: PcoItem[],
+  normalizedById: Map<string, { elementKey: string | null }>,
   assignments: Map<string, string>,
 ) {
   const ordered = [...items].sort(
     (left, right) => left.attributes.sequence - right.attributes.sequence,
   );
+  const rollupChildIds = new Set<string>();
+  const incidents: IngestionIncident[] = [];
 
-  return ordered.flatMap((parent, index) => {
+  for (const [index, parent] of ordered.entries()) {
     if (
       parent.attributes.item_type === "song" ||
       parent.attributes.length <= 0 ||
       !/bundle|worship/i.test(parent.attributes.title)
     ) {
-      return [];
+      continue;
     }
 
     const children: PcoItem[] = [];
@@ -231,28 +239,39 @@ function bundleOverlapIncidents(
         children.push(child);
       }
     }
-    if (children.length === 0) return [];
+    if (children.length === 0) continue;
 
-    return [...assignments].map(([planTimeId, slotLabel]) =>
-      incident(
-        "bundle_overlap",
-        "Timed parent and following songs may represent overlapping planned time.",
-        {
-          planTimeId,
-          slotLabel,
-          itemIds: [parent.id, ...children.map(({ id }) => id)],
-          evidence: {
+    if (normalizedById.get(parent.id)?.elementKey === "worship.open") {
+      for (const child of children) {
+        rollupChildIds.add(child.id);
+      }
+      continue;
+    }
+
+    incidents.push(
+      ...[...assignments].map(([planTimeId, slotLabel]) =>
+        incident(
+          "bundle_overlap",
+          "Timed parent and following songs may represent overlapping planned time.",
+          {
             planTimeId,
-            parent: { id: parent.id, length: parent.attributes.length },
-            children: children.map(({ id, attributes }) => ({
-              id,
-              length: attributes.length,
-            })),
+            slotLabel,
+            itemIds: [parent.id, ...children.map(({ id }) => id)],
+            evidence: {
+              planTimeId,
+              parent: { id: parent.id, length: parent.attributes.length },
+              children: children.map(({ id, attributes }) => ({
+                id,
+                length: attributes.length,
+              })),
+            },
           },
-        },
+        ),
       ),
     );
-  });
+  }
+
+  return { rollupChildIds, incidents };
 }
 
 function buildTaxonomyReview(
@@ -266,12 +285,17 @@ function buildTaxonomyReview(
   }>,
   campusCode: string,
   taxonomy: TaxonomyConfig,
+  ignoredItemIds: ReadonlySet<string> = new Set(),
 ) {
   const sectionKeys = [
     ...new Set(taxonomy.elementAliases.map(({ sectionKey }) => sectionKey)),
   ];
 
   return items.flatMap((item) => {
+    if (ignoredItemIds.has(item.pcoItemId)) {
+      return [];
+    }
+
     if (
       item.itemType === "header" ||
       item.elementKey !== null ||
@@ -330,6 +354,44 @@ function buildTaxonomyReview(
   });
 }
 
+function applyCombinedTitleOverrides(
+  items: ReturnType<typeof normalizePlanItems>,
+  campusCode: string,
+  taxonomy: TaxonomyConfig,
+) {
+  return items.map((item) => {
+    if (item.itemType === "header" || item.elementKey !== null) {
+      return item;
+    }
+
+    const combinedTitleRule = taxonomy.combinedTitleRules?.find(
+      (rule) =>
+        (rule.campusCode === null || rule.campusCode === campusCode) &&
+        rule.rawTitleNormalized === item.rawTitleNormalized,
+    );
+    if (!combinedTitleRule?.suggestedSectionKey) {
+      return item;
+    }
+
+    const suggestedElementKey = resolveElement(
+      item.title,
+      campusCode,
+      combinedTitleRule.suggestedSectionKey,
+      taxonomy.elementAliases,
+    );
+    if (!suggestedElementKey) {
+      return item;
+    }
+
+    return {
+      ...item,
+      sectionKey: combinedTitleRule.suggestedSectionKey,
+      elementKey: suggestedElementKey,
+      resolutionSource: "alias" as const,
+    };
+  });
+}
+
 export function buildIngestionPlan(
   campus: PcoCampus,
   bundle: PlanBundle,
@@ -340,18 +402,28 @@ export function buildIngestionPlan(
     bundle.planTimes,
   );
   const incidents: IngestionIncident[] = [...slotIncidents];
-  const normalizedItems = normalizePlanItems(
-    bundle.items.map(({ id, attributes }) => ({
-      id,
-      sequence: attributes.sequence,
-      title: attributes.title,
-      itemType: attributes.item_type,
-      servicePosition: attributes.service_position,
-    })),
+  const normalizedItems = applyCombinedTitleOverrides(
+    normalizePlanItems(
+      bundle.items.map(({ id, attributes }) => ({
+        id,
+        sequence: attributes.sequence,
+        title: attributes.title,
+        itemType: attributes.item_type,
+        servicePosition: attributes.service_position,
+      })),
+      campus.code,
+      taxonomy,
+    ),
     campus.code,
     taxonomy,
   );
   const normalizedById = new Map(normalizedItems.map((item) => [item.id, item]));
+  const { rollupChildIds, incidents: bundleIncidents } = analyzeTimedBundles(
+    bundle.items,
+    normalizedById,
+    assignments,
+  );
+  incidents.push(...bundleIncidents);
 
   const planTimes = bundle.planTimes.map(({ id, attributes }) => {
     const actualSeconds = durationSeconds(
@@ -419,7 +491,7 @@ export function buildIngestionPlan(
         sectionKey: normalized.sectionKey,
         elementKey: normalized.elementKey,
         plannedSeconds: attributes.length,
-        isRollupChild: false,
+        isRollupChild: rollupChildIds.has(id),
         resolutionSource: normalized.resolutionSource,
       };
     })
@@ -519,8 +591,12 @@ export function buildIngestionPlan(
     }
   }
 
-  incidents.push(...bundleOverlapIncidents(bundle.items, assignments));
-  const taxonomyReview = buildTaxonomyReview(items, campus.code, taxonomy);
+  const taxonomyReview = buildTaxonomyReview(
+    items,
+    campus.code,
+    taxonomy,
+    rollupChildIds,
+  );
   const taxonomyReviewByReason = Object.fromEntries(
     [...new Set(taxonomyReview.map(({ reason }) => reason))]
       .sort()

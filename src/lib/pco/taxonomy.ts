@@ -30,12 +30,17 @@ export const PCO_TAXONOMY = {
     ["mid_service", "announcements", "mid.announcements.general"],
     ["mid_service", "offering", "mid.offering.general"],
     ["mid_service", "hosted moment", "mid.hosted_moment"],
+    ["mid_service", "kb moment", "mid.hosted_moment"],
     ["live", "bumper", "live.bumper"],
     ["live", "bumper video", "live.bumper"],
     ["live", "message", "live.message"],
     ["local", "worship response", "local.worship_response"],
     ["local", "worship response song", "local.worship_response"],
     ["local", "salvation response", "local.salvation"],
+    ["local", "salvation response cc", "local.salvation"],
+    ["local", "salvation response connect card", "local.salvation"],
+    ["local", "salvation response / connect card", "local.salvation"],
+    ["local", "salvation response//connect card", "local.salvation"],
     ["local", "final prayer", "local.final_prayer"],
     ["local", "closing prayer", "local.final_prayer"],
   ].map(([sectionKey, rawTitleNormalized, elementKey]) => ({
@@ -47,10 +52,13 @@ export const PCO_TAXONOMY = {
     elementKey,
   })),
   combinedTitleRules: [
-    {
-      campusCode: "ELK",
-      rawTitleNormalized: "salvation response cc",
-      suggestedSectionKey: "local",
-    },
-  ],
+    "salvation response cc",
+    "salvation response connect card",
+    "salvation response / connect card",
+    "salvation response//connect card",
+  ].map((rawTitleNormalized) => ({
+    campusCode: null,
+    rawTitleNormalized,
+    suggestedSectionKey: "local",
+  })),
 } satisfies TaxonomyConfig;

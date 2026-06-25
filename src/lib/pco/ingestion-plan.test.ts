@@ -172,12 +172,12 @@ describe("buildIngestionPlan", () => {
     expect(
       result.incidents.filter(({ kind }) => kind === "reconciliation_gap"),
     ).toHaveLength(0);
-    expect(result.incidents).toContainEqual(
-      expect.objectContaining({
-        kind: "slot_resolution",
-        planTimeId: runThroughTime.id,
-      }),
-    );
+    expect(
+      result.incidents.some(
+        ({ kind, planTimeId }) =>
+          kind === "slot_resolution" && planTimeId === runThroughTime.id,
+      ),
+    ).toBe(false);
     expect(result.itemTimes[0].sourceFingerprint).toMatch(/^[a-f0-9]{64}$/);
   });
 
@@ -230,16 +230,20 @@ describe("buildIngestionPlan", () => {
     );
   });
 
-  it("keeps rehearsal plan times out of production slot matching and review", () => {
+  it("keeps non-production plan times out of production slot matching and review", () => {
     const rehearsalTime = planTime("time-rehearsal", "2026-06-21T15:00:00Z", {
       name: "Dress Rehearsal Service",
+      time_type: "service",
+    });
+    const techTeamTime = planTime("time-tech-team", "2026-06-21T15:05:00Z", {
+      name: "Tech Team",
       time_type: "service",
     });
     const result = buildIngestionPlan(
       campus,
       {
         plan,
-        planTimes: [rehearsalTime, productionTime],
+        planTimes: [rehearsalTime, techTeamTime, productionTime],
         items: [],
         itemTimes: [],
       },
@@ -263,6 +267,14 @@ describe("buildIngestionPlan", () => {
       slotResolutionState: "review",
     });
     expect(
+      result.planTimes.find(
+        ({ pcoPlanTimeId }) => pcoPlanTimeId === techTeamTime.id,
+      ),
+    ).toMatchObject({
+      detectedSlotLabel: null,
+      slotResolutionState: "review",
+    });
+    expect(
       result.incidents.some(
         ({ kind, planTimeId }) =>
           kind === "slot_resolution" && planTimeId === rehearsalTime.id,
@@ -270,9 +282,15 @@ describe("buildIngestionPlan", () => {
     ).toBe(false);
     expect(
       result.incidents.some(
+        ({ kind, planTimeId }) =>
+          kind === "slot_resolution" && planTimeId === techTeamTime.id,
+      ),
+    ).toBe(false);
+    expect(
+      result.incidents.some(
         ({ kind, detail }) =>
           kind === "slot_resolution" &&
-          detail === "2 PlanTimes matched the 10am production slot.",
+          detail === "3 PlanTimes matched the 10am production slot.",
       ),
     ).toBe(false);
   });
@@ -322,7 +340,7 @@ describe("buildIngestionPlan", () => {
     );
   });
 
-  it("reports timed worship parents and songs as review candidates", () => {
+  it("marks approved worship-bundle child songs as rollup children instead of review incidents", () => {
     const result = buildIngestionPlan(
       campus,
       {
@@ -339,12 +357,12 @@ describe("buildIngestionPlan", () => {
       PCO_TAXONOMY,
     );
 
-    expect(result.incidents).toContainEqual(
-      expect.objectContaining({
-        kind: "bundle_overlap",
-        itemIds: ["worship-bundle", "song-1", "song-2"],
-      }),
-    );
+    expect(
+      result.incidents.some(({ kind }) => kind === "bundle_overlap"),
+    ).toBe(false);
+    expect(
+      result.items.filter(({ isRollupChild }) => isRollupChild).map(({ pcoItemId }) => pcoItemId),
+    ).toEqual(["song-1", "song-2"]);
   });
 
   it("classifies unmapped taxonomy rows without silently assigning them", () => {
@@ -387,10 +405,6 @@ describe("buildIngestionPlan", () => {
           suggestedElementKey: "mid.close_worship",
         }),
         expect.objectContaining({
-          pcoItemId: "combined",
-          reason: "combined_title",
-        }),
-        expect.objectContaining({
           pcoItemId: "unknown",
           reason: "missing_alias",
         }),
@@ -400,8 +414,14 @@ describe("buildIngestionPlan", () => {
         }),
       ]),
     );
+    expect(
+      result.items.find(({ pcoItemId }) => pcoItemId === "combined"),
+    ).toMatchObject({
+      sectionKey: "local",
+      elementKey: "local.salvation",
+      resolutionSource: "alias",
+    });
     expect(result.summary.taxonomyReviewByReason).toMatchObject({
-      combined_title: 1,
       missing_alias: 1,
       missing_section: 1,
       rollup_review: 1,
@@ -431,7 +451,7 @@ describe("buildIngestionPlan", () => {
     });
   });
 
-  it("recognizes ELK Salvation Response CC as a combined local moment", () => {
+  it("maps salvation response connect-card variants into local salvation", () => {
     const elk = PCO_CAMPUSES.find(({ code }) => code === "ELK")!;
     const result = buildIngestionPlan(
       elk,
@@ -443,7 +463,7 @@ describe("buildIngestionPlan", () => {
           pcoItem(
             "salvation-connect-card",
             2,
-            "Salvation Response CC",
+            "Salvation Response//Connect Card",
             "item",
             120,
           ),
@@ -453,14 +473,37 @@ describe("buildIngestionPlan", () => {
       PCO_TAXONOMY,
     );
 
-    expect(result.taxonomyReview).toContainEqual(
-      expect.objectContaining({
-        pcoItemId: "salvation-connect-card",
-        reason: "combined_title",
-        currentSectionKey: "live",
-        suggestedSectionKey: "local",
-        suggestedElementKey: null,
-      }),
+    expect(result.items[1]).toMatchObject({
+      sectionKey: "local",
+      elementKey: "local.salvation",
+      resolutionSource: "alias",
+    });
+    expect(
+      result.taxonomyReview.some(
+        ({ pcoItemId }) => pcoItemId === "salvation-connect-card",
+      ),
+    ).toBe(false);
+  });
+
+  it("maps KB Moment into mid-service hosted moment", () => {
+    const result = buildIngestionPlan(
+      campus,
+      {
+        plan,
+        planTimes: [productionTime],
+        items: [
+          pcoItem("header-mid", 1, "Mid-Service", "header", 0),
+          pcoItem("kb-moment", 2, "KB Moment", "item", 90),
+        ],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
     );
+
+    expect(result.items[1]).toMatchObject({
+      sectionKey: "mid_service",
+      elementKey: "mid.hosted_moment",
+      resolutionSource: "alias",
+    });
   });
 });
