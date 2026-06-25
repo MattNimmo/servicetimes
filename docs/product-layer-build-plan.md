@@ -1,9 +1,12 @@
 # Build plan — product layer (post-ingestion)
 
 Status: **Phase 0, Phase 1, and Phase 2A implemented** (2026-06-24). **Phase
-2B is in progress**: slot-actual corrections and slot-resolution workflow are
-implemented, and item-time actual correction is the active follow-on slice.
-Production auth secrets and the login rate-limit gate remain operational steps.
+2B is in progress**: slot-actual corrections, slot-resolution workflow, and
+item-time actual correction are implemented. The next follow-on slices are
+non-production exclusion rules (starting with rehearsal PlanTimes never mapping
+into production variance) and a PCO-familiar operator workspace that reviews
+issues in service-order context. Production auth secrets and the login
+rate-limit gate remain operational steps.
 
 ## Context
 
@@ -312,6 +315,44 @@ durations rather than slot decisions:
   raw `item_times.actual_seconds`, so affected element rows update immediately
   on the dashboard without mutating raw PCO evidence.
 - Planned item corrections and item bucket overrides remain later slices.
+
+### Phase 2B slice 4 — non-production exclusion rules
+
+This slice turns repeated operator judgment into ingestion/runtime policy:
+
+- Rehearsal PlanTimes should never be treated as production variance slots.
+- Review cards should not force operators to decide whether a rehearsal belongs
+  to 9am or 11am; the system should auto-exclude those occurrences from
+  variance by rule.
+- Start with a narrow, explicit rule for `Rehearsal`, then extend to other
+  known non-production names only after review.
+- The current operational workaround is manual exclusion in the operator queue;
+  for example, the MG `Rehearsal` PlanTime on Sunday, June 21, 2026 was
+  manually excluded and should become the baseline product behavior.
+
+### Phase 2B slice 5 — service-flow operator workspace
+
+The current review queue proves the write paths, but the long-term admin
+experience should feel closer to PCO's plan view: operators open a service date,
+see the service times in context, and resolve highlighted issues inside the flow
+of the service instead of scanning detached incident cards.
+
+- The main operator view should be organized by campus, service date, and
+  service time/PlanTime, with a left rail or compact list for the day's
+  occurrences.
+- The center workspace should show the selected service time's order of items
+  in sequence, grouped by section where possible.
+- Items, PlanTimes, or elements that need review should be highlighted inline
+  where they occur in the service flow.
+- Classification/correction controls should appear beside the affected
+  PlanTime or item, with raw IDs, links, and JSON attributes hidden behind a
+  details disclosure for troubleshooting.
+- The operator should be able to resolve slot mapping, slot actuals, item
+  actuals, kept/excluded decisions, and future bucket classification from the
+  same service-context workspace.
+- The existing `/operator/review` queue can remain as a filtered backlog, but
+  it should link into this service-flow view rather than being the primary
+  working surface.
 
 ### Deployment gates
 
