@@ -73,3 +73,42 @@ export async function correctPlanTimeIncidentAction(formData: FormData) {
   revalidatePath("/variance");
   redirect(redirectTo);
 }
+
+export async function resolveSlotResolutionIncidentAction(formData: FormData) {
+  const session = await requireRole("operator");
+  const incidentId = Number(formData.get("incidentId"));
+  const redirectTo = safeRedirectPath(formData.get("redirectTo"));
+  const resolutionAction = formData.get("slotResolutionAction");
+  const slotIdRaw = formData.get("slotId");
+
+  if (!Number.isInteger(incidentId) || incidentId <= 0) {
+    throw new Error("Invalid review incident.");
+  }
+  if (resolutionAction !== "map" && resolutionAction !== "exclude") {
+    throw new Error("Invalid slot resolution action.");
+  }
+
+  let slotId: number | null = null;
+  if (resolutionAction === "map") {
+    slotId = Number(slotIdRaw);
+    if (!Number.isInteger(slotId) || slotId <= 0) {
+      throw new Error("A production slot is required.");
+    }
+  }
+
+  await postRpc<{
+    ok: boolean;
+    incident_id: number;
+    resolution_id: number;
+    status: string;
+  }>("resolve_slot_resolution_incident", {
+    p_incident_id: incidentId,
+    p_action: resolutionAction,
+    p_slot_id: slotId,
+    p_actor: session.role,
+  });
+
+  revalidatePath("/operator/review");
+  revalidatePath("/variance");
+  redirect(redirectTo);
+}
