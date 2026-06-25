@@ -31,3 +31,21 @@ export function formatServiceDate(value: string) {
     timeZone: "UTC",
   }).format(new Date(`${value}T12:00:00Z`));
 }
+
+export function parseDurationInput(value: string) {
+  const normalized = value.trim();
+  if (!normalized) return null;
+
+  const parts = normalized.split(":");
+  if (parts.length !== 2 && parts.length !== 3) return null;
+  if (parts.some((part) => !/^\d+$/.test(part))) return null;
+
+  const numbers = parts.map(Number);
+  const seconds = numbers.at(-1) ?? 0;
+  const minutes = numbers.at(-2) ?? 0;
+  const hours = parts.length === 3 ? (numbers[0] ?? 0) : 0;
+
+  if (seconds >= 60 || minutes >= 60 && parts.length === 3) return null;
+
+  return (hours * 60 * 60) + (minutes * 60) + seconds;
+}

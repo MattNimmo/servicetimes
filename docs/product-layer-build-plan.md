@@ -1,8 +1,9 @@
 # Build plan — product layer (post-ingestion)
 
-Status: **Phase 0 and Phase 1 implemented** (2026-06-24). **Phase 2A is in
-progress**: operator review queue plus kept/excluded incident resolution.
-Production auth secrets and the login rate-limit gate remain operational steps.
+Status: **Phase 0, Phase 1, and Phase 2A implemented** (2026-06-24). **Phase
+2B is in progress**: slot-actual correction overlays for PlanTime-scoped
+incidents. Production auth secrets and the login rate-limit gate remain
+operational steps.
 
 ## Context
 
@@ -267,6 +268,21 @@ math yet:
 ### Out of scope for Phase 1
 Corrections/incident resolution writes (Phase 2), approved campus reference
 targets and recommendations (Phase 3), and any client-side Supabase SDK.
+
+### Phase 2B slice 1 — slot actual corrections
+
+This first Phase 2B increment keeps the correction surface narrow:
+
+- Operators can correct the actual duration for a PlanTime-scoped incident from
+  `/operator/review`.
+- The write path creates one `correction_set`, inserts one `correction_values`
+  row targeting that incident's `plan_time_id`, marks the incident `corrected`,
+  and writes one `admin_audit_log` record atomically.
+- Viewer slot variance reads the active corrected actual in preference to the
+  raw `plan_times.actual_service_seconds`, so corrected headline values appear
+  without mutating PCO evidence.
+- Item-time corrections, slot remaps, and item bucket overrides remain later
+  slices because they need separate validation and UI.
 
 ### Deployment gates
 
