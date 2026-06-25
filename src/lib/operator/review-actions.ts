@@ -112,3 +112,50 @@ export async function resolveSlotResolutionIncidentAction(formData: FormData) {
   revalidatePath("/variance");
   redirect(redirectTo);
 }
+
+export async function correctItemTimeIncidentAction(formData: FormData) {
+  const session = await requireRole("operator");
+  const incidentId = Number(formData.get("incidentId"));
+  const redirectTo = safeRedirectPath(formData.get("redirectTo"));
+
+  if (!Number.isInteger(incidentId) || incidentId <= 0) {
+    throw new Error("Invalid review incident.");
+  }
+
+  const corrections: Array<{ item_time_id: number; corrected_actual_seconds: number }> = [];
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith("itemTime:")) continue;
+    if (typeof value !== "string" || value.trim() === "") continue;
+    const itemTimeId = Number(key.slice("itemTime:".length));
+    if (!Number.isInteger(itemTimeId) || itemTimeId <= 0) {
+      throw new Error("Invalid item time correction target.");
+    }
+    const correctedActualSeconds = parseDurationInput(value);
+    if (correctedActualSeconds === null) {
+      throw new Error("Corrected duration must be m:ss or h:mm:ss.");
+    }
+    corrections.push({
+      item_time_id: itemTimeId,
+      corrected_actual_seconds: correctedActualSeconds,
+    });
+  }
+
+  if (corrections.length === 0) {
+    throw new Error("At least one corrected item duration is required.");
+  }
+
+  await postRpc<{
+    ok: boolean;
+    incident_id: number;
+    correction_set_id: number;
+    status: string;
+  }>("correct_item_time_incident", {
+    p_incident_id: incidentId,
+    p_corrections: corrections,
+    p_actor: session.role,
+  });
+
+  revalidatePath("/operator/review");
+  revalidatePath("/variance");
+  redirect(redirectTo);
+}

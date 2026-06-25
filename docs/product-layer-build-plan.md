@@ -1,9 +1,9 @@
 # Build plan — product layer (post-ingestion)
 
 Status: **Phase 0, Phase 1, and Phase 2A implemented** (2026-06-24). **Phase
-2B is in progress**: slot-actual correction overlays are implemented, and
-slot-resolution workflow is the active follow-on slice. Production auth secrets
-and the login rate-limit gate remain operational steps.
+2B is in progress**: slot-actual corrections and slot-resolution workflow are
+implemented, and item-time actual correction is the active follow-on slice.
+Production auth secrets and the login rate-limit gate remain operational steps.
 
 ## Context
 
@@ -298,6 +298,20 @@ decisions instead of queue triage:
 - The viewer dashboards pick up the change automatically through
   `effective_plan_times`, so remapped or excluded slots change the live
   variance surface without mutating raw PCO evidence.
+
+### Phase 2B slice 3 — item-time actual corrections
+
+This slice resolves element-level timing incidents that need corrected item
+durations rather than slot decisions:
+
+- Operators can save one or more corrected item actuals on a single review card.
+- The write path creates one `correction_set`, inserts one `correction_values`
+  row per corrected `item_time_id`, marks the incident `corrected`, and writes
+  one `admin_audit_log` record atomically.
+- `element_variance` reads active corrected item-time actuals in preference to
+  raw `item_times.actual_seconds`, so affected element rows update immediately
+  on the dashboard without mutating raw PCO evidence.
+- Planned item corrections and item bucket overrides remain later slices.
 
 ### Deployment gates
 
