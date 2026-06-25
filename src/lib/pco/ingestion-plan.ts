@@ -133,13 +133,21 @@ function incident(
   };
 }
 
+function isNonProductionPlanTime(planTime: Pick<PcoPlanTime, "attributes">) {
+  const name = planTime.attributes.name?.trim().toLowerCase() ?? "";
+  return planTime.attributes.time_type === "rehearsal" || name.includes("rehearsal");
+}
+
 function assignSlots(campus: PcoCampus, planTimes: PcoPlanTime[]) {
   const assignments = new Map<string, string>();
   const incidents: IngestionIncident[] = [];
+  const productionCandidates = planTimes.filter(
+    (planTime) => !isNonProductionPlanTime(planTime),
+  );
 
   for (const slot of campus.slots) {
     const expectedMinutes = slotMinutes(slot.localStart);
-    const candidates = planTimes.filter(({ attributes }) => {
+    const candidates = productionCandidates.filter(({ attributes }) => {
       if (!attributes.starts_at) return false;
       const { minutes } = localParts(attributes.starts_at, campus.timezone);
       return minuteDistance(minutes, expectedMinutes) <= slot.toleranceMinutes;
@@ -170,6 +178,7 @@ function assignSlots(campus: PcoCampus, planTimes: PcoPlanTime[]) {
 
   for (const planTime of planTimes) {
     if (assignments.has(planTime.id)) continue;
+    if (isNonProductionPlanTime(planTime)) continue;
     const actualSeconds = durationSeconds(
       planTime.attributes.live_starts_at,
       planTime.attributes.live_ends_at,

@@ -230,6 +230,53 @@ describe("buildIngestionPlan", () => {
     );
   });
 
+  it("keeps rehearsal plan times out of production slot matching and review", () => {
+    const rehearsalTime = planTime("time-rehearsal", "2026-06-21T15:00:00Z", {
+      name: "Dress Rehearsal Service",
+      time_type: "service",
+    });
+    const result = buildIngestionPlan(
+      campus,
+      {
+        plan,
+        planTimes: [rehearsalTime, productionTime],
+        items: [],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(
+      result.planTimes.find(
+        ({ pcoPlanTimeId }) => pcoPlanTimeId === productionTime.id,
+      ),
+    ).toMatchObject({
+      detectedSlotLabel: "10am",
+      slotResolutionState: "auto",
+    });
+    expect(
+      result.planTimes.find(
+        ({ pcoPlanTimeId }) => pcoPlanTimeId === rehearsalTime.id,
+      ),
+    ).toMatchObject({
+      detectedSlotLabel: null,
+      slotResolutionState: "review",
+    });
+    expect(
+      result.incidents.some(
+        ({ kind, planTimeId }) =>
+          kind === "slot_resolution" && planTimeId === rehearsalTime.id,
+      ),
+    ).toBe(false);
+    expect(
+      result.incidents.some(
+        ({ kind, detail }) =>
+          kind === "slot_resolution" &&
+          detail === "2 PlanTimes matched the 10am production slot.",
+      ),
+    ).toBe(false);
+  });
+
   it("flags bad timer evidence and a reconciliation gap", () => {
     const anomalousItems = [
       pcoItem("header-live", 1, "Live", "header", 0),

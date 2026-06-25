@@ -37,7 +37,7 @@ values (
   'slot-resolution-plan-time',
   (select id from public.plans where pco_plan_id = 'slot-resolution-plan'),
   'review',
-  'Dress Rehearsal Service',
+  'First Service',
   'service',
   '2026-06-30 13:00:00+00',
   '2026-06-30 13:50:00+00'
