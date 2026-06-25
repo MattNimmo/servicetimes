@@ -92,6 +92,61 @@ function uniqueKinds(incidents: OpenReviewIncident[]) {
   return [...new Set(incidents.map((incident) => incident.kind))];
 }
 
+function incidentHeadline(incident: OpenReviewIncident) {
+  if (incident.kind === "slot_resolution") {
+    return "Choose where this PlanTime belongs";
+  }
+  if (incident.kind === "missing_live_bounds" || incident.kind === "zero_live_window") {
+    return "Confirm the actual length for this service slot";
+  }
+  if (incident.kind === "reconciliation_gap") {
+    return "Correct the slot total before variance is trusted";
+  }
+  if (incident.kind === "missing_item_end") {
+    return "One or more service items need corrected actual time";
+  }
+  if (incident.kind === "bundle_overlap") {
+    return "Check overlapping item timing inside this service flow";
+  }
+  return "Review this timing incident";
+}
+
+function incidentActionCopy(incident: OpenReviewIncident) {
+  if (incident.canResolveSlotResolution) {
+    return "Map this PlanTime into a real production slot, or exclude it from variance if it does not belong in Sunday service reporting.";
+  }
+  if (incident.canCorrectPlanTimeActual) {
+    return "Save the corrected slot actual here so plan-vs-actual reports use the real service length without changing raw PCO data.";
+  }
+  if (incident.canCorrectItemTimes) {
+    return "Update the affected item actuals from this service flow so the variance view reflects the real runtime.";
+  }
+  return "Resolve the incident after reviewing the service context below.";
+}
+
+function incidentContextRows(incident: OpenReviewIncident) {
+  return [
+    {
+      label: "Service time",
+      value:
+        [formatTimeLabel(incident.planTimeStartsAt), incident.slotLabel]
+          .filter(Boolean)
+          .join(" · ") || "Unscheduled",
+    },
+    {
+      label: "Occurrence",
+      value: incident.planTimeName ?? incident.planTitle,
+    },
+    {
+      label: "Review focus",
+      value:
+        incident.items.length > 0
+          ? `${incident.items.length} item${incident.items.length === 1 ? "" : "s"} flagged in flow`
+          : "Occurrence-level timing review",
+    },
+  ];
+}
+
 function groupByServiceDate(incidents: OpenReviewIncident[]) {
   const grouped = new Map<string, DateGroup>();
 
@@ -149,26 +204,50 @@ function groupByServiceDate(incidents: OpenReviewIncident[]) {
   );
 }
 
-function EvidencePreview({ evidence }: { evidence: Record<string, unknown> }) {
-  const entries = Object.entries(evidence).slice(0, 6);
-  if (entries.length === 0) return null;
+function TechnicalDetails({ incident }: { incident: OpenReviewIncident }) {
+  const entries = Object.entries(incident.evidence).slice(0, 6);
+  const hasPlanTime = incident.planTimeName || incident.planTimeStartsAt || incident.slotLabel;
+  if (entries.length === 0 && !hasPlanTime) return null;
+
   return (
     <details className="mt-4 rounded-md border border-zinc-800 bg-zinc-950/70">
       <summary className="cursor-pointer px-4 py-3 font-mono text-[11px] tracking-[0.18em] text-zinc-500 uppercase">
-        Details
+        Technical details
       </summary>
-      <dl className="grid gap-2 border-t border-zinc-800 px-4 py-4 text-xs text-zinc-500 sm:grid-cols-2">
-        {entries.map(([key, value]) => (
-          <div key={key} className="rounded-md border border-zinc-800 bg-zinc-950/60 p-3">
-            <dt className="font-mono uppercase">{key}</dt>
-            <dd className="mt-1 break-words text-zinc-300">
-              {typeof value === "string" || typeof value === "number"
-                ? value
-                : JSON.stringify(value)}
+      <div className="border-t border-zinc-800 px-4 py-4">
+        <dl className="grid gap-2 text-xs text-zinc-500 sm:grid-cols-2">
+          <div className="rounded-md border border-zinc-800 bg-zinc-950/60 p-3">
+            <dt className="font-mono uppercase">incident</dt>
+            <dd className="mt-1 text-zinc-300">
+              #{incident.id} · {kindLabel(incident.kind)}
             </dd>
           </div>
-        ))}
-      </dl>
+          {hasPlanTime ? (
+            <div className="rounded-md border border-zinc-800 bg-zinc-950/60 p-3">
+              <dt className="font-mono uppercase">plan time</dt>
+              <dd className="mt-1 text-zinc-300">
+                {[incident.planTimeName, formatTimeLabel(incident.planTimeStartsAt), incident.slotLabel]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+        {entries.length > 0 ? (
+          <dl className="mt-2 grid gap-2 text-xs text-zinc-500 sm:grid-cols-2">
+            {entries.map(([key, value]) => (
+              <div key={key} className="rounded-md border border-zinc-800 bg-zinc-950/60 p-3">
+                <dt className="font-mono uppercase">{key}</dt>
+                <dd className="mt-1 break-words text-zinc-300">
+                  {typeof value === "string" || typeof value === "number"
+                    ? value
+                    : JSON.stringify(value)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+      </div>
     </details>
   );
 }
@@ -219,16 +298,12 @@ function IncidentPanel({
             >
               {kindLabel(incident.kind)}
             </span>
-            <span className="font-mono text-[11px] tracking-[0.18em] text-zinc-500 uppercase">
-              #{incident.id}
-            </span>
           </div>
-          <p className="mt-3 text-base text-zinc-200">{incident.detail}</p>
-          {(incident.slotLabel || incident.planTimeName) && (
-            <p className="mt-2 text-sm text-zinc-500">
-              {[incident.slotLabel, incident.planTimeName].filter(Boolean).join(" · ")}
-            </p>
-          )}
+          <h3 className="mt-3 text-xl font-semibold text-zinc-100">
+            {incidentHeadline(incident)}
+          </h3>
+          <p className="mt-2 text-base text-zinc-300">{incident.detail}</p>
+          <p className="mt-3 max-w-3xl text-sm text-zinc-400">{incidentActionCopy(incident)}</p>
         </div>
         <Link
           href={`/variance/${incident.campusCode}/${incident.serviceDate}`}
@@ -237,6 +312,17 @@ function IncidentPanel({
           Open dashboard →
         </Link>
       </div>
+
+      <dl className="mt-5 grid gap-3 sm:grid-cols-3">
+        {incidentContextRows(incident).map((row) => (
+          <div key={`${incident.id}:${row.label}`} className="rounded-md border border-zinc-800 bg-zinc-950/50 p-4">
+            <dt className="font-mono text-[11px] tracking-[0.18em] text-zinc-500 uppercase">
+              {row.label}
+            </dt>
+            <dd className="mt-2 text-sm text-zinc-200">{row.value}</dd>
+          </div>
+        ))}
+      </dl>
 
       {incident.items.length > 0 && (
         <div className="mt-5 overflow-hidden rounded-md border border-zinc-800 bg-zinc-950/60">
@@ -409,7 +495,7 @@ function IncidentPanel({
           </div>
         )}
 
-      <EvidencePreview evidence={incident.evidence} />
+      <TechnicalDetails incident={incident} />
       <ReviewActions incident={incident} redirectTo={redirectTo} />
     </article>
   );
