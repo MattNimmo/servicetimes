@@ -1,6 +1,6 @@
 begin;
 
-select plan(5);
+select plan(6);
 
 insert into public.plans (
   pco_plan_id,
@@ -44,6 +44,35 @@ select results_eq(
   $$select effective_slot_id from public.effective_plan_times where pco_plan_time_id = 'non-production-rehearsal-time'$$,
   $$values (null::bigint)$$,
   'rehearsal-named plan times are automatically excluded from production slots'
+);
+
+insert into public.plan_times (
+  pco_plan_time_id,
+  plan_id,
+  detected_slot_id,
+  slot_resolution_state,
+  pco_name,
+  time_type,
+  starts_at,
+  ends_at,
+  recorded
+)
+values (
+  'non-production-tech-team-time',
+  (select id from public.plans where pco_plan_id = 'non-production-plan'),
+  (select id from public.service_slots where campus_id = (select id from public.campuses where code = 'MG') and slot_label = '11am'),
+  'review',
+  'Tech Team',
+  'service',
+  '2026-06-30 16:00:00+00',
+  '2026-06-30 17:00:00+00',
+  true
+);
+
+select results_eq(
+  $$select effective_slot_id from public.effective_plan_times where pco_plan_time_id = 'non-production-tech-team-time'$$,
+  $$values (null::bigint)$$,
+  'tech-team plan times are automatically excluded from production slots'
 );
 
 insert into public.review_incidents (
