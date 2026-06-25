@@ -1,7 +1,11 @@
 import Link from "next/link";
 
 import { requireRole } from "@/lib/auth/server";
-import { correctPlanTimeIncidentAction, resolveReviewIncidentAction } from "@/lib/operator/review-actions";
+import {
+  correctPlanTimeIncidentAction,
+  resolveReviewIncidentAction,
+  resolveSlotResolutionIncidentAction,
+} from "@/lib/operator/review-actions";
 import { listOpenReviewIncidents } from "@/lib/operator/review-queries";
 import { formatDuration, formatServiceDate } from "@/lib/variance/format";
 
@@ -157,6 +161,58 @@ export default async function OperatorReviewPage() {
                   Enter `m:ss` or `h:mm:ss`. This records a database-only correction and resolves
                   the incident as corrected.
                 </p>
+              </div>
+            )}
+
+            {incident.canResolveSlotResolution && (
+              <div className="mt-6 rounded-xl border border-emerald-900/70 bg-emerald-950/20 p-4">
+                <div>
+                  <p className="font-mono text-xs tracking-[0.2em] text-emerald-300 uppercase">
+                    Resolve slot mapping
+                  </p>
+                  <p className="mt-2 text-sm text-zinc-400">
+                    Map this PlanTime to a production slot or exclude it from variance.
+                  </p>
+                </div>
+                <form
+                  action={resolveSlotResolutionIncidentAction}
+                  className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center"
+                >
+                  <input type="hidden" name="incidentId" value={incident.id} />
+                  <input type="hidden" name="redirectTo" value="/operator/review" />
+                  <input type="hidden" name="slotResolutionAction" value="map" />
+                  <select
+                    name="slotId"
+                    defaultValue=""
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-100 outline-none focus:border-emerald-500 sm:max-w-[14rem]"
+                  >
+                    <option value="" disabled>
+                      Choose slot
+                    </option>
+                    {incident.availableSlots.map((slot) => (
+                      <option key={slot.id} value={slot.id}>
+                        {slot.label} · {slot.expectedLocalStart}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-emerald-800 bg-emerald-950/50 px-4 py-2 text-sm font-medium text-emerald-200 hover:bg-emerald-900/50"
+                  >
+                    Map to slot
+                  </button>
+                </form>
+                <form action={resolveSlotResolutionIncidentAction} className="mt-3">
+                  <input type="hidden" name="incidentId" value={incident.id} />
+                  <input type="hidden" name="redirectTo" value="/operator/review" />
+                  <input type="hidden" name="slotResolutionAction" value="exclude" />
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm font-medium text-zinc-200 hover:border-zinc-500"
+                  >
+                    Exclude PlanTime from variance
+                  </button>
+                </form>
               </div>
             )}
 

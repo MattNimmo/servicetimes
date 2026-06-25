@@ -40,7 +40,11 @@ type CampusRow = {
 
 type SlotRow = {
   id: number;
+  campus_id: number;
   slot_label: string;
+  expected_local_start: string;
+  is_run_through: boolean;
+  is_active: boolean;
 };
 
 type ItemRow = {
@@ -66,6 +70,12 @@ export type OpenReviewIncident = {
   plannedTargetSeconds: number | null;
   actualServiceSeconds: number | null;
   canCorrectPlanTimeActual: boolean;
+  canResolveSlotResolution: boolean;
+  availableSlots: Array<{
+    id: number;
+    label: string;
+    expectedLocalStart: string;
+  }>;
   itemCount: number;
   items: Array<{
     id: number;
@@ -81,6 +91,8 @@ const PLAN_TIME_CORRECTION_KINDS = new Set([
   "zero_live_window",
   "reconciliation_gap",
 ]);
+
+const SLOT_RESOLUTION_KINDS = new Set(["slot_resolution"]);
 
 function uniqueNumbers(values: Array<number | null | undefined>) {
   return Array.from(
@@ -131,17 +143,20 @@ export async function listOpenReviewIncidents(): Promise<OpenReviewIncident[]> {
   );
   const planById = new Map(plans.map((plan) => [plan.id, plan]));
 
+  const campusIds = uniqueNumbers(plans.map(({ campus_id }) => campus_id));
+
   const [campuses, slots, items] = await Promise.all([
     readByIds<CampusRow>(
       "campuses",
-      uniqueNumbers(plans.map(({ campus_id }) => campus_id)),
+      campusIds,
       "id,code,name",
     ),
-    readByIds<SlotRow>(
-      "service_slots",
-      uniqueNumbers(incidents.map(({ slot_id }) => slot_id)),
-      "id,slot_label",
-    ),
+    campusIds.length === 0
+      ? Promise.resolve([] as SlotRow[])
+      : readRows<SlotRow>("service_slots", {
+          campus_id: inFilter(campusIds),
+          select: "id,campus_id,slot_label,expected_local_start,is_run_through,is_active",
+        }),
     readByIds<ItemRow>(
       "items",
       uniqueNumbers(
@@ -156,6 +171,12 @@ export async function listOpenReviewIncidents(): Promise<OpenReviewIncident[]> {
   const campusById = new Map(campuses.map((campus) => [campus.id, campus]));
   const slotById = new Map(slots.map((slot) => [slot.id, slot]));
   const itemById = new Map(items.map((item) => [item.id, item]));
+  const slotsByCampusId = new Map<number, SlotRow[]>();
+  for (const slot of slots) {
+    const campusSlots = slotsByCampusId.get(slot.campus_id) ?? [];
+    campusSlots.push(slot);
+    slotsByCampusId.set(slot.campus_id, campusSlots);
+  }
 
   return incidents
     .map((incident) => {
@@ -189,6 +210,16 @@ export async function listOpenReviewIncidents(): Promise<OpenReviewIncident[]> {
         actualServiceSeconds: planTime?.actual_service_seconds ?? null,
         canCorrectPlanTimeActual:
           incident.plan_time_id !== null && PLAN_TIME_CORRECTION_KINDS.has(incident.kind),
+        canResolveSlotResolution:
+          incident.plan_time_id !== null && SLOT_RESOLUTION_KINDS.has(incident.kind),
+        availableSlots: (slotsByCampusId.get(campus.id) ?? [])
+          .filter((slot) => slot.is_active && !slot.is_run_through)
+          .sort((left, right) => left.expected_local_start.localeCompare(right.expected_local_start))
+          .map((slot) => ({
+            id: slot.id,
+            label: slot.slot_label,
+            expectedLocalStart: slot.expected_local_start,
+          })),
         itemCount: incident.review_incident_items.length,
         items: incidentItems.map((item) => ({
           id: item.id,

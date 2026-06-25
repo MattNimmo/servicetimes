@@ -1,9 +1,9 @@
 # Build plan — product layer (post-ingestion)
 
 Status: **Phase 0, Phase 1, and Phase 2A implemented** (2026-06-24). **Phase
-2B is in progress**: slot-actual correction overlays for PlanTime-scoped
-incidents. Production auth secrets and the login rate-limit gate remain
-operational steps.
+2B is in progress**: slot-actual correction overlays are implemented, and
+slot-resolution workflow is the active follow-on slice. Production auth secrets
+and the login rate-limit gate remain operational steps.
 
 ## Context
 
@@ -283,6 +283,21 @@ This first Phase 2B increment keeps the correction surface narrow:
   without mutating PCO evidence.
 - Item-time corrections, slot remaps, and item bucket overrides remain later
   slices because they need separate validation and UI.
+
+### Phase 2B slice 2 — slot-resolution workflow
+
+This slice turns `slot_resolution` review cards into actual occurrence-level
+decisions instead of queue triage:
+
+- Operators can map a PlanTime to one of the configured active campus slots.
+- Operators can exclude a PlanTime from variance entirely when it represents a
+  run-through or other non-production service.
+- The write path creates a new `plan_time_slot_resolutions` revision, supersedes
+  any prior active resolution, marks the incident `corrected`, and writes one
+  `admin_audit_log` record atomically.
+- The viewer dashboards pick up the change automatically through
+  `effective_plan_times`, so remapped or excluded slots change the live
+  variance surface without mutating raw PCO evidence.
 
 ### Deployment gates
 
