@@ -1,6 +1,6 @@
 begin;
 
-select plan(9);
+select plan(8);
 
 select has_view(
   'public',
@@ -124,7 +124,14 @@ values (
 select lives_ok(
   $$select public.correct_item_time_incident(
     (select id from public.review_incidents where source_fingerprint = 'item-time-correction-incident'),
-    '[{"item_time_id": ' || (select id from public.item_times where pco_item_time_id = 'item-time-correction-item-time') || ', "corrected_actual_seconds": 330}]'::jsonb,
+    jsonb_build_array(
+      jsonb_build_object(
+        'item_time_id',
+        (select id from public.item_times where pco_item_time_id = 'item-time-correction-item-time'),
+        'corrected_actual_seconds',
+        330
+      )
+    ),
     'operator'
   )$$,
   'an open item-time incident can be corrected'
@@ -144,7 +151,7 @@ select results_eq(
 
 select results_eq(
   $$select actual_seconds from public.element_variance where plan_id = (select id from public.plans where pco_plan_id = 'item-time-correction-plan') and element_key = 'local.worship_response'$$,
-  $$values (330)$$,
+  $$values (330::bigint)$$,
   'element variance reads the corrected item-time actual'
 );
 
