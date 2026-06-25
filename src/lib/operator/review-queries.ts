@@ -11,7 +11,10 @@ type OpenIncidentRow = {
   detail: string;
   evidence: Record<string, unknown>;
   opened_at: string;
-  review_incident_items: Array<{ item_id: number | string }>;
+  review_incident_items: Array<{
+    item_id: number | string;
+    item_time_id: number | string | null;
+  }>;
 };
 
 type PlanTimeRow = {
@@ -55,6 +58,12 @@ type ItemRow = {
   planned_seconds: number | null;
 };
 
+type ItemTimeRow = {
+  id: number;
+  item_id: number;
+  actual_seconds: number | null;
+};
+
 export type OpenReviewIncident = {
   id: number;
   kind: string;
@@ -71,6 +80,7 @@ export type OpenReviewIncident = {
   actualServiceSeconds: number | null;
   canCorrectPlanTimeActual: boolean;
   canResolveSlotResolution: boolean;
+  canCorrectItemTimes: boolean;
   availableSlots: Array<{
     id: number;
     label: string;
@@ -79,10 +89,12 @@ export type OpenReviewIncident = {
   itemCount: number;
   items: Array<{
     id: number;
+    itemTimeId: number | null;
     title: string;
     sectionKey: string | null;
     elementKey: string | null;
     plannedSeconds: number | null;
+    actualSeconds: number | null;
   }>;
 };
 
@@ -93,6 +105,10 @@ const PLAN_TIME_CORRECTION_KINDS = new Set([
 ]);
 
 const SLOT_RESOLUTION_KINDS = new Set(["slot_resolution"]);
+const ITEM_TIME_CORRECTION_KINDS = new Set([
+  "missing_item_end",
+  "bundle_overlap",
+]);
 
 function uniqueNumbers(values: Array<number | null | undefined>) {
   return Array.from(
@@ -121,7 +137,7 @@ export async function listOpenReviewIncidents(): Promise<OpenReviewIncident[]> {
   const incidents = await readRows<OpenIncidentRow>("review_incidents", {
     status: "eq.open",
     select:
-      "id,plan_id,plan_time_id,slot_id,kind,detail,evidence,opened_at,review_incident_items(item_id)",
+      "id,plan_id,plan_time_id,slot_id,kind,detail,evidence,opened_at,review_incident_items(item_id,item_time_id)",
     order: "opened_at.asc",
   });
 
@@ -145,7 +161,15 @@ export async function listOpenReviewIncidents(): Promise<OpenReviewIncident[]> {
 
   const campusIds = uniqueNumbers(plans.map(({ campus_id }) => campus_id));
 
-  const [campuses, slots, items] = await Promise.all([
+  const itemTimeIds = uniqueNumbers(
+    incidents.flatMap(({ review_incident_items }) =>
+      review_incident_items.map(({ item_time_id }) =>
+        item_time_id === null ? null : Number(item_time_id),
+      ),
+    ),
+  );
+
+  const [campuses, slots, items, itemTimes] = await Promise.all([
     readByIds<CampusRow>(
       "campuses",
       campusIds,
@@ -166,11 +190,17 @@ export async function listOpenReviewIncidents(): Promise<OpenReviewIncident[]> {
       ),
       "id,raw_title,section_key,element_key,planned_seconds",
     ),
+    readByIds<ItemTimeRow>(
+      "item_times",
+      itemTimeIds,
+      "id,item_id,actual_seconds",
+    ),
   ]);
 
   const campusById = new Map(campuses.map((campus) => [campus.id, campus]));
   const slotById = new Map(slots.map((slot) => [slot.id, slot]));
   const itemById = new Map(items.map((item) => [item.id, item]));
+  const itemTimeById = new Map(itemTimes.map((itemTime) => [itemTime.id, itemTime]));
   const slotsByCampusId = new Map<number, SlotRow[]>();
   for (const slot of slots) {
     const campusSlots = slotsByCampusId.get(slot.campus_id) ?? [];
@@ -188,8 +218,21 @@ export async function listOpenReviewIncidents(): Promise<OpenReviewIncident[]> {
       if (!plan || !campus) return null;
 
       const incidentItems = incident.review_incident_items
-        .map(({ item_id }) => itemById.get(Number(item_id)))
-        .filter((item): item is ItemRow => Boolean(item));
+        .map(({ item_id, item_time_id }) => {
+          const item = itemById.get(Number(item_id));
+          if (!item) return null;
+          const itemTime =
+            item_time_id === null ? null : itemTimeById.get(Number(item_time_id)) ?? null;
+          return { item, itemTime };
+        })
+        .filter(
+          (
+            item,
+          ): item is {
+            item: ItemRow;
+            itemTime: ItemTimeRow | null;
+          } => Boolean(item),
+        );
 
       return {
         id: incident.id,
@@ -212,6 +255,7 @@ export async function listOpenReviewIncidents(): Promise<OpenReviewIncident[]> {
           incident.plan_time_id !== null && PLAN_TIME_CORRECTION_KINDS.has(incident.kind),
         canResolveSlotResolution:
           incident.plan_time_id !== null && SLOT_RESOLUTION_KINDS.has(incident.kind),
+        canCorrectItemTimes: ITEM_TIME_CORRECTION_KINDS.has(incident.kind),
         availableSlots: (slotsByCampusId.get(campus.id) ?? [])
           .filter((slot) => slot.is_active && !slot.is_run_through)
           .sort((left, right) => left.expected_local_start.localeCompare(right.expected_local_start))
@@ -221,12 +265,14 @@ export async function listOpenReviewIncidents(): Promise<OpenReviewIncident[]> {
             expectedLocalStart: slot.expected_local_start,
           })),
         itemCount: incident.review_incident_items.length,
-        items: incidentItems.map((item) => ({
+        items: incidentItems.map(({ item, itemTime }) => ({
           id: item.id,
+          itemTimeId: itemTime?.id ?? null,
           title: item.raw_title,
           sectionKey: item.section_key,
           elementKey: item.element_key,
           plannedSeconds: item.planned_seconds,
+          actualSeconds: itemTime?.actual_seconds ?? null,
         })),
       };
     })

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireRole } from "@/lib/auth/server";
 import {
   correctPlanTimeIncidentAction,
+  correctItemTimeIncidentAction,
   resolveReviewIncidentAction,
   resolveSlotResolutionIncidentAction,
 } from "@/lib/operator/review-actions";
@@ -211,6 +212,59 @@ export default async function OperatorReviewPage() {
                     className="rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm font-medium text-zinc-200 hover:border-zinc-500"
                   >
                     Exclude PlanTime from variance
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {incident.canCorrectItemTimes && incident.items.some((item) => item.itemTimeId !== null) && (
+              <div className="mt-6 rounded-xl border border-violet-900/70 bg-violet-950/20 p-4">
+                <div>
+                  <p className="font-mono text-xs tracking-[0.2em] text-violet-300 uppercase">
+                    Correct item actuals
+                  </p>
+                  <p className="mt-2 text-sm text-zinc-400">
+                    Save one or more item-duration corrections to resolve this element-level incident.
+                  </p>
+                </div>
+                <form action={correctItemTimeIncidentAction} className="mt-4 space-y-3">
+                  <input type="hidden" name="incidentId" value={incident.id} />
+                  <input type="hidden" name="redirectTo" value="/operator/review" />
+                  {incident.items
+                    .filter((item) => item.itemTimeId !== null)
+                    .map((item) => (
+                      <div
+                        key={`${incident.id}:${item.id}:${item.itemTimeId}`}
+                        className="grid gap-3 rounded-lg border border-zinc-800 bg-zinc-950/50 p-4 sm:grid-cols-[minmax(0,1fr)_11rem]"
+                      >
+                        <div>
+                          <p className="font-medium text-zinc-100">{item.title}</p>
+                          <p className="mt-1 text-sm text-zinc-500">
+                            {item.elementKey ?? item.sectionKey ?? "unmapped"}
+                            {item.plannedSeconds !== null
+                              ? ` · ${formatDuration(item.plannedSeconds)} planned`
+                              : ""}
+                            {item.actualSeconds !== null
+                              ? ` · ${formatDuration(item.actualSeconds)} current actual`
+                              : " · no current actual"}
+                          </p>
+                        </div>
+                        <input
+                          type="text"
+                          name={`itemTime:${item.itemTimeId}`}
+                          defaultValue={
+                            item.actualSeconds !== null ? formatDuration(item.actualSeconds) : ""
+                          }
+                          placeholder="4:30"
+                          className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-violet-500"
+                        />
+                      </div>
+                    ))}
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-violet-800 bg-violet-950/50 px-4 py-2 text-sm font-medium text-violet-200 hover:bg-violet-900/50"
+                  >
+                    Save corrected item actuals
                   </button>
                 </form>
               </div>
