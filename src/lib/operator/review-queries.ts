@@ -20,6 +20,8 @@ type PlanTimeRow = {
   pco_name: string | null;
   starts_at: string | null;
   live_starts_at: string | null;
+  planned_target_seconds: number | null;
+  actual_service_seconds: number | null;
 };
 
 type PlanRow = {
@@ -61,6 +63,9 @@ export type OpenReviewIncident = {
   planTitle: string;
   planTimeName: string | null;
   slotLabel: string | null;
+  plannedTargetSeconds: number | null;
+  actualServiceSeconds: number | null;
+  canCorrectPlanTimeActual: boolean;
   itemCount: number;
   items: Array<{
     id: number;
@@ -70,6 +75,12 @@ export type OpenReviewIncident = {
     plannedSeconds: number | null;
   }>;
 };
+
+const PLAN_TIME_CORRECTION_KINDS = new Set([
+  "missing_live_bounds",
+  "zero_live_window",
+  "reconciliation_gap",
+]);
 
 function uniqueNumbers(values: Array<number | null | undefined>) {
   return Array.from(
@@ -105,7 +116,7 @@ export async function listOpenReviewIncidents(): Promise<OpenReviewIncident[]> {
   const planTimes = await readByIds<PlanTimeRow>(
     "plan_times",
     uniqueNumbers(incidents.map(({ plan_time_id }) => plan_time_id)),
-    "id,plan_id,pco_name,starts_at,live_starts_at",
+    "id,plan_id,pco_name,starts_at,live_starts_at,planned_target_seconds,actual_service_seconds",
   );
   const planTimeById = new Map(planTimes.map((planTime) => [planTime.id, planTime]));
 
@@ -174,6 +185,10 @@ export async function listOpenReviewIncidents(): Promise<OpenReviewIncident[]> {
           incident.slot_id === null
             ? null
             : (slotById.get(incident.slot_id)?.slot_label ?? null),
+        plannedTargetSeconds: planTime?.planned_target_seconds ?? null,
+        actualServiceSeconds: planTime?.actual_service_seconds ?? null,
+        canCorrectPlanTimeActual:
+          incident.plan_time_id !== null && PLAN_TIME_CORRECTION_KINDS.has(incident.kind),
         itemCount: incident.review_incident_items.length,
         items: incidentItems.map((item) => ({
           id: item.id,

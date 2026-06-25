@@ -44,6 +44,11 @@ type EffectivePlanTime = {
   slot_resolution_state: "auto" | "review";
 };
 
+type ActivePlanTimeCorrection = {
+  plan_time_id: number;
+  corrected_actual_seconds: number | null;
+};
+
 type ServiceSlot = {
   id: number;
   slot_label: string;
@@ -179,6 +184,14 @@ async function allPlanTimeIds(planId: number) {
   });
 }
 
+async function activePlanTimeCorrections(planTimeIds: number[]) {
+  if (planTimeIds.length === 0) return [];
+  return readRows<ActivePlanTimeCorrection>("active_plan_time_corrections", {
+    plan_time_id: `in.(${planTimeIds.join(",")})`,
+    select: "plan_time_id,corrected_actual_seconds",
+  });
+}
+
 async function unmappedCount(campus: string, serviceDate: string) {
   const rows = await readRows<{ id: number }>("unmapped_items", {
     campus: `eq.${campus}`,
@@ -261,7 +274,13 @@ export async function getVarianceDashboard(code: string, serviceDate: string) {
     }),
     unmappedCount(campus.code, plan.service_date),
   ]);
-  const incidents = await openIncidents(plan.id, everyPlanTime.map(({ id }) => id));
+  const [incidents, corrections] = await Promise.all([
+    openIncidents(plan.id, everyPlanTime.map(({ id }) => id)),
+    activePlanTimeCorrections(planTimes.map(({ id }) => id)),
+  ]);
+  const correctionByPlanTimeId = new Map(
+    corrections.map((correction) => [correction.plan_time_id, correction]),
+  );
 
   return {
     campus,
@@ -277,7 +296,8 @@ export async function getVarianceDashboard(code: string, serviceDate: string) {
           expectedLocalStart: slot?.expected_local_start ?? null,
           variance: computeVariance(
             planTime.planned_target_seconds,
-            planTime.actual_service_seconds,
+            correctionByPlanTimeId.get(planTime.id)?.corrected_actual_seconds ??
+              planTime.actual_service_seconds,
             isSlotBlocked(incidents, planTime.id, planTime.effective_slot_id),
           ),
         };
