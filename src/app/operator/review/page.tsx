@@ -88,6 +88,10 @@ function servicePositionLabel(position: "pre" | "during" | "post" | null) {
   return "Live flow";
 }
 
+function uniqueKinds(incidents: OpenReviewIncident[]) {
+  return [...new Set(incidents.map((incident) => incident.kind))];
+}
+
 function groupByServiceDate(incidents: OpenReviewIncident[]) {
   const grouped = new Map<string, DateGroup>();
 
@@ -434,9 +438,18 @@ export default async function OperatorReviewPage({ searchParams }: ReviewPagePro
       ? `/operator/review?campus=${selectedDate.campusCode}&date=${selectedDate.serviceDate}&occurrence=${encodeURIComponent(selectedOccurrence.key)}`
       : "/operator/review";
   const selectedOccurrenceItems = selectedOccurrence?.incidents[0]?.occurrenceItems ?? [];
+  const selectedOccurrenceKinds = uniqueKinds(selectedOccurrence?.incidents ?? []);
   const highlightedItemIds = new Set(
     selectedOccurrence?.incidents.flatMap((incident) => incident.items.map((item) => item.id)) ?? [],
   );
+  const issueKindsByItemId = new Map<number, string[]>();
+  for (const incident of selectedOccurrence?.incidents ?? []) {
+    for (const item of incident.items) {
+      const kinds = issueKindsByItemId.get(item.id) ?? [];
+      if (!kinds.includes(incident.kind)) kinds.push(incident.kind);
+      issueKindsByItemId.set(item.id, kinds);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#121210] text-zinc-100">
@@ -540,14 +553,26 @@ export default async function OperatorReviewPage({ searchParams }: ReviewPagePro
                 <p className="font-mono text-[11px] tracking-[0.18em] text-zinc-500 uppercase">
                   {selectedDate.campusCode} · {formatServiceDate(selectedDate.serviceDate)}
                 </p>
-                <div className="mt-3 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                  <div>
-                    <h2 className="text-3xl font-semibold tracking-tight text-zinc-50">
-                      {selectedOccurrence.label}
-                    </h2>
-                    <p className="mt-2 text-zinc-400">{selectedOccurrence.context}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-3">
+                  <div className="mt-3 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                    <div>
+                      <h2 className="text-3xl font-semibold tracking-tight text-zinc-50">
+                        {selectedOccurrence.label}
+                      </h2>
+                      <p className="mt-2 text-zinc-400">{selectedOccurrence.context}</p>
+                      {selectedOccurrenceKinds.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {selectedOccurrenceKinds.map((kind) => (
+                            <span
+                              key={kind}
+                              className={`rounded-full border px-2.5 py-1 font-mono text-[11px] tracking-wide uppercase ${incidentTone(kind)}`}
+                            >
+                              {kindLabel(kind)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-3">
                     <div className="rounded-md border border-zinc-800 bg-zinc-950/60 px-4 py-3">
                       <span className="block font-mono text-[11px] tracking-[0.18em] text-zinc-500 uppercase">
                         Issues
@@ -600,16 +625,17 @@ export default async function OperatorReviewPage({ searchParams }: ReviewPagePro
 
                 {selectedOccurrenceItems.length > 0 && (
                   <div className="mt-6 overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/40">
-                    <div className="grid grid-cols-[4.5rem_minmax(0,1.5fr)_9rem_9rem_8rem] gap-3 border-b border-zinc-800 px-5 py-3 font-mono text-[11px] tracking-[0.18em] text-zinc-500 uppercase">
+                    <div className="grid grid-cols-[4.5rem_minmax(0,1.4fr)_8rem_8rem_minmax(0,1fr)] gap-3 border-b border-zinc-800 px-5 py-3 font-mono text-[11px] tracking-[0.18em] text-zinc-500 uppercase">
                       <span>Order</span>
                       <span>Service flow</span>
                       <span>Planned</span>
                       <span>Current</span>
-                      <span>Review</span>
+                      <span>Review focus</span>
                     </div>
                     <ul className="divide-y divide-zinc-800">
                       {selectedOccurrenceItems.map((item, index) => {
                         const highlighted = highlightedItemIds.has(item.id);
+                        const rowKinds = issueKindsByItemId.get(item.id) ?? [];
                         const nextPosition = selectedOccurrenceItems[index - 1]?.servicePosition;
                         const showPositionBreak =
                           item.itemType !== "header" && item.servicePosition !== nextPosition;
@@ -621,7 +647,7 @@ export default async function OperatorReviewPage({ searchParams }: ReviewPagePro
                               </div>
                             )}
                             {item.itemType === "header" ? (
-                              <div className="grid grid-cols-[4.5rem_minmax(0,1.5fr)_9rem_9rem_8rem] gap-3 bg-zinc-950/70 px-5 py-3">
+                              <div className="grid grid-cols-[4.5rem_minmax(0,1.4fr)_8rem_8rem_minmax(0,1fr)] gap-3 bg-zinc-950/70 px-5 py-3">
                                 <span className="text-zinc-500">{item.sequence}</span>
                                 <span className="font-mono text-sm tracking-[0.18em] text-zinc-300 uppercase">
                                   {item.title}
@@ -632,7 +658,7 @@ export default async function OperatorReviewPage({ searchParams }: ReviewPagePro
                               </div>
                             ) : (
                               <div
-                                className={`grid grid-cols-[4.5rem_minmax(0,1.5fr)_9rem_9rem_8rem] gap-3 px-5 py-4 text-sm ${
+                                className={`grid grid-cols-[4.5rem_minmax(0,1.4fr)_8rem_8rem_minmax(0,1fr)] gap-3 px-5 py-4 text-sm ${
                                   highlighted ? "bg-amber-950/15" : ""
                                 }`}
                               >
@@ -653,17 +679,24 @@ export default async function OperatorReviewPage({ searchParams }: ReviewPagePro
                                     ? formatDuration(item.actualSeconds)
                                     : "not timed"}
                                 </span>
-                                <span>
-                                  {highlighted ? (
-                                    <span className="rounded-full border border-amber-800/70 bg-amber-950/40 px-2 py-1 font-mono text-[11px] text-amber-300 uppercase">
-                                      review
-                                    </span>
+                                <div className="min-w-0">
+                                  {rowKinds.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2">
+                                      {rowKinds.map((kind) => (
+                                        <span
+                                          key={`${item.id}:${kind}`}
+                                          className={`rounded-full border px-2 py-1 font-mono text-[11px] uppercase ${incidentTone(kind)}`}
+                                        >
+                                          {kindLabel(kind)}
+                                        </span>
+                                      ))}
+                                    </div>
                                   ) : (
                                     <span className="font-mono text-[11px] text-zinc-600 uppercase">
                                       clear
                                     </span>
                                   )}
-                                </span>
+                                </div>
                               </div>
                             )}
                           </li>
