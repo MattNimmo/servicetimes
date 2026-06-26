@@ -1,0 +1,38 @@
+:root {
+  --glass-bg: linear-gradient(160deg, #eef0f8 0%, #e7e4f2 50%, #efe9f2 100%);
+  --glass-card: rgba(255, 255, 255, 0.54);
+  --glass-blur: 22px;
+  --glass-border: rgba(255, 255, 255, 0.7);
+  --glass-shadow:
+    0 10px 30px rgba(50, 52, 90, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --ink: #1c2030;
+  --ink-55: rgba(28, 32, 48, 0.55);
+  --over: #cf522c;
+  --under: #2e9c6b;
+  --accent: #2c7e8c;
+  --amber-text: #b96a14;
+  --amber-fill: #dd8a20;
+  --elk: #4f86c6;
+  --lv: #f4a261;
+  --mg: #2ec4b6;
+  --slp: #e76f51;
+  --phase-worship: #3c4450;
+  --phase-mid: #dd8a20;
+  --phase-live: #6e7884;
+  --phase-local: #99a1ac;
+  --r-card: 16px;
+  --r-glance: 20px;
+}
+
+.instrument-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.instrument-glass {
+  background: var(--glass-card);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-shadow);
+}
