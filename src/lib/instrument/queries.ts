@@ -309,6 +309,12 @@ export type TrendPoint = {
   serviceDate: string;
   plannedSeconds: number | null;
   actualSeconds: number | null;
+  midActualSeconds: number | null;
+  midPlannedSeconds: number | null;
+  messageActualSeconds: number | null;
+  messagePlannedSeconds: number | null;
+  worshipActualSeconds: number | null;
+  worshipPlannedSeconds: number | null;
   isMoment: boolean;
 };
 
@@ -561,10 +567,29 @@ export async function getWorkbenchData(
 
   const latestPlanTime = planTimesForSlot[0] ?? null;
 
-  const [incidents, corrections] = await Promise.all([
+  const [incidents, corrections, slotItemTimes] = await Promise.all([
     openIncidents(latestPlan.id, allIds.map(({ id }) => id)),
     activePlanTimeCorrections(planTimesForSlot.map(({ id }) => id)),
+    latestPlanTime
+      ? readRows<{ id: number; item_id: number }>("item_times", {
+          plan_time_id: `eq.${latestPlanTime.id}`,
+          select: "id,item_id",
+        })
+      : Promise.resolve([] as Array<{ id: number; item_id: number }>),
   ]);
+
+  // Which items in this slot have an active item-time correction (→ ADJ chip)
+  const activeItemTimeCorrs =
+    slotItemTimes.length > 0
+      ? await readRows<{ item_time_id: number }>("active_item_time_corrections", {
+          item_time_id: `in.(${slotItemTimes.map((it) => it.id).join(",")})`,
+          select: "item_time_id",
+        })
+      : [];
+  const correctedItemTimeIds = new Set(activeItemTimeCorrs.map((c) => c.item_time_id));
+  const adjustedItemIds = new Set(
+    slotItemTimes.filter((it) => correctedItemTimeIds.has(it.id)).map((it) => it.item_id),
+  );
 
   const correctionMap = new Map(corrections.map((c) => [c.plan_time_id, c]));
 
@@ -597,48 +622,117 @@ export async function getWorkbenchData(
     actualSeconds: ev.actual_seconds,
     actualIsComplete: ev.actual_is_complete,
     isBlocked: isElementBlocked(incidents, ev.plan_time_id, ev.effective_slot_id, ev.item_ids),
-    isHumanAdjusted: false,
+    isHumanAdjusted: ev.item_ids.some((id) => adjustedItemIds.has(id)),
   }));
 
-  // Build trend: one entry per plan in chronological order (oldest first)
-  const trendPoints: TrendPoint[] = await Promise.all(
-    plans.map(async (plan) => {
-      const pts = await readRows<{ id: number; planned_target_seconds: number | null; actual_service_seconds: number | null }>(
-        "effective_plan_times",
-        {
-          plan_id: `eq.${plan.id}`,
-          effective_slot_id: `eq.${slot.id}`,
-          is_manually_excluded: "eq.false",
-          time_type: "eq.service",
-          select: "id,planned_target_seconds,actual_service_seconds",
-          limit: "1",
-        },
-      );
-      const pt = pts[0] ?? null;
+  // Build trend data with bulk queries (5 queries regardless of horizon depth)
+  const allPlanIds = plans.map((p) => p.id);
+  type TrendPlanTimeRow = { id: number; plan_id: number; planned_target_seconds: number | null; actual_service_seconds: number | null };
+  type TrendElementRow = { plan_id: number; actual_seconds: number | null; planned_seconds: number };
+
+  const [allTrendPlanTimes, allMidVariance, allMessageVariance, allWorshipVariance] =
+    await Promise.all([
+      readRows<TrendPlanTimeRow>("effective_plan_times", {
+        plan_id: `in.(${allPlanIds.join(",")})`,
+        effective_slot_id: `eq.${slot.id}`,
+        is_manually_excluded: "eq.false",
+        time_type: "eq.service",
+        select: "id,plan_id,planned_target_seconds,actual_service_seconds",
+      }),
+      readRows<TrendElementRow>("element_variance", {
+        plan_id: `in.(${allPlanIds.join(",")})`,
+        effective_slot_id: `eq.${slot.id}`,
+        section_key: "eq.mid_service",
+        select: "plan_id,actual_seconds,planned_seconds",
+      }),
+      readRows<TrendElementRow>("element_variance", {
+        plan_id: `in.(${allPlanIds.join(",")})`,
+        effective_slot_id: `eq.${slot.id}`,
+        element_key: "eq.live.message",
+        select: "plan_id,actual_seconds,planned_seconds",
+      }),
+      readRows<TrendElementRow>("element_variance", {
+        plan_id: `in.(${allPlanIds.join(",")})`,
+        effective_slot_id: `eq.${slot.id}`,
+        element_key: "eq.worship.open",
+        select: "plan_id,actual_seconds,planned_seconds",
+      }),
+    ]);
+
+  const allTrendPlanTimeIds = allTrendPlanTimes.map((pt) => pt.id);
+  const trendIncidents =
+    allTrendPlanTimeIds.length > 0
+      ? await readRows<{ plan_time_id: number }>("review_incidents", {
+          plan_time_id: `in.(${allTrendPlanTimeIds.join(",")})`,
+          status: "eq.open",
+          select: "plan_time_id",
+        })
+      : [];
+
+  const trendPtByPlanId = new Map(
+    allTrendPlanTimes.map((pt) => [pt.plan_id, pt]),
+  );
+  const blockedTrendPtIds = new Set(trendIncidents.map((inc) => inc.plan_time_id));
+
+  // Aggregate mid_service section: sum actuals and planned across all elements per plan
+  const midByPlanId = new Map<number, { actualSeconds: number | null; plannedSeconds: number }>();
+  for (const row of allMidVariance) {
+    const existing = midByPlanId.get(row.plan_id);
+    if (!existing) {
+      midByPlanId.set(row.plan_id, {
+        actualSeconds: row.actual_seconds,
+        plannedSeconds: row.planned_seconds,
+      });
+    } else {
+      const sumActual =
+        existing.actualSeconds !== null && row.actual_seconds !== null
+          ? existing.actualSeconds + row.actual_seconds
+          : (existing.actualSeconds ?? row.actual_seconds);
+      midByPlanId.set(row.plan_id, {
+        actualSeconds: sumActual,
+        plannedSeconds: existing.plannedSeconds + row.planned_seconds,
+      });
+    }
+  }
+  // Single-element lookups (one row per plan)
+  const messageByPlanId = new Map(allMessageVariance.map((r) => [r.plan_id, r]));
+  const worshipByPlanId = new Map(allWorshipVariance.map((r) => [r.plan_id, r]));
+
+  const trendPoints: TrendPoint[] = plans
+    .map((plan) => {
+      const pt = trendPtByPlanId.get(plan.id) ?? null;
       if (!pt) {
         return {
           serviceDate: plan.service_date,
           plannedSeconds: null,
           actualSeconds: null,
+          midActualSeconds: null,
+          midPlannedSeconds: null,
+          messageActualSeconds: null,
+          messagePlannedSeconds: null,
+          worshipActualSeconds: null,
+          worshipPlannedSeconds: null,
           isMoment: false,
         };
       }
-      const slotIncidents = await readRows<{ id: number }>("review_incidents", {
-        plan_time_id: `eq.${pt.id}`,
-        status: "eq.open",
-        select: "id",
-        limit: "1",
-      });
-      const isMoment = slotIncidents.length > 0;
+      const isMoment = blockedTrendPtIds.has(pt.id);
+      const mid = midByPlanId.get(plan.id) ?? null;
+      const msg = messageByPlanId.get(plan.id) ?? null;
+      const wsh = worshipByPlanId.get(plan.id) ?? null;
       return {
         serviceDate: plan.service_date,
         plannedSeconds: pt.planned_target_seconds,
         actualSeconds: isMoment ? null : pt.actual_service_seconds,
+        midActualSeconds: isMoment ? null : (mid?.actualSeconds ?? null),
+        midPlannedSeconds: mid?.plannedSeconds ?? null,
+        messageActualSeconds: isMoment ? null : (msg?.actual_seconds ?? null),
+        messagePlannedSeconds: msg?.planned_seconds ?? null,
+        worshipActualSeconds: isMoment ? null : (wsh?.actual_seconds ?? null),
+        worshipPlannedSeconds: wsh?.planned_seconds ?? null,
         isMoment,
       };
-    }),
-  );
-  trendPoints.reverse(); // most recent last (chronological)
+    })
+    .reverse(); // chronological (oldest first)
 
   // Cross-campus medians for mid.close_worship over the last 6 service dates
   const allCampuses = await listInstrumentCampuses();
