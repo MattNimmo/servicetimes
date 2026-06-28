@@ -63,7 +63,19 @@ jobs:
         run: npm ci
 
       - name: Start local Supabase
-        run: npm run db:start
+        shell: bash
+        run: |
+          # ECR Public throttles anonymous image pulls per-IP on shared runners.
+          # Retry with backoff so a transient "toomanyrequests" doesn't fail CI.
+          for delay in 0 15 30 60 120; do
+            sleep "$delay"
+            if npm run db:start; then
+              exit 0
+            fi
+            echo "Supabase start failed (likely registry throttle); cleaning up and retrying after backoff"
+            npm run db:stop || true
+          done
+          exit 1
 
       - name: Reset database from migrations and seeds
         run: npm run db:reset
