@@ -302,7 +302,7 @@ export type WorkbenchElementRow = {
   actualSeconds: number | null;
   actualIsComplete: boolean;
   isBlocked: boolean;
-  isHumanAdjusted: boolean; // TODO: wire to active_item_time_corrections
+  isHumanAdjusted: boolean;
 };
 
 export type TrendPoint = {

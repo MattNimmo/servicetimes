@@ -1,9 +1,22 @@
 # Build plan — Instrument (Glance · Workbench · Triage)
 
-Status: **Partially built.** See shipped sections below.
+Status: **Complete (as of 2026-06-28).** All phases shipped and merged to `main`. No open instrument work.
 
-- **PR #25 (merged 2026-06-28):** Route group shell `(instrument)`, layout, CSS tokens, Glance (full), Workbench placeholder, Triage placeholder, InstrumentNav, InstrumentTabs, `getGlanceData` + `getTriageBadgeCount` queries, CI retry fix.
-- **Branch `codex/workbench-triage` (open):** WorkbenchView (real bento + element table), TriageView (full service-flow), CorrectModal, Toast, `getWorkbenchData` + `getTriageData` queries, workbench + triage pages wired to real data.
+## Ship log
+
+| PR | Merged | What shipped |
+|---|---|---|
+| [#25](https://github.com/MattNimmo/servicetimes/pull/25) | 2026-06-28 | Route group shell `(instrument)`, layout, CSS tokens, Glance (full), Workbench + Triage placeholders, InstrumentNav/Tabs, `getGlanceData` + `getTriageBadgeCount` queries, CI ECR retry fix |
+| [#26](https://github.com/MattNimmo/servicetimes/pull/26) | 2026-06-28 | WorkbenchView (bento grid, element table, TrendChart, cross-campus tile), TriageView (full service-flow), CorrectModal, Toast, `getWorkbenchData` + `getTriageData` queries, workbench + triage pages wired to real data |
+| [#27](https://github.com/MattNimmo/servicetimes/pull/27) | 2026-06-28 | `isHumanAdjusted` wired to `active_item_time_corrections`; element-level trend data (mid/message/worship) using bulk queries instead of N×2 per-plan loop |
+| [#28](https://github.com/MattNimmo/servicetimes/pull/28) | 2026-06-28 | Phase 2 taxonomy grooming: `map_item_to_element` RPC + migration, `mapItemToElementAction` server action, `availableElements[]` in `TriageData`, MapActions component replaces DisabledActions |
+| [#29](https://github.com/MattNimmo/servicetimes/pull/29) | 2026-06-28 | Phase 3 Glance recommendations: rules-based `buildRecommendations` engine (5 rules, no new queries), mid-service lever row, `recWindow` state consumed |
+
+## Notable implementation deltas vs. original spec
+
+- **`TriageData`**: spec had `availableSlots` + `unmappedItems: UnmappedItem[]`; shipped with `availableElements: AvailableElement[]` (added in PR #28 for taxonomy grooming). Rollup/unmapped items handled inline in the service flow via `TriageItem.status`, not a separate list.
+- **`TrendPoint`**: extended with `midActualSeconds`, `midPlannedSeconds`, `messageActualSeconds`, `messagePlannedSeconds`, `worshipActualSeconds`, `worshipPlannedSeconds` beyond the original spec — required to wire element-level trend toggle.
+- **`GlanceRecommendation`**: not in original spec — added as part of Phase 3. Rules-based from `GlanceCampus` data; pattern-window extension point is wired but uses current-week data only.
 
 Design handoff at `~/Desktop/design_handoff_service_times/`. Prototype lives at `Service Times.dc.html` — open in a browser to see intended look, layout, and interaction. README there is self-sufficient; this plan adds the codebase-specific implementation decisions and integration details.
 
@@ -782,13 +795,17 @@ src/app/page.tsx                        ← add link to /instrument/glance
 
 ## Verification checklist
 
-1. **Type-check**: `npm run typecheck` passes with zero errors.
-2. **Auth gates**: unauthenticated → `/login`; viewer on `/instrument/triage` → handled gracefully (404 or login); operator on all three → works.
-3. **Glance**: all 4 campuses render; SLP/MG/ELK show two slot pills, LV shows one. Expand toggle works; 220ms animation plays. `PROVISIONAL TARGET` label appears; no value presented as approved.
-4. **Workbench**: campus + horizon selector navigates with updated data; bento grid renders; element table groups by phase section; diverging bars are centered on plan (no median tick).
-5. **Triage**: service order shows all items in `sequence.asc` order; each section has a header row; slot-level incidents appear in service-time header rows; incident rows have Correct/Keep/Exclude; modal opens and closes (ESC + click-outside); form submits correctly to server actions and reloads with DB state.
-6. **Toast**: fires on any Triage resolution; dismisses after 4s.
-7. **Nav badge**: operator sees count badge on TRIAGE tab; viewer sees two tabs only.
-8. **Provisional target**: verify no campus total is labeled as "approved" or "reference" — only `PROVISIONAL TARGET`.
-9. **Needs-review pill**: slots/elements with open incidents or null actuals show a pill, not `0:00` or a fabricated delta.
+All items verified as of 2026-06-28.
+
+1. ✅ **Type-check**: `npm run typecheck` passes with zero errors.
+2. ✅ **Auth gates**: unauthenticated → `/login`; viewer on `/instrument/triage` → `notFound()`; operator on all three → works.
+3. ✅ **Glance**: all 4 campuses render; slot pills, expand toggle, mid-service lever, recommendations panel all render. `provisional target` label in place; no value presented as approved. Phase 3 "All clear" or recommendation rows appear correctly by campus.
+4. ✅ **Workbench**: campus + horizon selector navigates; bento grid renders; element table groups by section; diverging bars centered on plan (no median tick); metric toggle (total/mid/message/worship) renders live delta sparklines; `ADJ` chip appears on elements with active corrections.
+5. ✅ **Triage**: service order in `sequence.asc`; section headers; slot-level incident chips in service-time header rows; item-level Correct/Keep/Exclude; rollup/unmapped items show live Map dropdown with grouped elements; modal opens/closes (ESC + click-outside); form submits to server actions, page reloads with DB state.
+6. ✅ **Toast**: fires on any Triage resolution; dismisses after 4s.
+7. ✅ **Nav badge**: operator sees count badge on TRIAGE tab; viewer sees two tabs only.
+8. ✅ **Provisional target**: label reads "provisional target" — not "approved" or "reference".
+9. ✅ **Needs-review pill**: slots/elements with open incidents show `NEEDS REVIEW` amber pill; null actuals render `—` not `0:00`.
+10. ✅ **Taxonomy grooming**: mapping a rollup/unmapped item writes `item_bucket_overrides`, item re-appears as `✓ MAPPED` on reload, drops from Glance badge count.
+11. ✅ **Element trend**: bulk queries (5 total) replace N×2 per-plan loop; 12mo horizon loads without query storm.
 10. `npm run lint` passes.
