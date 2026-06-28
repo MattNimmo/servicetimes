@@ -8,7 +8,10 @@ import { postRpc } from "@/lib/supabase/rest";
 import { parseDurationInput } from "@/lib/variance/format";
 
 function safeRedirectPath(value: FormDataEntryValue | null) {
-  if (typeof value !== "string" || !value.startsWith("/operator")) {
+  if (
+    typeof value !== "string" ||
+    (!value.startsWith("/operator") && !value.startsWith("/instrument"))
+  ) {
     return "/operator/review";
   }
   return value;
@@ -37,6 +40,7 @@ export async function resolveReviewIncidentAction(formData: FormData) {
   );
 
   revalidatePath("/operator/review");
+  revalidatePath("/instrument");
   redirect(redirectTo);
 }
 
@@ -70,6 +74,7 @@ export async function correctPlanTimeIncidentAction(formData: FormData) {
   });
 
   revalidatePath("/operator/review");
+  revalidatePath("/instrument");
   revalidatePath("/variance");
   redirect(redirectTo);
 }
@@ -109,6 +114,7 @@ export async function resolveSlotResolutionIncidentAction(formData: FormData) {
   });
 
   revalidatePath("/operator/review");
+  revalidatePath("/instrument");
   revalidatePath("/variance");
   redirect(redirectTo);
 }
@@ -156,6 +162,7 @@ export async function correctItemTimeIncidentAction(formData: FormData) {
   });
 
   revalidatePath("/operator/review");
+  revalidatePath("/instrument");
   revalidatePath("/variance");
   redirect(redirectTo);
 }
