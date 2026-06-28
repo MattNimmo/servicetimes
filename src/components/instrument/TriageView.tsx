@@ -4,10 +4,12 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import {
+  mapItemToElementAction,
   resolveReviewIncidentAction,
   resolveSlotResolutionIncidentAction,
 } from "@/lib/operator/review-actions";
 import type {
+  AvailableElement,
   SlotIncident,
   TriageData,
   TriageItem,
@@ -322,16 +324,86 @@ function SectionHeaderRow({ section }: { section: TriageSection }) {
   );
 }
 
+function MapActions({
+  item,
+  redirectTo,
+  availableElements,
+}: {
+  item: TriageItem;
+  redirectTo: string;
+  availableElements: AvailableElement[];
+}) {
+  // Group elements by section for <optgroup>
+  const groups = new Map<string, AvailableElement[]>();
+  for (const el of availableElements) {
+    if (!groups.has(el.sectionKey)) groups.set(el.sectionKey, []);
+    groups.get(el.sectionKey)!.push(el);
+  }
+
+  return (
+    <form action={mapItemToElementAction} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      <input type="hidden" name="itemId" value={String(item.id)} />
+      <input type="hidden" name="redirectTo" value={redirectTo} />
+      <select
+        name="elementWithSection"
+        defaultValue=""
+        style={{
+          fontSize: 9,
+          padding: "2px 4px",
+          borderRadius: 6,
+          border: "1px solid rgba(28,32,48,0.2)",
+          background: "rgba(255,255,255,0.7)",
+          maxWidth: 140,
+        }}
+      >
+        <option value="" disabled>
+          Map to…
+        </option>
+        {Array.from(groups.entries()).map(([sectionKey, sectionEls]) => (
+          <optgroup
+            key={sectionKey}
+            label={sectionKey.replace(/_/g, " ").toUpperCase()}
+          >
+            {sectionEls.map((el) => (
+              <option key={el.key} value={`${el.key}|${sectionKey}`}>
+                {el.displayName}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      <button
+        type="submit"
+        style={{
+          fontSize: 9,
+          fontWeight: 700,
+          padding: "3px 8px",
+          borderRadius: 999,
+          border: "none",
+          background: "var(--accent)",
+          color: "white",
+          cursor: "pointer",
+          letterSpacing: "0.1em",
+        }}
+      >
+        Map
+      </button>
+    </form>
+  );
+}
+
 function ItemRow({
   item,
   cumulative,
   redirectTo,
   onCorrect,
+  availableElements,
 }: {
   item: TriageItem;
   cumulative: number;
   redirectTo: string;
   onCorrect: (payload: CorrectModalPayload) => void;
+  availableElements: AvailableElement[];
 }) {
   const cfg = STATUS_CONFIG[item.status];
   const delta =
@@ -408,7 +480,11 @@ function ItemRow({
         )}
 
         {(item.status === "rollup" || item.status === "unmapped") && (
-          <DisabledActions />
+          <MapActions
+            item={item}
+            redirectTo={redirectTo}
+            availableElements={availableElements}
+          />
         )}
       </div>
     </div>
@@ -500,30 +576,6 @@ function IncidentActions({
   );
 }
 
-function DisabledActions() {
-  return (
-    <div style={{ display: "flex", gap: 4 }}>
-      <button
-        type="button"
-        disabled
-        title="Taxonomy resolution coming in Phase 2"
-        style={{
-          fontSize: 9,
-          fontWeight: 700,
-          padding: "3px 8px",
-          borderRadius: 999,
-          border: "none",
-          background: "rgba(28,32,48,0.1)",
-          color: "var(--ink-35, rgba(28,32,48,0.35))",
-          cursor: "not-allowed",
-          letterSpacing: "0.1em",
-        }}
-      >
-        Map
-      </button>
-    </div>
-  );
-}
 
 export default function TriageView({
   data,
@@ -684,6 +736,7 @@ export default function TriageView({
                       cumulative={cumulatives.get(item.id) ?? 0}
                       redirectTo={redirectTo}
                       onCorrect={setModal}
+                      availableElements={data.availableElements}
                     />
                   ))}
                 </div>
