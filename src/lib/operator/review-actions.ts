@@ -119,6 +119,46 @@ export async function resolveSlotResolutionIncidentAction(formData: FormData) {
   redirect(redirectTo);
 }
 
+export async function mapItemToElementAction(formData: FormData) {
+  const session = await requireRole("operator");
+  const itemId = Number(formData.get("itemId"));
+  const redirectTo = safeRedirectPath(formData.get("redirectTo"));
+  const elementWithSection = formData.get("elementWithSection");
+
+  if (!Number.isInteger(itemId) || itemId <= 0) {
+    throw new Error("Invalid item.");
+  }
+  if (typeof elementWithSection !== "string" || !elementWithSection) {
+    throw new Error("Element selection is required.");
+  }
+
+  const pipeIdx = elementWithSection.lastIndexOf("|");
+  if (pipeIdx === -1) {
+    throw new Error("Invalid element selection format.");
+  }
+  const elementKey = elementWithSection.slice(0, pipeIdx);
+  const sectionKey = elementWithSection.slice(pipeIdx + 1);
+
+  if (!elementKey || !sectionKey) {
+    throw new Error("Element key and section key are required.");
+  }
+
+  await postRpc<{ ok: boolean; override_id: number; item_id: number; element_key: string }>(
+    "map_item_to_element",
+    {
+      p_item_id: itemId,
+      p_element_key: elementKey,
+      p_section_key: sectionKey,
+      p_actor: session.role,
+    },
+  );
+
+  revalidatePath("/operator/review");
+  revalidatePath("/instrument");
+  revalidatePath("/variance");
+  redirect(redirectTo);
+}
+
 export async function correctItemTimeIncidentAction(formData: FormData) {
   const session = await requireRole("operator");
   const incidentId = Number(formData.get("incidentId"));

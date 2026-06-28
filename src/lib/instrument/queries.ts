@@ -398,12 +398,19 @@ export type TriageSlot = {
   sections: TriageSection[];
 };
 
+export type AvailableElement = {
+  key: string;
+  sectionKey: string;
+  displayName: string;
+};
+
 export type TriageData = {
   campus: { code: CampusCode; name: string };
   serviceDate: string;
   planTitle: string;
   slots: TriageSlot[];
   totalAttentionCount: number;
+  availableElements: AvailableElement[];
 };
 
 // ─── Private helpers ─────────────────────────────────────────────────────────
@@ -819,7 +826,7 @@ export async function getTriageData(
 
   const planTimeIds = planTimesRows.map(({ id }) => id);
 
-  const [allSlots, triageIncidentsList, items] = await Promise.all([
+  const [allSlots, triageIncidentsList, items, rawElements] = await Promise.all([
     readRows<ServiceSlotRow>("service_slots", {
       campus_id: `eq.${campus.id}`,
       is_active: "eq.true",
@@ -831,6 +838,12 @@ export async function getTriageData(
       plan_id: `eq.${plan.id}`,
       select: "id,sequence,raw_title,item_type,service_position,section_key,element_key,planned_seconds,is_rollup_child",
       order: "sequence.asc",
+    }),
+    readRows<{ key: string; section_key: string; display_name: string }>("elements", {
+      is_tracked: "eq.true",
+      retired_at: "is.null",
+      select: "key,section_key,display_name",
+      order: "section_key.asc,sort_order.asc",
     }),
   ]);
 
@@ -1010,11 +1023,18 @@ export async function getTriageData(
     };
   });
 
+  const availableElements: AvailableElement[] = rawElements.map((e) => ({
+    key: e.key,
+    sectionKey: e.section_key,
+    displayName: e.display_name,
+  }));
+
   return {
     campus: { code: campus.code, name: campus.name },
     serviceDate: resolvedDate,
     planTitle: plan.title ?? `Service ${resolvedDate}`,
     slots: triageSlots,
     totalAttentionCount,
+    availableElements,
   };
 }
