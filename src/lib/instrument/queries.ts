@@ -922,7 +922,12 @@ export async function getTriageData(
       let status: TriageItemStatus;
       let incident: TriageItemIncident | null = null;
 
-      if (
+      if (item.item_type === "header") {
+        // PCO section headers (PRAISE & WORSHIP, MID SERVICE, LIVE TIME, …) are
+        // structural markers, not timed content. The section label already renders
+        // them; they must never surface as unmapped/rollup work.
+        status = "not_tracked";
+      } else if (
         item.service_position === "pre" ||
         item.service_position === "post" ||
         item.section_key === "pre_service" ||
