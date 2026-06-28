@@ -54,6 +54,186 @@ function totalPlannedSeconds(campus: GlanceCampus) {
   );
 }
 
+type GlanceRecommendation = {
+  urgency: "high" | "medium" | "low";
+  label: string;
+  detail: string;
+  actionLabel: string;
+  actionHref: string;
+};
+
+const URGENCY_COLOR: Record<GlanceRecommendation["urgency"], string> = {
+  high: "var(--over)",
+  medium: "var(--amber-text)",
+  low: "var(--ink-55)",
+};
+
+function buildRecommendations(
+  campus: GlanceCampus,
+  selectedSlot: ServiceSlotSummary | undefined,
+  mode: "actuals" | "awaiting",
+): GlanceRecommendation[] {
+  if (mode === "awaiting") return [];
+
+  const recs: GlanceRecommendation[] = [];
+  const triageHref = `/instrument/triage?campus=${campus.code}&date=${campus.serviceDate}`;
+  const workbenchHref = `/instrument/workbench?campus=${campus.code}&slot=${selectedSlot?.slotLabel ?? ""}`;
+  const isBlocked = selectedSlot?.isBlocked ?? false;
+
+  if (isBlocked) {
+    recs.push({
+      urgency: "high",
+      label: "This slot is blocked — operator action required",
+      detail: "A review incident is preventing reliable data for this service. Open Triage to resolve it.",
+      actionLabel: "Open Triage →",
+      actionHref: triageHref,
+    });
+  }
+
+  if (campus.openIncidentCount > 0) {
+    const n = campus.openIncidentCount;
+    recs.push({
+      urgency: isBlocked ? "high" : "medium",
+      label: `${n} open incident${n === 1 ? "" : "s"} need resolution`,
+      detail: "Review incidents reduce the accuracy of element-level data across Workbench and variance reports.",
+      actionLabel: "Open Triage →",
+      actionHref: triageHref,
+    });
+  }
+
+  if (!isBlocked) {
+    const midActual = campus.phases.mid_service.actualSeconds;
+    const midPlanned = campus.phases.mid_service.plannedSeconds;
+    if (midActual !== null && midPlanned > 0) {
+      const midDelta = midActual - midPlanned;
+      if (midDelta > 60) {
+        recs.push({
+          urgency: "medium",
+          label: `Mid-service ran ${formatDelta(midDelta)} over plan`,
+          detail: "Close worship, announcements, or hosted moment likely drove the overage. Use Workbench to inspect.",
+          actionLabel: "Open Workbench →",
+          actionHref: workbenchHref,
+        });
+      }
+    }
+
+    const actual = selectedSlot?.actualSeconds ?? null;
+    if (actual !== null) {
+      const totalDelta = actual - campus.referenceTargetSeconds;
+      if (totalDelta > 120) {
+        recs.push({
+          urgency: "medium",
+          label: `Service ran ${formatDelta(totalDelta)} over the provisional target`,
+          detail: "Use Workbench to identify which phase is carrying the most variance before next week.",
+          actionLabel: "Open Workbench →",
+          actionHref: workbenchHref,
+        });
+      }
+    }
+  }
+
+  if (campus.unmappedCount > 0) {
+    const n = campus.unmappedCount;
+    recs.push({
+      urgency: "low",
+      label: `${n} item${n === 1 ? "" : "s"} need taxonomy mapping`,
+      detail: "Unmapped items create gaps in element-level variance tracking. Map them in Triage.",
+      actionLabel: "Open Triage →",
+      actionHref: triageHref,
+    });
+  }
+
+  return recs.sort((a, b) => {
+    const order = { high: 0, medium: 1, low: 2 };
+    return order[a.urgency] - order[b.urgency];
+  });
+}
+
+function RecommendationsPanel({
+  recs,
+  recWindow,
+}: {
+  recs: GlanceRecommendation[];
+  recWindow: 6 | 12;
+}) {
+  return (
+    <div style={{ marginTop: 14 }}>
+      <p
+        style={{
+          margin: "0 0 6px",
+          fontSize: 9,
+          fontWeight: 700,
+          letterSpacing: "0.2em",
+          textTransform: "uppercase",
+          color: "var(--ink-55)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <span>Recommendations</span>
+        <span style={{ fontWeight: 500, letterSpacing: "0.1em" }}>{recWindow}wk window</span>
+      </p>
+
+      {recs.length === 0 ? (
+        <p
+          style={{
+            fontSize: 11,
+            color: "var(--under)",
+            margin: 0,
+            fontWeight: 600,
+            letterSpacing: "0.06em",
+          }}
+        >
+          ✓ All clear — nothing flagged for this service.
+        </p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {recs.map((rec, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: 10,
+                padding: "8px 10px",
+                borderRadius: 10,
+                background: "rgba(28,32,48,0.04)",
+                borderLeft: `3px solid ${URGENCY_COLOR[rec.urgency]}`,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 700, color: "var(--ink)" }}>
+                  {rec.label}
+                </p>
+                <p style={{ margin: 0, fontSize: 10, color: "var(--ink-55)", lineHeight: 1.4 }}>
+                  {rec.detail}
+                </p>
+              </div>
+              <a
+                href={rec.actionHref}
+                style={{
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  color: "var(--accent)",
+                  whiteSpace: "nowrap",
+                  textDecoration: "none",
+                  flexShrink: 0,
+                  alignSelf: "center",
+                }}
+              >
+                {rec.actionLabel}
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
   const [mode, setMode] = useState<"actuals" | "awaiting">("actuals");
   const [recWindow, setRecWindow] = useState<6 | 12>(6);
@@ -73,15 +253,22 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
         const selectedSlot =
           campus.slots.find((slot) => slot.slotLabel === selectedLabel) ?? campus.slots[0];
         const totalPlanned = totalPlannedSeconds(campus);
+        const recs = buildRecommendations(campus, selectedSlot, mode);
 
         return {
           campus,
           selectedSlot,
           totalPlanned,
           expanded: expanded[campus.code] ?? true,
+          recs,
+          midDelta:
+            campus.phases.mid_service.actualSeconds !== null
+              ? campus.phases.mid_service.actualSeconds -
+                campus.phases.mid_service.plannedSeconds
+              : null,
         };
       }),
-    [campuses, expanded, glanceSvc],
+    [campuses, expanded, glanceSvc, mode],
   );
 
   return (
@@ -140,7 +327,7 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
       </section>
 
       <div className="glance-grid">
-        {campusCards.map(({ campus, selectedSlot, totalPlanned, expanded: isExpanded }) => {
+        {campusCards.map(({ campus, selectedSlot, totalPlanned, expanded: isExpanded, recs, midDelta }) => {
           const selectedActual =
             mode === "awaiting" ? selectedSlot?.plannedSeconds ?? null : selectedSlot?.actualSeconds ?? null;
           const delta =
@@ -243,7 +430,65 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
                       ))}
                     </div>
 
+                    {/* Mid-service lever */}
+                    {mode === "actuals" && (
+                      <div
+                        style={{
+                          marginTop: 12,
+                          padding: "10px 14px",
+                          borderRadius: 10,
+                          background: "rgba(217,138,32,0.08)",
+                          border: "1px solid rgba(217,138,32,0.14)",
+                        }}
+                      >
+                        <p
+                          style={{
+                            margin: "0 0 1px",
+                            fontSize: 9,
+                            fontWeight: 700,
+                            letterSpacing: "0.2em",
+                            textTransform: "uppercase",
+                            color: "var(--amber-text)",
+                          }}
+                        >
+                          Mid-service · the lever
+                        </p>
+                        <p
+                          style={{
+                            margin: "0 0 6px",
+                            fontSize: 9,
+                            color: "var(--amber-text)",
+                            opacity: 0.75,
+                          }}
+                        >
+                          the part you actually control
+                        </p>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                          <span
+                            className="tabular"
+                            style={{ fontSize: 26, fontWeight: 700, color: "var(--ink)" }}
+                          >
+                            {formatDuration(campus.phases.mid_service.actualSeconds)}
+                          </span>
+                          {midDelta !== null && (
+                            <span
+                              className="tabular"
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: midDelta > 0 ? "var(--over)" : "var(--under)",
+                              }}
+                            >
+                              {formatDelta(midDelta)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <p className="glance-card__verdict">{verdictLabel(campus, selectedSlot)}</p>
+
+                    <RecommendationsPanel recs={recs} recWindow={recWindow} />
 
                     <div className="glance-card__footer">
                       <div className="glance-metric">
