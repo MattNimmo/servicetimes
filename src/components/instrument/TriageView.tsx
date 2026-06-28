@@ -38,12 +38,12 @@ const STATUS_CONFIG = {
     chipBg: "rgba(28,32,48,0.06)",
     label: "NOT TRACKED",
   },
-  rollup: {
-    borderColor: "var(--amber-text)",
-    bg: "rgba(185,106,20,0.04)",
-    chipColor: "var(--amber-text)",
-    chipBg: "rgba(185,106,20,0.1)",
-    label: "ROLL-UP?",
+  rolled_up: {
+    borderColor: "transparent",
+    bg: "transparent",
+    chipColor: "var(--ink-35, rgba(28,32,48,0.35))",
+    chipBg: "rgba(28,32,48,0.06)",
+    label: "↳ ROLLED UP",
   },
   unmapped: {
     borderColor: "var(--amber-text)",
@@ -278,7 +278,7 @@ function SlotIncidentChip({
 
 function SectionHeaderRow({ section }: { section: TriageSection }) {
   const attentionItems = section.items.filter(
-    (i) => i.status === "rollup" || i.status === "unmapped" || i.status === "incident",
+    (i) => i.status === "unmapped" || i.status === "incident",
   );
   const hasAttention = attentionItems.length > 0;
 
@@ -479,7 +479,7 @@ function ItemRow({
           />
         )}
 
-        {(item.status === "rollup" || item.status === "unmapped") && (
+        {item.status === "unmapped" && (
           <MapActions
             item={item}
             redirectTo={redirectTo}
@@ -669,7 +669,7 @@ export default function TriageView({
       >
         {[
           { label: "✓ GOOD", color: "var(--under)" },
-          { label: "ROLL-UP?", color: "var(--amber-text)" },
+          { label: "↳ ROLLED UP", color: "rgba(28,32,48,0.35)" },
           { label: "UNMAPPED", color: "var(--amber-text)" },
           { label: "INCIDENT", color: "var(--over)" },
           { label: "NOT TRACKED", color: "rgba(28,32,48,0.35)" },

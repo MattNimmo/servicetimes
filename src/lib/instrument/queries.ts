@@ -353,7 +353,7 @@ export type SlotIncident = {
 export type TriageItemStatus =
   | "good"
   | "not_tracked"
-  | "rollup"
+  | "rolled_up"
   | "unmapped"
   | "incident"
   | "resolved";
@@ -948,19 +948,20 @@ export async function getTriageData(
           rawActualSeconds: itemTime?.actualSeconds ?? null,
           plannedSeconds: item.planned_seconds,
         };
-      } else if (
-        item.item_type === "song" &&
-        item.element_key === null &&
-        !item.is_rollup_child
-      ) {
-        status = "rollup";
+      } else if (item.item_type === "song" && item.element_key === null) {
+        // Individual worship songs sit at 0:00 inside a tracked worship bundle
+        // (worship.open / local.worship_response). The bundle holds the time;
+        // the songs are listed only for visibility and roll up automatically.
+        // They're already excluded from element_variance (null element_key), so
+        // this is purely presentational — never flag them as work.
+        status = "rolled_up";
       } else if (item.element_key === null) {
         status = "unmapped";
       } else {
         status = "good";
       }
 
-      if (status === "rollup" || status === "unmapped" || status === "incident") {
+      if (status === "unmapped" || status === "incident") {
         totalAttentionCount++;
       }
 
