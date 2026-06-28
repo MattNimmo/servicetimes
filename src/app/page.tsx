@@ -22,12 +22,20 @@ export default async function Home() {
         </p>
       </div>
 
-      <Link
-        href="/variance"
-        className="w-fit rounded-lg bg-cyan-400 px-5 py-3 font-semibold text-zinc-950 transition hover:bg-cyan-300"
-      >
-        Open variance dashboard
-      </Link>
+      <div className="flex flex-wrap gap-4">
+        <Link
+          href="/instrument/glance"
+          className="w-fit rounded-lg bg-cyan-400 px-5 py-3 font-semibold text-zinc-950 transition hover:bg-cyan-300"
+        >
+          Open instrument
+        </Link>
+        <Link
+          href="/variance"
+          className="w-fit rounded-lg border border-zinc-700 px-5 py-3 font-semibold text-zinc-100 transition hover:border-zinc-500 hover:text-white"
+        >
+          Open variance dashboard
+        </Link>
+      </div>
     </main>
   );
 }
