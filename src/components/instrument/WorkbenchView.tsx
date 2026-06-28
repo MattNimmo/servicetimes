@@ -54,22 +54,6 @@ function TrendChart({
   trend: TrendPoint[];
   metric: WbMetric;
 }) {
-  if (metric !== "total") {
-    return (
-      <div
-        style={{
-          height: 120,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <p style={{ color: "var(--ink-55)", fontSize: 11, margin: 0 }}>
-          Element-level trend · coming soon
-        </p>
-      </div>
-    );
-  }
   if (trend.length === 0) {
     return (
       <div
@@ -85,11 +69,24 @@ function TrendChart({
     );
   }
 
-  const deltas = trend.map((pt) =>
-    pt.actualSeconds !== null && pt.plannedSeconds !== null
-      ? pt.actualSeconds - pt.plannedSeconds
-      : null,
-  );
+  const deltas = trend.map((pt) => {
+    let actual: number | null = null;
+    let planned: number | null = null;
+    if (metric === "total") {
+      actual = pt.actualSeconds;
+      planned = pt.plannedSeconds;
+    } else if (metric === "mid") {
+      actual = pt.midActualSeconds;
+      planned = pt.midPlannedSeconds;
+    } else if (metric === "message") {
+      actual = pt.messageActualSeconds;
+      planned = pt.messagePlannedSeconds;
+    } else {
+      actual = pt.worshipActualSeconds;
+      planned = pt.worshipPlannedSeconds;
+    }
+    return actual !== null && planned !== null ? actual - planned : null;
+  });
   const validDeltas = deltas.filter((d): d is number => d !== null);
   const maxAbs = Math.max(600, ...validDeltas.map(Math.abs));
 
