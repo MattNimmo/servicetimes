@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   correctPlanTimeIncidentAction,
@@ -111,7 +111,7 @@ function formatCumulative(seconds: number): string {
   const m = Math.floor(abs / 60);
   const s = abs % 60;
   const str = `${m}:${String(s).padStart(2, "0")}`;
-  return seconds < 0 ? `-${str}` : str;
+  return seconds < 0 ? `−${str}` : str;
 }
 
 function SlotHeaderRow({
@@ -345,18 +345,16 @@ function SectionHeaderRow({ section }: { section: TriageSection }) {
 
   return (
     <div
+      className="triage-row"
       style={{
-        display: "grid",
-        gridTemplateColumns: "74px 52px 1fr auto",
-        gap: 8,
         padding: "8px 16px 6px",
         background: "rgba(28,32,48,0.03)",
         borderBottom: "1px solid rgba(28,32,48,0.07)",
         borderTop: "1px solid rgba(28,32,48,0.07)",
       }}
     >
-      <span />
-      <span />
+      <span className="triage-row__time" />
+      <span className="triage-row__len" />
       <span
         style={{
           fontSize: 9,
@@ -459,12 +457,14 @@ function ItemRow({
   redirectTo,
   onCorrect,
   availableElements,
+  elementName,
 }: {
   item: TriageItem;
   cumulative: number;
   redirectTo: string;
   onCorrect: (payload: CorrectModalPayload) => void;
   availableElements: AvailableElement[];
+  elementName: Map<string, string>;
 }) {
   const cfg = STATUS_CONFIG[item.status];
   const delta =
@@ -474,20 +474,17 @@ function ItemRow({
 
   return (
     <div
+      className="triage-row"
       style={{
-        display: "grid",
-        gridTemplateColumns: "74px 52px 1fr auto",
-        gap: 8,
         padding: "9px 16px",
         borderBottom: "1px solid rgba(28,32,48,0.05)",
         borderLeft: `3px solid ${cfg.borderColor}`,
         background: cfg.bg,
-        alignItems: "center",
       }}
     >
       {/* Cumulative time */}
       <span
-        className="tabular"
+        className="triage-row__time tabular"
         style={{ fontSize: 10, color: "var(--ink-55)", fontWeight: 500 }}
       >
         {formatCumulative(cumulative)}
@@ -495,7 +492,7 @@ function ItemRow({
 
       {/* Planned */}
       <span
-        className="tabular"
+        className="triage-row__len tabular"
         style={{ fontSize: 11, color: "var(--ink-55)" }}
       >
         {item.plannedSeconds !== null ? formatDuration(item.plannedSeconds) : "—"}
@@ -506,7 +503,7 @@ function ItemRow({
         <span style={{ fontSize: 12, fontWeight: 500 }}>{item.rawTitle}</span>
         {item.elementKey && item.elementKey !== item.rawTitle && (
           <p style={{ margin: 0, fontSize: 10, color: "var(--ink-55)" }}>
-            {item.elementKey}
+            {elementName.get(item.elementKey) ?? item.elementKey}
           </p>
         )}
       </div>
@@ -696,11 +693,20 @@ export default function TriageView({
   availableDates: ServiceDateOption[];
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [modal, setModal] = useState<CorrectModalPayload | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const closeModal = useCallback(() => setModal(null), []);
   const dismissToast = useCallback(() => setToast(null), []);
+
+  useEffect(() => {
+    const msg = searchParams.get("toast");
+    if (!msg) return;
+    const id = setTimeout(() => setToast(msg), 0);
+    router.replace(`/instrument/triage?campus=${campus}&date=${data.serviceDate}`);
+    return () => clearTimeout(id);
+  }, [searchParams, router, campus, data.serviceDate]);
 
   function navigate(newCampus: string) {
     router.push(`/instrument/triage?campus=${newCampus}&date=${data.serviceDate}`);
@@ -713,6 +719,8 @@ export default function TriageView({
   const currentDateIdx = availableDates.findIndex((d) => d.serviceDate === data.serviceDate);
   const canPrev = currentDateIdx < availableDates.length - 1;
   const canNext = currentDateIdx > 0 && currentDateIdx !== -1;
+
+  const elementName = new Map(data.availableElements.map((e) => [e.key, e.displayName]));
 
   const redirectTo = `/instrument/triage?campus=${campus}&date=${data.serviceDate}`;
   const goodCount = data.slots
@@ -769,7 +777,8 @@ export default function TriageView({
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <button
               type="button"
-              onClick={() => canPrev && navigateDate(availableDates[currentDateIdx + 1].serviceDate)}
+              disabled={!canPrev}
+              onClick={() => navigateDate(availableDates[currentDateIdx + 1].serviceDate)}
               className="slot-picker__option"
               style={{ opacity: canPrev ? 1 : 0.3, cursor: canPrev ? "pointer" : "default" }}
               aria-label="Previous Sunday"
@@ -777,16 +786,10 @@ export default function TriageView({
               ‹
             </button>
             <select
+              aria-label="Service date"
               value={data.serviceDate}
               onChange={(e) => navigateDate(e.target.value)}
-              style={{
-                fontSize: 11,
-                padding: "3px 8px",
-                borderRadius: 6,
-                border: "1px solid rgba(28,32,48,0.2)",
-                background: "rgba(255,255,255,0.7)",
-                cursor: "pointer",
-              }}
+              className="date-picker__select"
             >
               {availableDates.map((opt) => (
                 <option key={opt.serviceDate} value={opt.serviceDate}>
@@ -797,7 +800,8 @@ export default function TriageView({
             </select>
             <button
               type="button"
-              onClick={() => canNext && navigateDate(availableDates[currentDateIdx - 1].serviceDate)}
+              disabled={!canNext}
+              onClick={() => navigateDate(availableDates[currentDateIdx - 1].serviceDate)}
               className="slot-picker__option"
               style={{ opacity: canNext ? 1 : 0.3, cursor: canNext ? "pointer" : "default" }}
               aria-label="Next Sunday"
@@ -841,17 +845,13 @@ export default function TriageView({
       <div className="glass-card" style={{ borderRadius: 14, overflow: "hidden" }}>
         {/* Column header */}
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "74px 52px 1fr auto",
-            gap: 8,
-            padding: "10px 16px",
-            borderBottom: "1px solid rgba(28,32,48,0.1)",
-          }}
+          className="triage-row"
+          style={{ padding: "10px 16px", borderBottom: "1px solid rgba(28,32,48,0.1)" }}
         >
-          {["TIME", "LEN", "TITLE", "STATUS · ACTION"].map((h) => (
+          {(["TIME", "LEN", "TITLE", "STATUS · ACTION"] as const).map((h) => (
             <span
               key={h}
+              className={h === "TIME" ? "triage-row__time" : h === "LEN" ? "triage-row__len" : undefined}
               style={{
                 fontSize: 9,
                 fontWeight: 700,
@@ -894,6 +894,7 @@ export default function TriageView({
                       redirectTo={redirectTo}
                       onCorrect={setModal}
                       availableElements={data.availableElements}
+                      elementName={elementName}
                     />
                   ))}
                 </div>

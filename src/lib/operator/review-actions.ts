@@ -14,6 +14,11 @@ function safeRedirectPath(value: FormDataEntryValue | null) {
   return value;
 }
 
+function withToast(path: string, msg: string) {
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}toast=${encodeURIComponent(msg)}`;
+}
+
 export async function resolveReviewIncidentAction(formData: FormData) {
   const session = await requireRole("operator");
   const incidentId = Number(formData.get("incidentId"));
@@ -38,7 +43,7 @@ export async function resolveReviewIncidentAction(formData: FormData) {
 
 
   revalidatePath("/instrument");
-  redirect(redirectTo);
+  redirect(withToast(redirectTo, resolution === "kept" ? "Kept" : "Excluded"));
 }
 
 export async function correctPlanTimeIncidentAction(formData: FormData) {
@@ -73,7 +78,7 @@ export async function correctPlanTimeIncidentAction(formData: FormData) {
 
   revalidatePath("/instrument");
   revalidatePath("/variance");
-  redirect(redirectTo);
+  redirect(withToast(redirectTo, "Correction saved"));
 }
 
 export async function resolveSlotResolutionIncidentAction(formData: FormData) {
@@ -113,7 +118,7 @@ export async function resolveSlotResolutionIncidentAction(formData: FormData) {
 
   revalidatePath("/instrument");
   revalidatePath("/variance");
-  redirect(redirectTo);
+  redirect(withToast(redirectTo, "Slot resolved"));
 }
 
 export async function mapItemToElementAction(formData: FormData) {
@@ -153,7 +158,7 @@ export async function mapItemToElementAction(formData: FormData) {
 
   revalidatePath("/instrument");
   revalidatePath("/variance");
-  redirect(redirectTo);
+  redirect(withToast(redirectTo, "Mapped"));
 }
 
 export async function reopenReviewIncidentAction(formData: FormData) {
@@ -173,7 +178,7 @@ export async function reopenReviewIncidentAction(formData: FormData) {
 
   revalidatePath("/instrument");
   revalidatePath("/variance");
-  redirect(redirectTo);
+  redirect(withToast(redirectTo, "Reopened"));
 }
 
 export async function unmapItemAction(formData: FormData) {
@@ -193,7 +198,7 @@ export async function unmapItemAction(formData: FormData) {
 
   revalidatePath("/instrument");
   revalidatePath("/variance");
-  redirect(redirectTo);
+  redirect(withToast(redirectTo, "Unmapped"));
 }
 
 export async function correctItemTimeIncidentAction(formData: FormData) {
@@ -241,5 +246,5 @@ export async function correctItemTimeIncidentAction(formData: FormData) {
 
   revalidatePath("/instrument");
   revalidatePath("/variance");
-  redirect(redirectTo);
+  redirect(withToast(redirectTo, "Correction saved"));
 }
