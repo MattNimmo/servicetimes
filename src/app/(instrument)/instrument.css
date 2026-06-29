@@ -674,3 +674,40 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Accessibility ─────────────────────────────────────────────────────────── */
+
+.instrument-root :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Triage ────────────────────────────────────────────────────────────────── */
+
+.date-picker__select {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.56);
+  cursor: pointer;
+}
+
+.triage-row {
+  display: grid;
+  grid-template-columns: 74px 52px 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 560px) {
+  .triage-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .triage-row__time,
+  .triage-row__len {
+    display: none;
+  }
+}
