@@ -422,7 +422,10 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
                     <div className="phase-chip-row">
                       {PHASE_META.map((phase) => (
                         <div key={phase.key} className={`phase-chip ${phase.className}`}>
-                          <span>{phase.label}</span>
+                          <span className="phase-chip__label">
+                            <span className="phase-chip__dot" aria-hidden />
+                            {phase.label}
+                          </span>
                           <strong className="tabular">
                             {formatDuration(campus.phases[phase.key].actualSeconds)}
                           </strong>

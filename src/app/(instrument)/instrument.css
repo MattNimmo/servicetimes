@@ -458,28 +458,57 @@
   color: var(--ink);
 }
 
-.phase-chip--worship,
+/* Solid fills belong to the thin stacked bar only (no text on them). */
 .phase-bar__segment.phase-chip--worship {
   background: var(--phase-worship);
-  color: white;
+}
+
+.phase-bar__segment.phase-chip--mid {
+  background: var(--phase-mid);
+}
+
+.phase-bar__segment.phase-chip--live {
+  background: var(--phase-live);
+}
+
+.phase-bar__segment.phase-chip--local {
+  background: var(--phase-local);
+}
+
+/* Legend chips: light glass + ink text + a small colour swatch.
+   Per the design deliverable the phase ramp is neutral EXCEPT Mid (amber). */
+.phase-chip__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.phase-chip__dot {
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 3px;
+  flex: none;
+}
+
+.phase-chip--worship .phase-chip__dot {
+  background: var(--phase-worship);
+}
+
+.phase-chip--mid .phase-chip__dot {
+  background: var(--phase-mid);
+}
+
+.phase-chip--live .phase-chip__dot {
+  background: var(--phase-live);
+}
+
+.phase-chip--local .phase-chip__dot {
+  background: var(--phase-local);
 }
 
 .phase-chip--mid,
-.phase-bar__segment.phase-chip--mid {
-  background: var(--phase-mid);
-  color: white;
-}
-
-.phase-chip--live,
-.phase-bar__segment.phase-chip--live {
-  background: var(--phase-live);
-  color: white;
-}
-
-.phase-chip--local,
-.phase-bar__segment.phase-chip--local {
-  background: var(--phase-local);
-  color: white;
+.phase-chip--mid strong {
+  color: var(--amber-text);
 }
 
 .glance-card__verdict {
