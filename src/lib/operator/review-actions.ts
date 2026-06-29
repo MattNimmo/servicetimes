@@ -159,6 +159,46 @@ export async function mapItemToElementAction(formData: FormData) {
   redirect(redirectTo);
 }
 
+export async function reopenReviewIncidentAction(formData: FormData) {
+  const session = await requireRole("operator");
+  const incidentId = Number(formData.get("incidentId"));
+  const redirectTo = safeRedirectPath(formData.get("redirectTo"));
+
+  if (!Number.isInteger(incidentId) || incidentId <= 0) {
+    throw new Error("Invalid review incident.");
+  }
+
+  await postRpc<{ ok: boolean; incident_id: number; status: string }>("reopen_review_incident", {
+    p_incident_id: incidentId,
+    p_actor: session.role,
+  });
+
+  revalidatePath("/operator/review");
+  revalidatePath("/instrument");
+  revalidatePath("/variance");
+  redirect(redirectTo);
+}
+
+export async function unmapItemAction(formData: FormData) {
+  const session = await requireRole("operator");
+  const itemId = Number(formData.get("itemId"));
+  const redirectTo = safeRedirectPath(formData.get("redirectTo"));
+
+  if (!Number.isInteger(itemId) || itemId <= 0) {
+    throw new Error("Invalid item.");
+  }
+
+  await postRpc<{ ok: boolean; item_id: number; revoked: boolean }>("revoke_item_element_mapping", {
+    p_item_id: itemId,
+    p_actor: session.role,
+  });
+
+  revalidatePath("/operator/review");
+  revalidatePath("/instrument");
+  revalidatePath("/variance");
+  redirect(redirectTo);
+}
+
 export async function correctItemTimeIncidentAction(formData: FormData) {
   const session = await requireRole("operator");
   const incidentId = Number(formData.get("incidentId"));

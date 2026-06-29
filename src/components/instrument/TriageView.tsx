@@ -5,8 +5,10 @@ import { useCallback, useState } from "react";
 
 import {
   mapItemToElementAction,
+  reopenReviewIncidentAction,
   resolveReviewIncidentAction,
   resolveSlotResolutionIncidentAction,
+  unmapItemAction,
 } from "@/lib/operator/review-actions";
 import type {
   AvailableElement,
@@ -467,9 +469,11 @@ function ItemRow({
         >
           {item.status === "incident" && item.incident
             ? item.incident.kind.replace(/_/g, " ").toUpperCase()
-            : item.status === "good" && delta !== null
-              ? `${cfg.label} ${delta > 0 ? "+" : ""}${formatDuration(delta)}`
-              : cfg.label}
+            : item.status === "resolved" && item.resolutionLabel
+              ? `✓ ${item.resolutionLabel}`
+              : item.status === "good" && delta !== null
+                ? `${cfg.label} ${delta > 0 ? "+" : ""}${formatDuration(delta)}`
+                : cfg.label}
         </span>
 
         {item.status === "incident" && item.incident && (
@@ -480,12 +484,58 @@ function ItemRow({
           />
         )}
 
+        {item.status === "resolved" && item.resolvedIncidentId && (
+          <form action={reopenReviewIncidentAction} style={{ display: "inline" }}>
+            <input type="hidden" name="incidentId" value={String(item.resolvedIncidentId)} />
+            <input type="hidden" name="redirectTo" value={redirectTo} />
+            <button
+              type="submit"
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                padding: "3px 8px",
+                borderRadius: 999,
+                border: "1px solid rgba(28,32,48,0.2)",
+                background: "transparent",
+                cursor: "pointer",
+                color: "var(--ink-55)",
+                letterSpacing: "0.1em",
+              }}
+            >
+              Undo
+            </button>
+          </form>
+        )}
+
         {item.status === "unmapped" && (
           <MapActions
             item={item}
             redirectTo={redirectTo}
             availableElements={availableElements}
           />
+        )}
+
+        {item.hasOverride && (
+          <form action={unmapItemAction} style={{ display: "inline" }}>
+            <input type="hidden" name="itemId" value={String(item.id)} />
+            <input type="hidden" name="redirectTo" value={redirectTo} />
+            <button
+              type="submit"
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                padding: "3px 8px",
+                borderRadius: 999,
+                border: "1px solid rgba(28,32,48,0.2)",
+                background: "transparent",
+                cursor: "pointer",
+                color: "var(--ink-55)",
+                letterSpacing: "0.1em",
+              }}
+            >
+              Unmap
+            </button>
+          </form>
         )}
       </div>
     </div>

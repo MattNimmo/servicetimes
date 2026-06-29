@@ -380,6 +380,9 @@ export type TriageItem = {
   actualSeconds: number | null;
   status: TriageItemStatus;
   incident: TriageItemIncident | null;
+  resolvedIncidentId: number | null;
+  resolutionLabel: string | null;
+  hasOverride: boolean;
 };
 
 export type TriageSection = {
@@ -464,6 +467,32 @@ async function openTriageIncidents(planTimeIds: number[]): Promise<TriageInciden
     plan_time_id: `in.(${planTimeIds.join(",")})`,
     select: "id,plan_time_id,slot_id,kind,review_incident_items(item_id,item_time_id)",
   });
+}
+
+type ResolvedTriageIncident = {
+  id: number;
+  plan_time_id: number;
+  status: string;
+  review_incident_items: Array<{ item_id: number }>;
+};
+
+async function resolvedTriageIncidents(planTimeIds: number[]): Promise<ResolvedTriageIncident[]> {
+  if (planTimeIds.length === 0) return [];
+  return readRows<ResolvedTriageIncident>("review_incidents", {
+    status: "in.(kept,excluded,corrected)",
+    plan_time_id: `in.(${planTimeIds.join(",")})`,
+    select: "id,plan_time_id,status,review_incident_items(item_id)",
+  });
+}
+
+async function activeItemOverrides(itemIds: number[]): Promise<Set<number>> {
+  if (itemIds.length === 0) return new Set();
+  const rows = await readRows<{ item_id: number }>("item_bucket_overrides", {
+    item_id: `in.(${itemIds.join(",")})`,
+    revoked_at: "is.null",
+    select: "item_id",
+  });
+  return new Set(rows.map((r) => r.item_id));
 }
 
 type FullElementVarianceRow = {
@@ -863,13 +892,18 @@ export async function getTriageData(
     }),
   ]);
 
-  const itemTimes =
+  const itemIds = items.map((i) => i.id);
+
+  const [itemTimes, resolvedIncidentsList, overriddenItemIds] = await Promise.all([
     planTimeIds.length > 0
-      ? await readRows<TriageItemTimeRow>("item_times", {
+      ? readRows<TriageItemTimeRow>("item_times", {
           plan_time_id: `in.(${planTimeIds.join(",")})`,
           select: "id,item_id,plan_time_id,actual_seconds",
         })
-      : [];
+      : Promise.resolve([] as TriageItemTimeRow[]),
+    resolvedTriageIncidents(planTimeIds),
+    activeItemOverrides(itemIds),
+  ]);
 
   const slotById = new Map(allSlots.map((s) => [s.id, s]));
   const availableSlotsList = allSlots.map((s) => ({ id: s.id, label: s.slot_label }));
@@ -898,6 +932,16 @@ export async function getTriageData(
       inc.id,
       new Set(inc.review_incident_items.map((rii) => rii.item_id)),
     );
+  }
+
+  // resolved incident lookup: itemId → first resolved incident for that item
+  const resolvedIncidentByItemId = new Map<number, ResolvedTriageIncident>();
+  for (const inc of resolvedIncidentsList) {
+    for (const rii of inc.review_incident_items) {
+      if (!resolvedIncidentByItemId.has(rii.item_id)) {
+        resolvedIncidentByItemId.set(rii.item_id, inc);
+      }
+    }
   }
 
   let totalAttentionCount = 0;
@@ -934,9 +978,13 @@ export async function getTriageData(
     const triageItems: TriageItem[] = items.map((item) => {
       const itemTime = ptItemTimes.get(item.id);
       const incidentForItem = itemIncidentByItemId.get(item.id);
+      const resolvedForItem = resolvedIncidentByItemId.get(item.id);
+      const itemHasOverride = overriddenItemIds.has(item.id);
 
       let status: TriageItemStatus;
       let incident: TriageItemIncident | null = null;
+      let resolvedIncidentId: number | null = null;
+      let resolutionLabel: string | null = null;
 
       if (item.item_type === "header") {
         // PCO section headers (PRAISE & WORSHIP, MID SERVICE, LIVE TIME, …) are
@@ -951,6 +999,7 @@ export async function getTriageData(
       ) {
         status = "not_tracked";
       } else if (incidentForItem) {
+        // Open incidents take priority over resolved ones.
         status = "incident";
         const rii = incidentForItem.review_incident_items.find(
           (r) => r.item_id === item.id,
@@ -964,14 +1013,18 @@ export async function getTriageData(
           rawActualSeconds: itemTime?.actualSeconds ?? null,
           plannedSeconds: item.planned_seconds,
         };
-      } else if (item.item_type === "song" && item.element_key === null) {
+      } else if (resolvedForItem) {
+        status = "resolved";
+        resolvedIncidentId = resolvedForItem.id;
+        resolutionLabel = resolvedForItem.status.toUpperCase();
+      } else if (item.item_type === "song" && item.element_key === null && !itemHasOverride) {
         // Individual worship songs sit at 0:00 inside a tracked worship bundle
         // (worship.open / local.worship_response). The bundle holds the time;
         // the songs are listed only for visibility and roll up automatically.
         // They're already excluded from element_variance (null element_key), so
         // this is purely presentational — never flag them as work.
         status = "rolled_up";
-      } else if (item.element_key === null) {
+      } else if (item.element_key === null && !itemHasOverride) {
         status = "unmapped";
       } else {
         status = "good";
@@ -993,6 +1046,9 @@ export async function getTriageData(
         actualSeconds: itemTime?.actualSeconds ?? null,
         status,
         incident,
+        resolvedIncidentId,
+        resolutionLabel,
+        hasOverride: itemHasOverride,
       };
     });
 
