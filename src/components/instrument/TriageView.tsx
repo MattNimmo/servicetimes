@@ -10,6 +10,7 @@ import {
 } from "@/lib/operator/review-actions";
 import type {
   AvailableElement,
+  ServiceDateOption,
   SlotIncident,
   TriageData,
   TriageItem,
@@ -580,9 +581,11 @@ function IncidentActions({
 export default function TriageView({
   data,
   campus,
+  availableDates,
 }: {
   data: TriageData;
   campus: string;
+  availableDates: ServiceDateOption[];
 }) {
   const router = useRouter();
   const [modal, setModal] = useState<CorrectModalPayload | null>(null);
@@ -592,10 +595,16 @@ export default function TriageView({
   const dismissToast = useCallback(() => setToast(null), []);
 
   function navigate(newCampus: string) {
-    router.push(
-      `/instrument/triage?campus=${newCampus}&date=latest`,
-    );
+    router.push(`/instrument/triage?campus=${newCampus}&date=${data.serviceDate}`);
   }
+
+  function navigateDate(serviceDate: string) {
+    router.push(`/instrument/triage?campus=${campus}&date=${serviceDate}`);
+  }
+
+  const currentDateIdx = availableDates.findIndex((d) => d.serviceDate === data.serviceDate);
+  const canPrev = currentDateIdx < availableDates.length - 1;
+  const canNext = currentDateIdx > 0 && currentDateIdx !== -1;
 
   const redirectTo = `/instrument/triage?campus=${campus}&date=${data.serviceDate}`;
   const goodCount = data.slots
@@ -618,7 +627,7 @@ export default function TriageView({
         </p>
       </section>
 
-      {/* Campus selector + plan label */}
+      {/* Campus selector + date picker + plan label */}
       <div
         style={{
           display: "flex",
@@ -647,9 +656,49 @@ export default function TriageView({
             );
           })}
         </div>
-        <span style={{ fontSize: 12, color: "var(--ink-55)" }}>
-          {data.campus.name} · {formatServiceDate(data.serviceDate)}
-        </span>
+
+        {availableDates.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <button
+              type="button"
+              onClick={() => canPrev && navigateDate(availableDates[currentDateIdx + 1].serviceDate)}
+              className="slot-picker__option"
+              style={{ opacity: canPrev ? 1 : 0.3, cursor: canPrev ? "pointer" : "default" }}
+              aria-label="Previous Sunday"
+            >
+              ‹
+            </button>
+            <select
+              value={data.serviceDate}
+              onChange={(e) => navigateDate(e.target.value)}
+              style={{
+                fontSize: 11,
+                padding: "3px 8px",
+                borderRadius: 6,
+                border: "1px solid rgba(28,32,48,0.2)",
+                background: "rgba(255,255,255,0.7)",
+                cursor: "pointer",
+              }}
+            >
+              {availableDates.map((opt) => (
+                <option key={opt.serviceDate} value={opt.serviceDate}>
+                  {formatServiceDate(opt.serviceDate)}
+                  {opt.attentionCount > 0 ? ` · ${opt.attentionCount}` : ""}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => canNext && navigateDate(availableDates[currentDateIdx - 1].serviceDate)}
+              className="slot-picker__option"
+              style={{ opacity: canNext ? 1 : 0.3, cursor: canNext ? "pointer" : "default" }}
+              aria-label="Next Sunday"
+            >
+              ›
+            </button>
+          </div>
+        )}
+
         <span style={{ fontSize: 11, color: "var(--ink-35, rgba(28,32,48,0.35))" }}>
           {data.planTitle}
         </span>

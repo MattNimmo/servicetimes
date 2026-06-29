@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth/server";
-import { getTriageData } from "@/lib/instrument/queries";
+import { getTriageData, listInstrumentServiceDates } from "@/lib/instrument/queries";
 import TriageView from "@/components/instrument/TriageView";
 
 export const dynamic = "force-dynamic";
@@ -24,8 +24,13 @@ export default async function InstrumentTriagePage({
   const campus = params.campus?.toUpperCase() ?? "SLP";
   const serviceDate = params.date ?? "latest";
 
-  const data = await getTriageData(campus, serviceDate);
+  let data = await getTriageData(campus, serviceDate);
+  if (!data && serviceDate !== "latest") {
+    data = await getTriageData(campus, "latest");
+  }
   if (!data) notFound();
 
-  return <TriageView data={data} campus={campus} />;
+  const availableDates = await listInstrumentServiceDates(campus);
+
+  return <TriageView data={data} campus={campus} availableDates={availableDates} />;
 }

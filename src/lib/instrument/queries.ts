@@ -1,7 +1,7 @@
 import "server-only";
 
 import { readRows } from "@/lib/supabase/rest";
-import { isElementBlocked, isSlotBlocked, type ReviewIncident } from "@/lib/variance/queries";
+import { isElementBlocked, isSlotBlocked, listServiceDates, type ReviewIncident } from "@/lib/variance/queries";
 
 export type CampusCode = "SLP" | "MG" | "ELK" | "LV";
 export type PhaseKey = "worship_open" | "mid_service" | "live" | "local";
@@ -412,6 +412,22 @@ export type TriageData = {
   totalAttentionCount: number;
   availableElements: AvailableElement[];
 };
+
+export type ServiceDateOption = {
+  serviceDate: string;
+  title: string | null;
+  attentionCount: number;
+};
+
+export async function listInstrumentServiceDates(code: string): Promise<ServiceDateOption[]> {
+  const result = await listServiceDates(code);
+  if (!result) return [];
+  return result.dates.map((d) => ({
+    serviceDate: d.service_date,
+    title: d.title ?? null,
+    attentionCount: d.openIncidentCount + d.unmappedCount,
+  }));
+}
 
 // ─── Private helpers ─────────────────────────────────────────────────────────
 
