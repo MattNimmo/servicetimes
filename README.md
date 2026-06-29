@@ -49,7 +49,7 @@ The atomic writer is called only by the server-side
 [`docs/ingestion-write-path.md`](docs/ingestion-write-path.md).
 
 Recurring ingestion is exposed at `/api/pco/ingest`. Vercel invokes its secured
-GET handler every Monday at 14:00 UTC; an authenticated POST supports manual
+GET handler every Sunday at 20:00 UTC (2 PM CST / 3 PM CDT); an authenticated POST supports manual
 triggers. Both require `Authorization: Bearer <CRON_SECRET>` and the independent
 `ENABLE_PCO_INGESTION_WRITES=true` kill switch. Every campus is previewed before
 any writes begin, and each campus write remains atomic and idempotent.
