@@ -16,6 +16,27 @@ function durationSeconds(start: string | null, end: string | null) {
   return Number.isFinite(duration) ? duration : null;
 }
 
+// Mirrors the patterns in supabase/migrations/20260625213000_expand_non_production_name_rules.sql.
+// A plan_time whose name matches any of these is not a production service, even if time_type=service.
+const NON_PRODUCTION_NAME_PATTERNS = [
+  "rehearsal",
+  "run through",
+  "run-through",
+  "walk through",
+  "walk-through",
+  "tech team",
+  "tech-team",
+  "translation",
+  "instrumentalists",
+  "vocalists",
+  "broadcast audio",
+];
+
+function isNonProductionName(name: string | null): boolean {
+  const lower = (name ?? "").toLowerCase();
+  return NON_PRODUCTION_NAME_PATTERNS.some((p) => lower.includes(p));
+}
+
 export async function fetchLatestCompletedPlan(serviceTypeId: string) {
   const plans = await pcoGet<PcoCollection<PcoPlan>>(
     `/services/v2/service_types/${serviceTypeId}/plans?filter=past&order=-sort_date&per_page=10`,
@@ -28,6 +49,7 @@ export async function fetchLatestCompletedPlan(serviceTypeId: string) {
     const hasCompletedService = planTimes.data.some(({ attributes }) => {
       return (
         attributes.time_type === "service" &&
+        !isNonProductionName(attributes.name) &&
         attributes.recorded &&
         durationSeconds(attributes.live_starts_at, attributes.live_ends_at) !==
           null
