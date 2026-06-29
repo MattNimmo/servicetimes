@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import {
+  correctPlanTimeIncidentAction,
   mapItemToElementAction,
   reopenReviewIncidentAction,
   resolveReviewIncidentAction,
@@ -177,6 +178,63 @@ function SlotIncidentChip({
   redirectTo: string;
 }) {
   const label = incident.kind.replace(/_/g, " ").toUpperCase();
+
+  if (incident.canCorrectPlanTimeActual) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span
+          style={{
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: "0.12em",
+            padding: "2px 7px",
+            borderRadius: 999,
+            background: "rgba(207,82,44,0.12)",
+            color: "var(--over)",
+          }}
+        >
+          {label}
+        </span>
+        <span style={{ fontSize: 10, color: "var(--ink-55)", fontVariantNumeric: "tabular-nums" }}>
+          {formatDuration(incident.rawActualSeconds)} actual /{" "}
+          {formatDuration(incident.plannedSeconds)} plan
+        </span>
+        <form action={correctPlanTimeIncidentAction} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <input type="hidden" name="incidentId" value={String(incident.id)} />
+          <input type="hidden" name="redirectTo" value={redirectTo} />
+          <input
+            type="text"
+            name="correctedActual"
+            defaultValue={incident.rawActualSeconds !== null ? formatDuration(incident.rawActualSeconds) : ""}
+            placeholder="75:30"
+            style={{
+              fontSize: 10,
+              padding: "2px 6px",
+              borderRadius: 6,
+              border: "1px solid rgba(28,32,48,0.2)",
+              background: "rgba(255,255,255,0.7)",
+              width: 60,
+            }}
+          />
+          <button
+            type="submit"
+            style={{
+              fontSize: 9,
+              fontWeight: 700,
+              padding: "3px 8px",
+              borderRadius: 999,
+              border: "none",
+              background: "var(--accent)",
+              color: "white",
+              cursor: "pointer",
+            }}
+          >
+            Save
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   if (incident.canResolveSlotResolution) {
     return (

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function OperatorIndexPage() {
-  redirect("/operator/review");
+  redirect("/instrument/triage");
 }

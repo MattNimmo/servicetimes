@@ -8,11 +8,8 @@ import { postRpc } from "@/lib/supabase/rest";
 import { parseDurationInput } from "@/lib/variance/format";
 
 function safeRedirectPath(value: FormDataEntryValue | null) {
-  if (
-    typeof value !== "string" ||
-    (!value.startsWith("/operator") && !value.startsWith("/instrument"))
-  ) {
-    return "/operator/review";
+  if (typeof value !== "string" || !value.startsWith("/instrument")) {
+    return "/instrument/triage";
   }
   return value;
 }
@@ -39,7 +36,7 @@ export async function resolveReviewIncidentAction(formData: FormData) {
     },
   );
 
-  revalidatePath("/operator/review");
+
   revalidatePath("/instrument");
   redirect(redirectTo);
 }
@@ -73,7 +70,7 @@ export async function correctPlanTimeIncidentAction(formData: FormData) {
     p_actor: session.role,
   });
 
-  revalidatePath("/operator/review");
+
   revalidatePath("/instrument");
   revalidatePath("/variance");
   redirect(redirectTo);
@@ -113,7 +110,7 @@ export async function resolveSlotResolutionIncidentAction(formData: FormData) {
     p_actor: session.role,
   });
 
-  revalidatePath("/operator/review");
+
   revalidatePath("/instrument");
   revalidatePath("/variance");
   redirect(redirectTo);
@@ -153,7 +150,7 @@ export async function mapItemToElementAction(formData: FormData) {
     },
   );
 
-  revalidatePath("/operator/review");
+
   revalidatePath("/instrument");
   revalidatePath("/variance");
   redirect(redirectTo);
@@ -173,7 +170,7 @@ export async function reopenReviewIncidentAction(formData: FormData) {
     p_actor: session.role,
   });
 
-  revalidatePath("/operator/review");
+
   revalidatePath("/instrument");
   revalidatePath("/variance");
   redirect(redirectTo);
@@ -193,7 +190,7 @@ export async function unmapItemAction(formData: FormData) {
     p_actor: session.role,
   });
 
-  revalidatePath("/operator/review");
+
   revalidatePath("/instrument");
   revalidatePath("/variance");
   redirect(redirectTo);
@@ -241,7 +238,7 @@ export async function correctItemTimeIncidentAction(formData: FormData) {
     p_actor: session.role,
   });
 
-  revalidatePath("/operator/review");
+
   revalidatePath("/instrument");
   revalidatePath("/variance");
   redirect(redirectTo);
