@@ -1,6 +1,6 @@
 # Build Plan — Design unification (one glass theme, readable, consistent)
 
-**Status:** In progress (Part 1 shipped 7c7505d; Part 2 shipped b0a36c7/e6dac35/9d5a234; started 2026-06-30)
+**Status:** In progress (Part 1 shipped 7c7505d; Part 2 shipped b0a36c7/e6dac35/9d5a234; Part 3.2 shipped e98bd39; started 2026-06-30)
 **Audience:** Implementing engineer / codex (self-contained — no prior session context needed)
 **Repo:** `servicetimes` (Next.js 16 App Router + React server components + Supabase, deployed on Vercel)
 **Origin:** Design review on 2026-06-30, run against the **Impeccable** ECC design context (warm, app-like, readable-first for a non-technical leadership audience; Planning Center / Linear register, not a developer dashboard).
@@ -181,7 +181,7 @@ Introduce a small shared class vocabulary (in the shared stylesheet from 1.1) an
 - **Inputs / selects:** one glass input/select treatment reused by Triage forms and the login password field.
 - **Acceptance:** no repeated inline-style object appears more than twice; `rg -n "style=\{\{" src/components/instrument` count is materially reduced; buttons/pills/inputs render from shared classes.
 
-### 3.2 — Replace magic numbers with tokens
+### 3.2 — Replace magic numbers with tokens — ✅ shipped (e98bd39)
 
 Spacing, radii, and colors are hardcoded inline (e.g. `padding: "18px 20px"`, `borderRadius: 999`, `rgba(28,32,48,0.08)` repeated ~30×).
 - Add spacing/radius tokens where a value recurs; reuse existing `--r-card`/`--r-glance`/`--r-pill`.
