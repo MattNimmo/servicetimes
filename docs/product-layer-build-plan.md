@@ -4,9 +4,10 @@ Status: **Phases 0–2B fully implemented** (as of 2026-06-28). Phase 2B shipped
 in five slices: slot-actual corrections (`05c1ae9`), slot-resolution workflow
 (`d785bd8`), item-time actual corrections (`7ab229d`), non-production exclusion
 rules (`f62fcfc`), and the PCO-familiar service-flow operator workspace
-(`15496a2`). **Phase 3 (references, recommendations, levers) is not yet
-started.** Production auth secrets and the login rate-limit gate remain
-operational steps.
+(`15496a2`). **Phase 3 is started**: reference-target approval guardrails shipped
+(`bb6bbc5`); the next Phase 3 slice is approving the real per-campus targets,
+then generating recommendation `plan_changes` from approved reference variance.
+Production auth secrets and the login rate-limit gate remain operational steps.
 
 ## Context
 
@@ -40,25 +41,28 @@ better; reuse what exists; do not fabricate precision the data doesn't have.**
   verifier "open incident count" check); fix the five current test-file type
   errors; add a `typecheck` (`tsc --noEmit`) step to CI so test types cannot rot.
 - **Phase 1 — auth gate + viewer variance dashboard** (**implemented**; specified below).
-- **Phase 2A — operator review queue** (**in progress**): list open
+- **Phase 2A — operator review queue** (**implemented**): list open
   `review_incidents` behind the operator gate and resolve incidents as
   `kept`/`excluded` through one audited database RPC.
-- **Phase 2B — operator admin panel: correction workflow.** Resolve
+- **Phase 2B — operator admin panel: correction workflow** (**implemented**). Resolve
   `review_incidents` (kept/corrected/excluded), write `correction_sets` /
   `correction_values`, `plan_time_slot_resolutions`, `item_bucket_overrides`,
   with `admin_audit_log` coverage. Operator-only. Consumes `unmapped_items`.
-- **Phase 3 — references, recommendations, and levers.** First deploy explicitly
-  approved per-campus `reference_target_seconds`, then populate `plan_changes`
-  (recommendation vs manual, approve/apply) from reference variance, scoped to
-  `is_lever_eligible` elements.
+- **Phase 3 — references, recommendations, and levers** (**started**). Reference
+  target approval metadata + audited approval helper shipped in `bb6bbc5`. Next:
+  approve real per-campus `reference_target_seconds`, then populate
+  `plan_changes` (recommendation vs manual, approve/apply) from reference
+  variance, scoped to `is_lever_eligible` elements.
 - **Cross-cutting — taxonomy grooming.** Resolve the intentionally-unmapped
   combined-title items and song rollup candidates (per
   `docs/pco-taxonomy-review-2026-06-23.md`) via the Phase 2 tools.
 
-> Reference values are deliberately excluded from Phase 1. Every campus still
-> has the unapproved default `reference_target_seconds = 4500`; the viewer must
-> not display that value or any derived reference delta. Phase 3 begins with a
-> reviewed config migration after the four campus targets are supplied.
+> Reference values are deliberately excluded from Phase 1. Every campus starts
+> with the unapproved default `reference_target_seconds = 4500`; the viewer must
+> not display that value or any derived reference delta. Phase 3 now has an
+> explicit `reference_target_status` guard and audited
+> `approve_campus_reference_target(...)` helper; the real target values still
+> need to be supplied and approved.
 
 ---
 
@@ -353,6 +357,24 @@ of the service instead of scanning detached incident cards.
 - The existing `/operator/review` queue can remain as a filtered backlog, but
   it should link into this service-flow view rather than being the primary
   working surface.
+
+### Phase 3 slice 1 — reference-target approval guardrails — ✅ shipped (`bb6bbc5`)
+
+This slice prevents the default 4500-second target from being mistaken for an
+approved operating reference:
+
+- Add `campuses.reference_target_status`,
+  `reference_target_approved_by`, and `reference_target_approved_at`.
+- Add `approve_campus_reference_target(campus_code, seconds, approved_by)` so
+  future target changes happen through one audited database entry point.
+- Keep existing Instrument target labels provisional until a campus target is
+  approved, then switch copy to "reference target."
+- Add pgTAP coverage for provisional defaults, approval consistency, bad input,
+  approved target writes, and audit-log writes.
+
+Next Phase 3 slice: run a reviewed target migration or approval script with the
+real SLP/MG/ELK/LV reference durations, then generate `plan_changes` from
+approved reference variance for lever-eligible elements.
 
 ### Deployment gates
 
