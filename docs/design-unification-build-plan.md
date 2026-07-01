@@ -1,6 +1,6 @@
 # Build Plan — Design unification (one glass theme, readable, consistent)
 
-**Status:** In progress (working tree; started 2026-06-30)
+**Status:** In progress (Part 1 shipped 7c7505d; started 2026-06-30)
 **Audience:** Implementing engineer / codex (self-contained — no prior session context needed)
 **Repo:** `servicetimes` (Next.js 16 App Router + React server components + Supabase, deployed on Vercel)
 **Origin:** Design review on 2026-06-30, run against the **Impeccable** ECC design context (warm, app-like, readable-first for a non-technical leadership audience; Planning Center / Linear register, not a developer dashboard).
@@ -75,11 +75,11 @@ The bar: at any moment, a reader should be able to trust every doc's `Status` li
 
 ---
 
-## Part 1 — Theme unification (P0)
+## Part 1 — Theme unification (P0) — ✅ shipped (7c7505d)
 
 Severity legend: **P0** blocks the "one product" goal · **P1** readability · **P2** consistency/interaction.
 
-### 1.1 — Establish a single shared theme layer *(do this first; everything else builds on it)*
+### 1.1 — Establish a single shared theme layer *(do this first; everything else builds on it)* — ✅ shipped (7c7505d)
 
 Right now the glass tokens/classes live in `instrument.css`, imported only on instrument routes. To theme the viewer/home/login with the same system, the tokens and shared primitives must be available app-wide.
 
@@ -89,28 +89,28 @@ Right now the glass tokens/classes live in `instrument.css`, imported only on in
 - **Apply Sora app-wide.** Move the `Sora` font setup so it applies at the root layout (or a shared shell), so home/login/viewer match the instrument. Confirm the correct `next/font` usage against the installed Next docs before moving it.
 - **Acceptance:** loading `/`, `/login`, and `/variance` shows the warm/soft glass background and Sora type — no near-black backgrounds anywhere. `instrument.css` no longer defines the token `:root` block a second time.
 
-### 1.2 — Migrate `/login`
+### 1.2 — Migrate `/login` — ✅ shipped (7c7505d)
 
 `src/app/login/page.tsx` — the first impression. Currently `bg-zinc-950` card, `cyan-400` eyebrow/button, `zinc` inputs.
 - Reskin the card as a `.glass-card`, the eyebrow/heading with the shared eyebrow/title classes, the submit button with the shared primary-button class (Part 3), and the password input with a glass input treatment (reuse the input styling introduced for Triage forms in Part 3, not a bespoke one).
 - Replace `cyan-*` with `--accent`; replace `amber-*` error styling with the shared review/warning token.
 - **Acceptance:** login is visually part of the glass family; no `zinc-*`, `cyan-*`, or `#09090b`-adjacent colors remain in this file.
 
-### 1.3 — Migrate the home page
+### 1.3 — Migrate the home page — ✅ shipped (7c7505d)
 
 `src/app/page.tsx` — currently dark hero with two `cyan`/`zinc` buttons.
 - Reskin the hero using instrument hero classes (`instrument-eyebrow`, `instrument-title`, `instrument-subtitle`) or their shared equivalents, on the glass background.
 - Convert both CTAs to shared button classes (primary = accent, secondary = ghost).
 - **Acceptance:** `/` reads as the same product as `/instrument/glance`.
 
-### 1.4 — Migrate the viewer shell
+### 1.4 — Migrate the viewer shell — ✅ shipped (7c7505d)
 
 `src/app/(viewer)/layout.tsx` — currently `bg-zinc-950 text-zinc-100`, cyan wordmark, zinc sign-out.
 - Reskin the shell to match `InstrumentNav` (`src/components/instrument/InstrumentNav.tsx`) as closely as the viewer needs: glass sticky header, brand mark/wordmark, ghost sign-out button. Consider reusing the instrument nav's classes.
 - Add the same backdrop-glow layer the instrument layout renders, so the viewer background has the same depth.
 - **Acceptance:** the viewer chrome is visually continuous with the instrument chrome.
 
-### 1.5 — Migrate the three variance pages
+### 1.5 — Migrate the three variance pages — ✅ shipped (7c7505d)
 
 - `src/app/(viewer)/variance/page.tsx` (campus index)
 - `src/app/(viewer)/variance/[campus]/page.tsx` (service-date list)
@@ -123,7 +123,7 @@ For each:
 - The element **table** in the service-detail page must adopt the unified data-table styling from Part 3.4 (and meet the Part 2 type/contrast floors).
 - **Acceptance:** all three pages use `.glass-card` + shared classes; no `zinc-*`/`cyan-*`/`violet-*` color utilities remain; status colors match the instrument.
 
-### 1.6 — Delete the dead dark theme
+### 1.6 — Delete the dead dark theme — ✅ shipped (7c7505d)
 
 - After 1.1–1.5, remove the now-unused dark declarations from `globals.css` (the `#09090b` background/foreground and any dark-only `@theme` colors) so the dark theme cannot resurface.
 - Grep the repo for `zinc-`, `cyan-`, `#09090b`, `text-cyan`, `bg-zinc` and confirm zero remaining matches in `src/app/**` (outside of intentional neutral usage, if any).
