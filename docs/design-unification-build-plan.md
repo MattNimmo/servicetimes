@@ -1,6 +1,6 @@
 # Build Plan — Design unification (one glass theme, readable, consistent)
 
-**Status:** In progress (Part 1 shipped 7c7505d; Part 2 shipped b0a36c7/e6dac35/9d5a234; Part 3.2–3.4 shipped e98bd39/f39bca8/7630fb5; started 2026-06-30)
+**Status:** In progress (Part 1 shipped 7c7505d; Part 2 shipped b0a36c7/e6dac35/9d5a234; Part 3.2–3.5 shipped e98bd39/f39bca8/7630fb5/c56412d; started 2026-06-30)
 **Audience:** Implementing engineer / codex (self-contained — no prior session context needed)
 **Repo:** `servicetimes` (Next.js 16 App Router + React server components + Supabase, deployed on Vercel)
 **Origin:** Design review on 2026-06-30, run against the **Impeccable** ECC design context (warm, app-like, readable-first for a non-technical leadership audience; Planning Center / Linear register, not a developer dashboard).
@@ -199,7 +199,7 @@ Two different tables exist: the instrument element table (`WorkbenchView.tsx` `E
 - Define shared table/row classes and apply to both. The viewer table should look like the instrument table's family.
 - **Acceptance:** both tables render with the same header style, hairlines, and delta color semantics.
 
-### 3.5 — Unify the semantic color language *(cross-cutting; the viewer migration in 1.5 depends on this)*
+### 3.5 — Unify the semantic color language *(cross-cutting; the viewer migration in 1.5 depends on this)* — ✅ shipped (c56412d)
 
 The two halves speak different color languages for the same concepts:
 
