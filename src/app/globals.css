@@ -236,6 +236,24 @@ a {
   color: var(--unmapped);
 }
 
+.pill--over {
+  border-color: rgba(207, 82, 44, 0.2);
+  background: rgba(207, 82, 44, 0.12);
+  color: var(--over);
+}
+
+.pill--under {
+  border-color: rgba(46, 156, 107, 0.2);
+  background: rgba(46, 156, 107, 0.1);
+  color: var(--under);
+}
+
+.pill--muted {
+  border-color: transparent;
+  background: var(--ink-fill-muted);
+  color: var(--ink-disabled);
+}
+
 .metric-card {
   min-width: 8rem;
   border-radius: var(--r-card);

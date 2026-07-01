@@ -31,43 +31,37 @@ const STATUS_CONFIG = {
   good: {
     borderColor: "transparent",
     bg: "transparent",
-    chipColor: "var(--under)",
-    chipBg: "rgba(46,156,107,0.1)",
+    pillClass: "pill--under",
     label: "✓ MAPPED",
   },
   not_tracked: {
     borderColor: "transparent",
     bg: "transparent",
-    chipColor: "var(--ink-35, var(--ink-disabled))",
-    chipBg: "var(--ink-fill-muted)",
+    pillClass: "pill--muted",
     label: "NOT TRACKED",
   },
   rolled_up: {
     borderColor: "transparent",
     bg: "transparent",
-    chipColor: "var(--ink-35, var(--ink-disabled))",
-    chipBg: "var(--ink-fill-muted)",
+    pillClass: "pill--muted",
     label: "↳ ROLLED UP",
   },
   unmapped: {
     borderColor: "var(--unmapped)",
     bg: "var(--unmapped-fill)",
-    chipColor: "var(--unmapped)",
-    chipBg: "var(--unmapped-fill)",
+    pillClass: "pill--unmapped",
     label: "UNMAPPED",
   },
   incident: {
     borderColor: "var(--over)",
     bg: "rgba(207,82,44,0.04)",
-    chipColor: "var(--over)",
-    chipBg: "rgba(207,82,44,0.1)",
+    pillClass: "pill--over",
     label: "INCIDENT",
   },
   resolved: {
     borderColor: "transparent",
     bg: "transparent",
-    chipColor: "var(--under)",
-    chipBg: "rgba(46,156,107,0.1)",
+    pillClass: "pill--under",
     label: "✓ RESOLVED",
   },
 } as const;
@@ -182,17 +176,7 @@ function SlotIncidentChip({
   if (incident.canCorrectPlanTimeActual) {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <span
-          style={{
-            fontSize: "var(--type-micro)",
-            fontWeight: 700,
-            letterSpacing: "0.12em",
-            padding: "2px 7px",
-            borderRadius: 999,
-            background: "rgba(207,82,44,0.12)",
-            color: "var(--over)",
-          }}
-        >
+        <span className="pill pill--over">
           {label}
         </span>
         <span style={{ fontSize: "var(--type-caption)", color: "var(--ink-70)", fontVariantNumeric: "tabular-nums" }}>
@@ -224,17 +208,7 @@ function SlotIncidentChip({
   if (incident.canResolveSlotResolution) {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <span
-          style={{
-            fontSize: "var(--type-micro)",
-            fontWeight: 700,
-            letterSpacing: "0.12em",
-            padding: "2px 7px",
-            borderRadius: 999,
-            background: "rgba(207,82,44,0.12)",
-            color: "var(--over)",
-          }}
-        >
+        <span className="pill pill--over">
           {label}
         </span>
         <form action={resolveSlotResolutionIncidentAction} style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -277,17 +251,7 @@ function SlotIncidentChip({
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <span
-        style={{
-          fontSize: "var(--type-micro)",
-          fontWeight: 700,
-          letterSpacing: "0.12em",
-          padding: "2px 7px",
-          borderRadius: 999,
-          background: "rgba(207,82,44,0.12)",
-          color: "var(--over)",
-        }}
-      >
+      <span className="pill pill--over">
         {label}
       </span>
       <span style={{ fontSize: "var(--type-caption)", color: "var(--ink-70)", fontVariantNumeric: "tabular-nums" }}>
@@ -327,17 +291,7 @@ function SectionHeaderRow({ section }: { section: TriageSection }) {
       >
         {section.sectionLabel}
       </span>
-      <span
-        style={{
-          fontSize: "var(--type-micro)",
-          fontWeight: 700,
-          letterSpacing: "0.12em",
-          padding: "2px 7px",
-          borderRadius: 999,
-          background: hasAttention ? "var(--review-fill)" : "rgba(46,156,107,0.1)",
-          color: hasAttention ? "var(--review)" : "var(--under)",
-        }}
-      >
+      <span className={hasAttention ? "pill pill--review" : "pill pill--under"}>
         {hasAttention ? `${attentionItems.length} NEED ATTENTION` : "ALL CLEAR"}
       </span>
     </div>
@@ -454,18 +408,7 @@ function ItemRow({
 
       {/* Status + action */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-        <span
-          style={{
-            fontSize: "var(--type-micro)",
-            fontWeight: 700,
-            letterSpacing: "0.12em",
-            padding: "2px 7px",
-            borderRadius: 999,
-            background: cfg.chipBg,
-            color: cfg.chipColor,
-            whiteSpace: "nowrap",
-          }}
-        >
+        <span className={`pill ${cfg.pillClass}`}>
           {item.status === "incident" && item.incident
             ? item.incident.kind.replace(/_/g, " ").toUpperCase()
             : item.status === "resolved" && item.resolutionLabel
