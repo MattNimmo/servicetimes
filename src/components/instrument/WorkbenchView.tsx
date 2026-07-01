@@ -14,12 +14,6 @@ import type {
 import { formatDelta, formatDuration, formatServiceDate } from "@/lib/variance/format";
 
 const CAMPUS_CODES = ["SLP", "MG", "ELK", "LV"] as const;
-const CAMPUS_COLORS: Record<string, string> = {
-  SLP: "var(--slp)",
-  MG: "var(--mg)",
-  ELK: "var(--elk)",
-  LV: "var(--lv)",
-};
 
 const PHASE_META: Array<{ key: PhaseKey; label: string; color: string }> = [
   { key: "worship_open", label: "Worship", color: "var(--phase-worship)" },
@@ -55,6 +49,10 @@ function metricSeconds(pt: TrendPoint, metric: WbMetric) {
     return { actual: pt.messageActualSeconds, planned: pt.messagePlannedSeconds };
   }
   return { actual: pt.worshipActualSeconds, planned: pt.worshipPlannedSeconds };
+}
+
+function campusColorVar(code: string) {
+  return `var(--${code.toLowerCase()})`;
 }
 
 function formatBroadcastTime(isoOrTime: string | null): string | null {
@@ -338,7 +336,7 @@ function CrossMedianBars({ medians }: { medians: CrossCampusMedian[] }) {
     >
       {medians.map((m) => {
         const pct = ((m.medianSeconds ?? 0) / max) * 100;
-        const color = CAMPUS_COLORS[m.campusCode] ?? "var(--ink-70)";
+        const color = campusColorVar(m.campusCode);
         const label = `${m.campusCode}${m.isActive ? " current campus" : ""}: ${m.medianSeconds !== null ? formatDuration(m.medianSeconds) : "no median"}.`;
         return (
           <div key={m.campusCode} title={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -594,7 +592,7 @@ export default function WorkbenchView({
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {CAMPUS_CODES.map((code) => {
           const active = campus === code;
-          const color = CAMPUS_COLORS[code];
+          const color = campusColorVar(code);
           return (
             <button
               key={code}
