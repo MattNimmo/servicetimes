@@ -1,12 +1,12 @@
 # Build plan — product layer (post-ingestion)
 
-Status: **Phase 0, Phase 1, and Phase 2A implemented** (2026-06-24). **Phase
-2B is in progress**: slot-actual corrections, slot-resolution workflow, and
-item-time actual correction are implemented. The next follow-on slices are
-non-production exclusion rules (starting with rehearsal PlanTimes never mapping
-into production variance) and a PCO-familiar operator workspace that reviews
-issues in service-order context. Production auth secrets and the login
-rate-limit gate remain operational steps.
+Status: **Phases 0–2B fully implemented** (as of 2026-06-28). Phase 2B shipped
+in five slices: slot-actual corrections (`05c1ae9`), slot-resolution workflow
+(`d785bd8`), item-time actual corrections (`7ab229d`), non-production exclusion
+rules (`f62fcfc`), and the PCO-familiar service-flow operator workspace
+(`15496a2`). **Phase 3 (references, recommendations, levers) is not yet
+started.** Production auth secrets and the login rate-limit gate remain
+operational steps.
 
 ## Context
 
@@ -272,7 +272,7 @@ math yet:
 Corrections/incident resolution writes (Phase 2), approved campus reference
 targets and recommendations (Phase 3), and any client-side Supabase SDK.
 
-### Phase 2B slice 1 — slot actual corrections
+### Phase 2B slice 1 — slot actual corrections — ✅ shipped (`05c1ae9`)
 
 This first Phase 2B increment keeps the correction surface narrow:
 
@@ -287,7 +287,7 @@ This first Phase 2B increment keeps the correction surface narrow:
 - Item-time corrections, slot remaps, and item bucket overrides remain later
   slices because they need separate validation and UI.
 
-### Phase 2B slice 2 — slot-resolution workflow
+### Phase 2B slice 2 — slot-resolution workflow — ✅ shipped (`d785bd8`)
 
 This slice turns `slot_resolution` review cards into actual occurrence-level
 decisions instead of queue triage:
@@ -302,7 +302,7 @@ decisions instead of queue triage:
   `effective_plan_times`, so remapped or excluded slots change the live
   variance surface without mutating raw PCO evidence.
 
-### Phase 2B slice 3 — item-time actual corrections
+### Phase 2B slice 3 — item-time actual corrections — ✅ shipped (`7ab229d`)
 
 This slice resolves element-level timing incidents that need corrected item
 durations rather than slot decisions:
@@ -316,7 +316,7 @@ durations rather than slot decisions:
   on the dashboard without mutating raw PCO evidence.
 - Planned item corrections and item bucket overrides remain later slices.
 
-### Phase 2B slice 4 — non-production exclusion rules
+### Phase 2B slice 4 — non-production exclusion rules — ✅ shipped (`f62fcfc`)
 
 This slice turns repeated operator judgment into ingestion/runtime policy:
 
@@ -330,7 +330,7 @@ This slice turns repeated operator judgment into ingestion/runtime policy:
   for example, the MG `Rehearsal` PlanTime on Sunday, June 21, 2026 was
   manually excluded and should become the baseline product behavior.
 
-### Phase 2B slice 5 — service-flow operator workspace
+### Phase 2B slice 5 — service-flow operator workspace — ✅ shipped (`15496a2`)
 
 The current review queue proves the write paths, but the long-term admin
 experience should feel closer to PCO's plan view: operators open a service date,

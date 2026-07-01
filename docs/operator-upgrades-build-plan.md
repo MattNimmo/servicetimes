@@ -1,6 +1,6 @@
 # Build Plan — Cron Fix + Operator Capability Upgrades (Triage)
 
-**Status:** Ready to implement
+**Status:** ✅ **Implemented (2026-06-28)** — all three parts shipped: Part 1 cron observability + schedule/DST doc (`edc3b59`), Part 2 Triage Sunday navigation (`dab9beb`), Part 3 full reversibility / reopen incident + unmap element (`fdd6495`). This doc is now a historical record; no open work.
 **Audience:** Implementing engineer (self-contained — no prior session context needed)
 **Repo:** `servicetimes` (Next.js 16 App Router + Supabase, deployed on Vercel)
 
@@ -20,7 +20,7 @@ Three problems in the operator experience:
 
 ---
 
-## Part 1 — Cron: get it running
+## Part 1 — Cron: get it running — ✅ shipped (`edc3b59`)
 
 The cron **code is correct** (`vercel.json` = `0 20 * * 0`; `route.ts` + `runRecurringPcoIngestion` work). The failure is **production config**.
 
@@ -73,7 +73,7 @@ Both pull "latest completed," so they grab June 28 **only if** PCO has it marked
 
 ---
 
-## Part 2 — Sunday navigation on Triage
+## Part 2 — Sunday navigation on Triage — ✅ shipped (`dab9beb`)
 
 Backend already supports arbitrary dates. This is thin wiring + UI.
 
@@ -108,7 +108,7 @@ Backend already supports arbitrary dates. This is thin wiring + UI.
 
 ---
 
-## Part 3 — Full reversibility ("override" an incorrect fix)
+## Part 3 — Full reversibility ("override" an incorrect fix) — ✅ shipped (`fdd6495`)
 
 ### 3.1 New migration
 **File:** `supabase/migrations/20260628120000_operator_reversibility.sql` (any timestamp later than `20260628000000`)
