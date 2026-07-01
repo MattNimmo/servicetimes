@@ -611,13 +611,12 @@ export default function TriageView({
         </div>
 
         {availableDates.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <div className="inline-control-row">
             <button
               type="button"
               disabled={!canPrev}
               onClick={() => navigateDate(availableDates[currentDateIdx + 1].serviceDate)}
               className="slot-picker__option"
-              style={{ opacity: canPrev ? 1 : 0.3, cursor: canPrev ? "pointer" : "default" }}
               aria-label="Previous Sunday"
             >
               ‹
@@ -640,7 +639,6 @@ export default function TriageView({
               disabled={!canNext}
               onClick={() => navigateDate(availableDates[currentDateIdx - 1].serviceDate)}
               className="slot-picker__option"
-              style={{ opacity: canNext ? 1 : 0.3, cursor: canNext ? "pointer" : "default" }}
               aria-label="Next Sunday"
             >
               ›

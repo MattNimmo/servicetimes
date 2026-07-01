@@ -442,9 +442,20 @@
   cursor: pointer;
 }
 
+.slot-picker__option:hover {
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--ink);
+  box-shadow: 0 1px 4px rgba(50, 52, 90, 0.1);
+}
+
 .slot-picker__option--active {
   background: white;
   color: var(--ink);
+}
+
+.slot-picker__option:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
 }
 
 .phase-bar {
@@ -639,6 +650,90 @@
   font-variant-numeric: tabular-nums;
 }
 
+.inline-control-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.inline-control-row--spaced {
+  margin-bottom: 1rem;
+}
+
+.campus-switch {
+  --campus-color: var(--accent);
+  min-height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 2px solid transparent;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--ink-70);
+  cursor: pointer;
+  font-size: var(--type-micro);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 0.38rem 0.85rem;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.campus-switch:hover {
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--campus-color);
+  transform: translateY(-1px);
+}
+
+.campus-switch--active {
+  border-color: var(--campus-color);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--campus-color);
+}
+
+.campus-switch__dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--campus-color);
+  display: inline-block;
+}
+
+.metric-toggle-group {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.metric-toggle {
+  min-height: 1.75rem;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-70);
+  cursor: pointer;
+  font-size: var(--type-micro);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 0.28rem 0.55rem;
+  text-transform: uppercase;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.metric-toggle:hover,
+.metric-toggle--active {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  box-shadow: 0 1px 4px rgba(50, 52, 90, 0.1);
+}
+
 /* ── Workbench ─────────────────────────────────────────────────────────────── */
 
 .wb-bento {
@@ -705,12 +800,6 @@
 }
 
 /* ── Accessibility ─────────────────────────────────────────────────────────── */
-
-.instrument-root :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
 
 /* The whole Glance card header is one big button; a detached ring around it
    reads as an outline around the card. Tuck it just inside the card edge and

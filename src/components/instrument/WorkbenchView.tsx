@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import type { CSSProperties } from "react";
 import { useState } from "react";
 
 import type {
@@ -589,7 +590,7 @@ export default function WorkbenchView({
       </section>
 
       {/* Campus selector */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+      <div className="inline-control-row inline-control-row--spaced">
         {CAMPUS_CODES.map((code) => {
           const active = campus === code;
           const color = campusColorVar(code);
@@ -598,30 +599,10 @@ export default function WorkbenchView({
               key={code}
               type="button"
               onClick={() => navigate({ campus: code })}
-              style={{
-                padding: "6px 14px",
-                borderRadius: 999,
-                border: active ? `2px solid ${color}` : "2px solid transparent",
-                background: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
-                fontWeight: 700,
-                fontSize: 11,
-                letterSpacing: "0.12em",
-                cursor: "pointer",
-                color: active ? color : "var(--ink-70)",
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-              }}
+              className={active ? "campus-switch campus-switch--active" : "campus-switch"}
+              style={{ "--campus-color": color } as CSSProperties}
             >
-              <span
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: "50%",
-                  background: color,
-                  display: "inline-block",
-                }}
-              />
+              <span className="campus-switch__dot" />
               {code}
             </button>
           );
@@ -641,7 +622,7 @@ export default function WorkbenchView({
         <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-70)" }}>
           {data.campus.name}
         </span>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className="inline-control-row">
           {data.availableSlots.map((s) => (
             <button
               key={s.id}
@@ -836,24 +817,13 @@ export default function WorkbenchView({
             <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", margin: 0 }}>
               Variance · {HORIZON_OPTIONS.find((o) => o.value === horizon)?.label}
             </p>
-            <div style={{ display: "flex", gap: 4 }}>
+            <div className="metric-toggle-group">
               {(["total", "mid", "message", "worship"] as WbMetric[]).map((m) => (
                 <button
                   key={m}
                   type="button"
                   onClick={() => setWbMetric(m)}
-                  style={{
-                    fontSize: "var(--type-micro)",
-                    fontWeight: 700,
-                    letterSpacing: "0.1em",
-                    padding: "2px 7px",
-                    borderRadius: 999,
-                    border: "none",
-                    cursor: "pointer",
-                    background: wbMetric === m ? "rgba(255,255,255,0.9)" : "transparent",
-                    color: wbMetric === m ? "var(--ink)" : "var(--ink-70)",
-                    textTransform: "uppercase",
-                  }}
+                  className={wbMetric === m ? "metric-toggle metric-toggle--active" : "metric-toggle"}
                 >
                   {m === "message" ? "MSG" : m === "worship" ? "WOR" : m.toUpperCase()}
                 </button>
