@@ -1,6 +1,6 @@
 # Build Plan — Design unification (one glass theme, readable, consistent)
 
-**Status:** In progress (Part 1 shipped 7c7505d; Part 2 shipped b0a36c7/e6dac35/9d5a234; Part 3.2/3.4 shipped e98bd39/7630fb5; started 2026-06-30)
+**Status:** In progress (Part 1 shipped 7c7505d; Part 2 shipped b0a36c7/e6dac35/9d5a234; Part 3.2–3.4 shipped e98bd39/f39bca8/7630fb5; started 2026-06-30)
 **Audience:** Implementing engineer / codex (self-contained — no prior session context needed)
 **Repo:** `servicetimes` (Next.js 16 App Router + React server components + Supabase, deployed on Vercel)
 **Origin:** Design review on 2026-06-30, run against the **Impeccable** ECC design context (warm, app-like, readable-first for a non-technical leadership audience; Planning Center / Linear register, not a developer dashboard).
@@ -188,7 +188,7 @@ Spacing, radii, and colors are hardcoded inline (e.g. `padding: "18px 20px"`, `b
 - The repeated `rgba(28,32,48,0.xx)` hairlines/fills should become named tokens (e.g. a `--hairline`, `--fill-subtle`) so they're consistent and tunable.
 - **Acceptance:** `rg -n "rgba\(28,?32,?48" src/components` collapses to a handful of token definitions, not ~30 inline literals.
 
-### 3.3 — De-duplicate the campus color source
+### 3.3 — De-duplicate the campus color source — ✅ shipped (f39bca8)
 
 `WorkbenchView.tsx` re-declares `CAMPUS_COLORS` in JS pointing at the same CSS vars already defined in `instrument.css` (`--slp/--mg/--elk/--lv`) and `.campus-dot--*` classes. Pick one source of truth (prefer the CSS vars/classes) and delete the JS duplication where a class will do.
 - **Acceptance:** campus colors are defined once; the JS map, if it must stay for inline SVG fills, references the tokens rather than restating hex-equivalents.
