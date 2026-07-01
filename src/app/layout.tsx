@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
+import { Sora } from "next/font/google";
+
 import "./globals.css";
+import "./(instrument)/instrument.css";
+
+const sora = Sora({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   title: "ECC Service Times",
@@ -12,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`${sora.className} h-full antialiased`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

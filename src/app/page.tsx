@@ -8,15 +8,15 @@ export default async function Home() {
   await requireRole("viewer");
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col justify-center gap-10 px-6 py-20 sm:px-10">
+    <main className="app-page app-page--narrow app-page--center gap-10">
       <div className="space-y-4">
-        <p className="font-mono text-sm tracking-[0.24em] text-cyan-400 uppercase">
+        <p className="instrument-eyebrow">
           ECC · Service Times
         </p>
-        <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-zinc-50 sm:text-6xl">
+        <h1 className="instrument-title max-w-3xl">
           See where the service gained or lost time.
         </h1>
-        <p className="max-w-2xl text-lg leading-8 text-zinc-400">
+        <p className="instrument-subtitle max-w-2xl">
           Compare planned and actual timing by campus, service, and tracked
           element—without hiding questionable source data.
         </p>
@@ -25,13 +25,13 @@ export default async function Home() {
       <div className="flex flex-wrap gap-4">
         <Link
           href="/instrument/glance"
-          className="w-fit rounded-lg bg-cyan-400 px-5 py-3 font-semibold text-zinc-950 transition hover:bg-cyan-300"
+          className="btn btn--primary"
         >
           Open instrument
         </Link>
         <Link
           href="/variance"
-          className="w-fit rounded-lg border border-zinc-700 px-5 py-3 font-semibold text-zinc-100 transition hover:border-zinc-500 hover:text-white"
+          className="btn btn--ghost"
         >
           Open variance dashboard
         </Link>

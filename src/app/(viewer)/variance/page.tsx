@@ -6,12 +6,12 @@ export default async function VarianceIndexPage() {
   const campuses = await listCampuses();
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-6 py-12 sm:px-10">
-      <p className="font-mono text-xs tracking-[0.2em] text-cyan-400 uppercase">
+    <main className="app-page">
+      <p className="instrument-eyebrow">
         Plan vs actual
       </p>
-      <h1 className="mt-3 text-4xl font-semibold tracking-tight">Campus variance</h1>
-      <p className="mt-4 max-w-2xl text-zinc-400">
+      <h1 className="instrument-title">Campus variance</h1>
+      <p className="instrument-subtitle">
         Choose a campus to review completed service dates and timing quality.
       </p>
 
@@ -20,15 +20,15 @@ export default async function VarianceIndexPage() {
           <Link
             key={campus.id}
             href={`/variance/${campus.code}`}
-            className="group rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 transition hover:border-cyan-500/60 hover:bg-zinc-900"
+            className="glass-tile group transition hover:-translate-y-0.5 hover:bg-white/70"
           >
-            <span className="font-mono text-xs tracking-[0.18em] text-zinc-500 uppercase">
+            <span className="table-label">
               {campus.code}
             </span>
-            <h2 className="mt-3 text-xl font-semibold text-zinc-100 group-hover:text-cyan-300">
+            <h2 className="mt-3 text-xl font-semibold group-hover:text-[var(--accent)]">
               {campus.name}
             </h2>
-            <p className="mt-5 text-sm text-zinc-500">View service dates →</p>
+            <p className="muted mt-5 text-sm font-semibold">View service dates →</p>
           </Link>
         ))}
       </div>
