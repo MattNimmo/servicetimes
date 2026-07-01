@@ -50,10 +50,10 @@ const STATUS_CONFIG = {
     label: "↳ ROLLED UP",
   },
   unmapped: {
-    borderColor: "var(--amber-text)",
-    bg: "rgba(185,106,20,0.04)",
-    chipColor: "var(--amber-text)",
-    chipBg: "rgba(185,106,20,0.1)",
+    borderColor: "var(--unmapped)",
+    bg: "var(--unmapped-fill)",
+    chipColor: "var(--unmapped)",
+    chipBg: "var(--unmapped-fill)",
     label: "UNMAPPED",
   },
   incident: {
@@ -373,8 +373,8 @@ function SectionHeaderRow({ section }: { section: TriageSection }) {
           letterSpacing: "0.12em",
           padding: "2px 7px",
           borderRadius: 999,
-          background: hasAttention ? "rgba(185,106,20,0.1)" : "rgba(46,156,107,0.1)",
-          color: hasAttention ? "var(--amber-text)" : "var(--under)",
+          background: hasAttention ? "var(--review-fill)" : "rgba(46,156,107,0.1)",
+          color: hasAttention ? "var(--review)" : "var(--under)",
         }}
       >
         {hasAttention ? `${attentionItems.length} NEED ATTENTION` : "ALL CLEAR"}
@@ -831,7 +831,7 @@ export default function TriageView({
         {[
           { label: "✓ GOOD", color: "var(--under)" },
           { label: "↳ ROLLED UP", color: "var(--ink-disabled)" },
-          { label: "UNMAPPED", color: "var(--amber-text)" },
+          { label: "UNMAPPED", color: "var(--unmapped)" },
           { label: "INCIDENT", color: "var(--over)" },
           { label: "NOT TRACKED", color: "var(--ink-disabled)" },
         ].map((l) => (

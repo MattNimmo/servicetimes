@@ -40,6 +40,18 @@ function statusLabel(
   return "On target";
 }
 
+function statusTone(
+  campus: GlanceCampus,
+  selectedSlot: ServiceSlotSummary | undefined,
+  mode: "actuals" | "awaiting",
+) {
+  const label = statusLabel(campus, selectedSlot, mode);
+  if (label === "Needs review") return "review";
+  if (label === "Over target") return "over";
+  if (label === "On target") return "under";
+  return "neutral";
+}
+
 function verdictLabel(campus: GlanceCampus, selectedSlot: ServiceSlotSummary | undefined) {
   if (!selectedSlot) return "No production slot is mapped yet.";
   if (selectedSlot.isBlocked) return "Operator review is still blocking this slot.";
@@ -71,7 +83,7 @@ type GlanceRecommendation = {
 
 const URGENCY_COLOR: Record<GlanceRecommendation["urgency"], string> = {
   high: "var(--over)",
-  medium: "var(--amber-text)",
+  medium: "var(--review)",
   low: "var(--ink-70)",
 };
 
@@ -368,7 +380,9 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
                   </h2>
                 </div>
                 <div className="glance-card__header-meta">
-                  <span className="status-pill">{statusLabel(campus, selectedSlot, mode)}</span>
+                  <span className={`status-pill status-pill--${statusTone(campus, selectedSlot, mode)}`}>
+                    {statusLabel(campus, selectedSlot, mode)}
+                  </span>
                   <span className="glance-card__chevron">{isExpanded ? "▾" : "▸"}</span>
                 </div>
               </button>
@@ -454,8 +468,8 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
                           marginTop: 12,
                           padding: "10px 14px",
                           borderRadius: 10,
-                          background: "rgba(217,138,32,0.08)",
-                          border: "1px solid rgba(217,138,32,0.14)",
+                          background: "rgba(221,138,32,0.08)",
+                          border: "1px solid rgba(221,138,32,0.14)",
                         }}
                       >
                         <p
@@ -465,7 +479,7 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
                             fontWeight: 700,
                             letterSpacing: "0.2em",
                             textTransform: "uppercase",
-                            color: "var(--amber-text)",
+                            color: "var(--phase-mid)",
                           }}
                         >
                           Mid-service · the lever
@@ -474,7 +488,7 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
                           style={{
                             margin: "0 0 6px",
                             fontSize: "var(--type-micro)",
-                            color: "var(--amber-text)",
+                            color: "var(--phase-mid)",
                           }}
                         >
                           the part you actually control
@@ -509,11 +523,15 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
                     <div className="glance-card__footer">
                       <div className="glance-metric">
                         <span>Open review</span>
-                        <strong className="tabular">{campus.openIncidentCount}</strong>
+                        <strong className="tabular" style={{ color: "var(--review)" }}>
+                          {campus.openIncidentCount}
+                        </strong>
                       </div>
                       <div className="glance-metric">
                         <span>Unmapped</span>
-                        <strong className="tabular">{campus.unmappedCount}</strong>
+                        <strong className="tabular" style={{ color: "var(--unmapped)" }}>
+                          {campus.unmappedCount}
+                        </strong>
                       </div>
                       <div className="glance-metric">
                         <span>Window</span>

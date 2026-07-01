@@ -723,7 +723,7 @@ export default function WorkbenchView({
                   style={{
                     fontSize: 12,
                     fontWeight: 700,
-                    color: ph.key === "mid_service" ? "var(--amber-text)" : "var(--ink)",
+                    color: ph.key === "mid_service" ? "var(--phase-mid)" : "var(--ink)",
                   }}
                 >
                   {formatDuration(phases[ph.key].actualSeconds)}
@@ -794,15 +794,15 @@ export default function WorkbenchView({
         <div
           className="glass-card wb-tile"
           style={{
-            background: "rgba(217,138,32,0.08)",
+            background: "rgba(221,138,32,0.08)",
           }}
         >
-          <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", color: "var(--amber-text)" }}>
+          <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", color: "var(--phase-mid)" }}>
             Mid · the lever
           </p>
           <p
             className="tabular"
-            style={{ margin: "8px 0 0", fontSize: "clamp(1.6rem,2.8vw,2.2rem)", fontWeight: 700, letterSpacing: "-0.05em", color: "var(--amber-text)" }}
+            style={{ margin: "8px 0 0", fontSize: "clamp(1.6rem,2.8vw,2.2rem)", fontWeight: 700, letterSpacing: "-0.05em", color: "var(--phase-mid)" }}
           >
             {formatDuration(midPhase.actualSeconds)}
           </p>
@@ -817,7 +817,7 @@ export default function WorkbenchView({
           >
             {formatDelta(midDelta)}
           </p>
-          <p style={{ margin: "8px 0 0", fontSize: "var(--type-caption)", color: "var(--amber-text)", letterSpacing: "0.08em" }}>
+          <p style={{ margin: "8px 0 0", fontSize: "var(--type-caption)", color: "var(--phase-mid)", letterSpacing: "0.08em" }}>
             THE PART YOU ACTUALLY CONTROL
           </p>
         </div>

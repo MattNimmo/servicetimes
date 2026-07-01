@@ -12,8 +12,8 @@
   --over: #cf522c;
   --under: #2e9c6b;
   --accent: #2c7e8c;
-  --amber-text: #b96a14;
-  --amber-fill: #dd8a20;
+  --amber-text: var(--review);
+  --amber-fill: var(--review);
   --elk: #4f86c6;
   --lv: #f4a261;
   --mg: #2ec4b6;
@@ -351,6 +351,30 @@
   text-transform: uppercase;
 }
 
+.status-pill--review {
+  border: 1px solid var(--review-border);
+  background: var(--review-fill);
+  color: var(--review);
+}
+
+.status-pill--over {
+  border: 1px solid rgba(207, 82, 44, 0.2);
+  background: rgba(207, 82, 44, 0.1);
+  color: var(--over);
+}
+
+.status-pill--under {
+  border: 1px solid rgba(46, 156, 107, 0.2);
+  background: rgba(46, 156, 107, 0.1);
+  color: var(--under);
+}
+
+.status-pill--neutral {
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--ink);
+}
+
 .glance-card__chevron {
   color: var(--ink-70);
   font-size: 1rem;
@@ -511,7 +535,7 @@
 
 .phase-chip--mid,
 .phase-chip--mid strong {
-  color: var(--amber-text);
+  color: var(--phase-mid);
 }
 
 .glance-card__verdict {
