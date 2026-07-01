@@ -64,7 +64,7 @@ function TrendChart({
           justifyContent: "center",
         }}
       >
-        <p style={{ color: "var(--ink-55)", fontSize: 11, margin: 0 }}>No data</p>
+        <p style={{ color: "var(--ink-70)", fontSize: 11, margin: 0 }}>No data</p>
       </div>
     );
   }
@@ -164,14 +164,14 @@ function TrendChart({
               cy={centerY}
               r={3.5}
               fill="none"
-              stroke="var(--ink-55)"
+              stroke="var(--ink-70)"
               strokeWidth={1.5}
             />
           );
         }
         const color =
           pt.delta === 0
-            ? "var(--ink-55)"
+            ? "var(--ink-70)"
             : (pt.delta ?? 0) > 0
               ? "var(--over)"
               : "var(--under)";
@@ -273,7 +273,7 @@ function CrossMedianBars({ medians }: { medians: CrossCampusMedian[] }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
       {medians.map((m) => {
         const pct = ((m.medianSeconds ?? 0) / max) * 100;
-        const color = CAMPUS_COLORS[m.campusCode] ?? "var(--ink-55)";
+        const color = CAMPUS_COLORS[m.campusCode] ?? "var(--ink-70)";
         return (
           <div key={m.campusCode} style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span
@@ -282,7 +282,7 @@ function CrossMedianBars({ medians }: { medians: CrossCampusMedian[] }) {
                 fontSize: "var(--type-micro)",
                 fontWeight: 700,
                 letterSpacing: "0.1em",
-                color: m.isActive ? "var(--ink)" : "var(--ink-55)",
+                color: m.isActive ? "var(--ink)" : "var(--ink-70)",
                 textTransform: "uppercase",
               }}
             >
@@ -314,7 +314,7 @@ function CrossMedianBars({ medians }: { medians: CrossCampusMedian[] }) {
                 width: 40,
                 fontSize: "var(--type-caption)",
                 textAlign: "right",
-                color: m.isActive ? "var(--ink)" : "var(--ink-55)",
+                color: m.isActive ? "var(--ink)" : "var(--ink-70)",
               }}
             >
               {m.medianSeconds !== null ? formatDuration(m.medianSeconds) : "—"}
@@ -329,7 +329,7 @@ function CrossMedianBars({ medians }: { medians: CrossCampusMedian[] }) {
 function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
   if (elements.length === 0) {
     return (
-      <div style={{ padding: "24px", textAlign: "center", color: "var(--ink-55)", fontSize: 13 }}>
+      <div style={{ padding: "24px", textAlign: "center", color: "var(--ink-70)", fontSize: 13 }}>
         No element data for this slot.
       </div>
     );
@@ -363,7 +363,7 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
               fontSize: "var(--type-micro)",
               fontWeight: 700,
               letterSpacing: "0.18em",
-              color: "var(--ink-55)",
+              color: "var(--ink-70)",
               textTransform: "uppercase",
             }}
           >
@@ -414,7 +414,7 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
               <span />
               <span
                 className="tabular"
-                style={{ fontSize: "var(--type-caption)", color: "var(--ink-55)", textAlign: "right" }}
+                style={{ fontSize: "var(--type-caption)", color: "var(--ink-70)", textAlign: "right" }}
               >
                 {formatDuration(sectionPlanned)} · {formatDuration(sectionActual)}
               </span>
@@ -461,7 +461,7 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
                   {/* Allotted */}
                   <span
                     className="tabular"
-                    style={{ fontSize: 11, color: "var(--ink-55)" }}
+                    style={{ fontSize: 11, color: "var(--ink-70)" }}
                   >
                     {formatDuration(el.plannedSeconds)}
                   </span>
@@ -493,7 +493,7 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
                         textAlign: "right",
                         color:
                           delta === null
-                            ? "var(--ink-55)"
+                            ? "var(--ink-70)"
                             : delta > 0
                               ? "var(--over)"
                               : delta < 0
@@ -631,7 +631,7 @@ export default function WorkbenchView({
                 fontSize: 11,
                 letterSpacing: "0.12em",
                 cursor: "pointer",
-                color: active ? color : "var(--ink-55)",
+                color: active ? color : "var(--ink-70)",
                 display: "flex",
                 alignItems: "center",
                 gap: 5,
@@ -662,7 +662,7 @@ export default function WorkbenchView({
           flexWrap: "wrap",
         }}
       >
-        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-55)" }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-70)" }}>
           {data.campus.name}
         </span>
         <div style={{ display: "flex", gap: 6 }}>
@@ -703,13 +703,13 @@ export default function WorkbenchView({
                 margin: "0 0 4px",
                 fontSize: 15,
                 fontWeight: 700,
-                color: delta === null ? "var(--ink-55)" : delta > 0 ? "var(--over)" : delta < 0 ? "var(--under)" : "var(--ink)",
+                color: delta === null ? "var(--ink-70)" : delta > 0 ? "var(--over)" : delta < 0 ? "var(--under)" : "var(--ink)",
               }}
             >
               {formatDelta(delta)}
             </p>
           </div>
-          <p style={{ margin: "4px 0 12px", fontSize: "var(--type-caption)", color: "var(--ink-55)", letterSpacing: "0.1em" }}>
+          <p style={{ margin: "4px 0 12px", fontSize: "var(--type-caption)", color: "var(--ink-70)", letterSpacing: "0.1em" }}>
             VS PROV. TARGET · n={trend.length}
           </p>
 
@@ -734,7 +734,7 @@ export default function WorkbenchView({
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginTop: 10 }}>
             {PHASE_META.map((ph) => (
               <div key={ph.key} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ fontSize: "var(--type-micro)", fontWeight: 700, letterSpacing: "0.12em", color: "var(--ink-55)", textTransform: "uppercase" }}>
+                <span style={{ fontSize: "var(--type-micro)", fontWeight: 700, letterSpacing: "0.12em", color: "var(--ink-70)", textTransform: "uppercase" }}>
                   {ph.label}
                 </span>
                 <span
@@ -770,7 +770,7 @@ export default function WorkbenchView({
               </p>
             </>
           ) : (
-            <p style={{ margin: "8px 0 12px", fontSize: 13, color: "var(--ink-55)" }}>
+            <p style={{ margin: "8px 0 12px", fontSize: 13, color: "var(--ink-70)" }}>
               No broadcast window recorded yet.
             </p>
           )}
@@ -801,7 +801,7 @@ export default function WorkbenchView({
               );
             })}
           </div>
-          <p style={{ margin: "6px 0 0", fontSize: "var(--type-caption)", color: "var(--ink-55)", letterSpacing: "0.08em" }}>
+          <p style={{ margin: "6px 0 0", fontSize: "var(--type-caption)", color: "var(--ink-70)", letterSpacing: "0.08em" }}>
             LIVE → END · the message block, after mid &amp; before local
           </p>
         </div>
@@ -830,7 +830,7 @@ export default function WorkbenchView({
               margin: "4px 0 0",
               fontSize: 13,
               fontWeight: 700,
-              color: midDelta === null ? "var(--ink-55)" : midDelta > 0 ? "var(--over)" : "var(--under)",
+              color: midDelta === null ? "var(--ink-70)" : midDelta > 0 ? "var(--over)" : "var(--under)",
             }}
           >
             {formatDelta(midDelta)}
@@ -869,7 +869,7 @@ export default function WorkbenchView({
                     border: "none",
                     cursor: "pointer",
                     background: wbMetric === m ? "rgba(255,255,255,0.9)" : "transparent",
-                    color: wbMetric === m ? "var(--ink)" : "var(--ink-55)",
+                    color: wbMetric === m ? "var(--ink)" : "var(--ink-70)",
                     textTransform: "uppercase",
                   }}
                 >
@@ -879,7 +879,7 @@ export default function WorkbenchView({
             </div>
           </div>
           <TrendChart trend={trend} metric={wbMetric} />
-          <p style={{ margin: "4px 0 0", fontSize: "var(--type-caption)", color: "var(--ink-55)" }}>
+          <p style={{ margin: "4px 0 0", fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
             ○ moment · — median{" "}
             {wbMetric === "total" && (
               <span className="tabular">

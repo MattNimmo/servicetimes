@@ -92,7 +92,7 @@ function ModalPanel({
               fontWeight: 700,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
-              color: "var(--ink-55)",
+              color: "var(--ink-70)",
             }}
           >
             Raw actual
@@ -112,7 +112,7 @@ function ModalPanel({
               fontWeight: 700,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
-              color: "var(--ink-55)",
+              color: "var(--ink-70)",
             }}
           >
             Plan
@@ -133,7 +133,7 @@ function ModalPanel({
           fontWeight: 700,
           letterSpacing: "0.14em",
           textTransform: "uppercase",
-          color: "var(--ink-55)",
+          color: "var(--ink-70)",
         }}
       >
         {payload.kind.replace(/_/g, " ")}
@@ -159,7 +159,7 @@ function ModalPanel({
             fontWeight: 700,
             letterSpacing: "0.14em",
             textTransform: "uppercase",
-            color: "var(--ink-55)",
+            color: "var(--ink-70)",
             marginBottom: 6,
           }}
         >
@@ -205,7 +205,7 @@ function ModalPanel({
               fontSize: 11,
               fontWeight: 700,
               cursor: "pointer",
-              color: "var(--ink-55)",
+              color: "var(--ink-70)",
             }}
           >
             Cancel

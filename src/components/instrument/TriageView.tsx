@@ -142,7 +142,7 @@ function SlotHeaderRow({
           {slot.slotLabel}
         </span>
         {slot.pcoName && slot.pcoName !== slot.slotLabel && (
-          <span style={{ fontSize: 11, color: "var(--ink-55)", marginLeft: 8 }}>
+          <span style={{ fontSize: 11, color: "var(--ink-70)", marginLeft: 8 }}>
             {slot.pcoName}
           </span>
         )}
@@ -195,7 +195,7 @@ function SlotIncidentChip({
         >
           {label}
         </span>
-        <span style={{ fontSize: "var(--type-caption)", color: "var(--ink-55)", fontVariantNumeric: "tabular-nums" }}>
+        <span style={{ fontSize: "var(--type-caption)", color: "var(--ink-70)", fontVariantNumeric: "tabular-nums" }}>
           {formatDuration(incident.rawActualSeconds)} actual /{" "}
           {formatDuration(incident.plannedSeconds)} plan
         </span>
@@ -304,7 +304,7 @@ function SlotIncidentChip({
               border: "1px solid rgba(28,32,48,0.2)",
               background: "transparent",
               cursor: "pointer",
-              color: "var(--ink-55)",
+              color: "var(--ink-70)",
             }}
           >
             Exclude
@@ -329,7 +329,7 @@ function SlotIncidentChip({
       >
         {label}
       </span>
-      <span style={{ fontSize: "var(--type-caption)", color: "var(--ink-55)", fontVariantNumeric: "tabular-nums" }}>
+      <span style={{ fontSize: "var(--type-caption)", color: "var(--ink-70)", fontVariantNumeric: "tabular-nums" }}>
         {formatDuration(incident.rawActualSeconds)} actual /{" "}
         {formatDuration(incident.plannedSeconds)} plan
       </span>
@@ -485,7 +485,7 @@ function ItemRow({
       {/* Cumulative time */}
       <span
         className="triage-row__time tabular"
-        style={{ fontSize: "var(--type-caption)", color: "var(--ink-55)", fontWeight: 500 }}
+        style={{ fontSize: "var(--type-caption)", color: "var(--ink-70)", fontWeight: 500 }}
       >
         {formatCumulative(cumulative)}
       </span>
@@ -493,7 +493,7 @@ function ItemRow({
       {/* Planned */}
       <span
         className="triage-row__len tabular"
-        style={{ fontSize: 11, color: "var(--ink-55)" }}
+        style={{ fontSize: 11, color: "var(--ink-70)" }}
       >
         {item.plannedSeconds !== null ? formatDuration(item.plannedSeconds) : "—"}
       </span>
@@ -502,7 +502,7 @@ function ItemRow({
       <div>
         <span style={{ fontSize: 12, fontWeight: 500 }}>{item.rawTitle}</span>
         {item.elementKey && item.elementKey !== item.rawTitle && (
-          <p style={{ margin: 0, fontSize: "var(--type-caption)", color: "var(--ink-55)" }}>
+          <p style={{ margin: 0, fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
             {elementName.get(item.elementKey) ?? item.elementKey}
           </p>
         )}
@@ -553,7 +553,7 @@ function ItemRow({
                 border: "1px solid rgba(28,32,48,0.2)",
                 background: "transparent",
                 cursor: "pointer",
-                color: "var(--ink-55)",
+                color: "var(--ink-70)",
                 letterSpacing: "0.1em",
               }}
             >
@@ -584,7 +584,7 @@ function ItemRow({
                 border: "1px solid rgba(28,32,48,0.2)",
                 background: "transparent",
                 cursor: "pointer",
-                color: "var(--ink-55)",
+                color: "var(--ink-70)",
                 letterSpacing: "0.1em",
               }}
             >
@@ -650,7 +650,7 @@ function IncidentActions({
             border: "1px solid rgba(28,32,48,0.2)",
             background: "transparent",
             cursor: "pointer",
-            color: "var(--ink-55)",
+            color: "var(--ink-70)",
             letterSpacing: "0.1em",
           }}
         >
@@ -671,7 +671,7 @@ function IncidentActions({
             border: "1px solid rgba(28,32,48,0.2)",
             background: "transparent",
             cursor: "pointer",
-            color: "var(--ink-55)",
+            color: "var(--ink-70)",
             letterSpacing: "0.1em",
           }}
         >
@@ -857,7 +857,7 @@ export default function TriageView({
                 fontWeight: 700,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
-                color: "var(--ink-55)",
+                color: "var(--ink-70)",
               }}
             >
               {h}
@@ -870,7 +870,7 @@ export default function TriageView({
             style={{
               padding: "32px 16px",
               textAlign: "center",
-              color: "var(--ink-55)",
+              color: "var(--ink-70)",
               fontSize: 13,
             }}
           >

@@ -59,7 +59,7 @@ export default function Toast({
           fontWeight: 700,
           letterSpacing: "0.12em",
           textTransform: "uppercase",
-          color: "var(--ink-55)",
+          color: "var(--ink-70)",
           background: "transparent",
           border: "none",
           cursor: "pointer",

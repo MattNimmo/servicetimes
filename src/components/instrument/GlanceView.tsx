@@ -72,7 +72,7 @@ type GlanceRecommendation = {
 const URGENCY_COLOR: Record<GlanceRecommendation["urgency"], string> = {
   high: "var(--over)",
   medium: "var(--amber-text)",
-  low: "var(--ink-55)",
+  low: "var(--ink-70)",
 };
 
 function buildRecommendations(
@@ -173,7 +173,7 @@ function RecommendationsPanel({
           fontWeight: 700,
           letterSpacing: "0.2em",
           textTransform: "uppercase",
-          color: "var(--ink-55)",
+          color: "var(--ink-70)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -215,7 +215,7 @@ function RecommendationsPanel({
                 <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 700, color: "var(--ink)" }}>
                   {rec.label}
                 </p>
-                <p style={{ margin: 0, fontSize: "var(--type-caption)", color: "var(--ink-55)", lineHeight: 1.4 }}>
+                <p style={{ margin: 0, fontSize: "var(--type-caption)", color: "var(--ink-70)", lineHeight: 1.4 }}>
                   {rec.detail}
                 </p>
               </div>
