@@ -20,6 +20,7 @@ export type ServiceSlotSummary = {
   broadcastStartsAt: string | null;
   broadcastEndsAt: string | null;
   isBlocked: boolean;
+  phases: PhaseBreakdown;
 };
 
 export type GlanceCampus = {
@@ -29,7 +30,6 @@ export type GlanceCampus = {
   serviceDate: string;
   planId: number;
   slots: ServiceSlotSummary[];
-  phases: PhaseBreakdown;
   openIncidentCount: number;
   unmappedCount: number;
 };
@@ -64,6 +64,7 @@ type ServiceSlotRow = {
 };
 
 type ElementVarianceRow = {
+  effective_slot_id: number;
   section_key: string;
   planned_seconds: number;
   actual_seconds: number | null;
@@ -194,7 +195,7 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
     }),
     readRows<ElementVarianceRow>("element_variance", {
       plan_id: `eq.${plan.id}`,
-      select: "section_key,planned_seconds,actual_seconds",
+      select: "effective_slot_id,section_key,planned_seconds,actual_seconds",
     }),
     unmappedCount(campus.code, plan.service_date),
   ]);
@@ -208,6 +209,15 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
     corrections.map((correction) => [correction.plan_time_id, correction]),
   );
   const slotById = new Map(slots.map((slot) => [slot.id, slot]));
+
+  // Group element-variance rows by slot so each service time gets its own phase
+  // breakdown, rather than summing 9am + 11am into a single campus-wide total.
+  const elementsBySlot = new Map<number, ElementVarianceRow[]>();
+  for (const row of elements) {
+    const existing = elementsBySlot.get(row.effective_slot_id);
+    if (existing) existing.push(row);
+    else elementsBySlot.set(row.effective_slot_id, [row]);
+  }
 
   const summaries = planTimes
     .map((planTime) => {
@@ -225,6 +235,7 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
         broadcastStartsAt: planTime.live_starts_at,
         broadcastEndsAt: planTime.live_ends_at,
         isBlocked: isSlotBlocked(incidents, planTime.id, slot.id),
+        phases: buildPhaseBreakdown(elementsBySlot.get(slot.id) ?? []),
         expectedLocalStart: slot.expected_local_start,
       };
     })
@@ -242,6 +253,7 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
       broadcastStartsAt: summary.broadcastStartsAt,
       broadcastEndsAt: summary.broadcastEndsAt,
       isBlocked: summary.isBlocked,
+      phases: summary.phases,
     }));
 
   return {
@@ -251,7 +263,6 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
     serviceDate: plan.service_date,
     planId: plan.id,
     slots: summaries,
-    phases: buildPhaseBreakdown(elements),
     openIncidentCount: incidents.length,
     unmappedCount: unmapped,
   };
@@ -661,6 +672,7 @@ export async function getWorkbenchData(
     isBlocked: latestPlanTime
       ? isSlotBlocked(incidents, latestPlanTime.id, slot.id)
       : false,
+    phases: buildPhaseBreakdown(elements),
   };
 
   const elementRows: WorkbenchElementRow[] = elements.map((ev) => ({

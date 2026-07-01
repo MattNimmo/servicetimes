@@ -3,8 +3,15 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import type { GlanceCampus, PhaseKey, ServiceSlotSummary } from "@/lib/instrument/queries";
+import type { GlanceCampus, PhaseBreakdown, PhaseKey, ServiceSlotSummary } from "@/lib/instrument/queries";
 import { formatDelta, formatDuration, formatServiceDate } from "@/lib/variance/format";
+
+const EMPTY_PHASES: PhaseBreakdown = {
+  worship_open: { plannedSeconds: 0, actualSeconds: null },
+  mid_service: { plannedSeconds: 0, actualSeconds: null },
+  live: { plannedSeconds: 0, actualSeconds: null },
+  local: { plannedSeconds: 0, actualSeconds: null },
+};
 
 const PHASE_META: Array<{
   key: PhaseKey;
@@ -47,8 +54,8 @@ function verdictLabel(campus: GlanceCampus, selectedSlot: ServiceSlotSummary | u
   return "Above target — use Workbench to inspect the service flow.";
 }
 
-function totalPlannedSeconds(campus: GlanceCampus) {
-  return Object.values(campus.phases).reduce(
+function totalPlannedSeconds(phases: PhaseBreakdown) {
+  return Object.values(phases).reduce(
     (total, phase) => total + phase.plannedSeconds,
     0,
   );
@@ -102,8 +109,9 @@ function buildRecommendations(
   }
 
   if (!isBlocked) {
-    const midActual = campus.phases.mid_service.actualSeconds;
-    const midPlanned = campus.phases.mid_service.plannedSeconds;
+    const midPhase = (selectedSlot?.phases ?? EMPTY_PHASES).mid_service;
+    const midActual = midPhase.actualSeconds;
+    const midPlanned = midPhase.plannedSeconds;
     if (midActual !== null && midPlanned > 0) {
       const midDelta = midActual - midPlanned;
       if (midDelta > 60) {
@@ -238,7 +246,7 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
   const [mode, setMode] = useState<"actuals" | "awaiting">("actuals");
   const [recWindow, setRecWindow] = useState<6 | 12>(6);
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(campuses.map((campus) => [campus.code, true])),
+    Object.fromEntries(campuses.map((campus) => [campus.code, false])),
   );
   const [glanceSvc, setGlanceSvc] = useState<Record<string, string>>(() =>
     Object.fromEntries(
@@ -252,19 +260,20 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
         const selectedLabel = glanceSvc[campus.code];
         const selectedSlot =
           campus.slots.find((slot) => slot.slotLabel === selectedLabel) ?? campus.slots[0];
-        const totalPlanned = totalPlannedSeconds(campus);
+        const phases = selectedSlot?.phases ?? EMPTY_PHASES;
+        const totalPlanned = totalPlannedSeconds(phases);
         const recs = buildRecommendations(campus, selectedSlot, mode);
 
         return {
           campus,
           selectedSlot,
+          phases,
           totalPlanned,
-          expanded: expanded[campus.code] ?? true,
+          expanded: expanded[campus.code] ?? false,
           recs,
           midDelta:
-            campus.phases.mid_service.actualSeconds !== null
-              ? campus.phases.mid_service.actualSeconds -
-                campus.phases.mid_service.plannedSeconds
+            phases.mid_service.actualSeconds !== null
+              ? phases.mid_service.actualSeconds - phases.mid_service.plannedSeconds
               : null,
         };
       }),
@@ -327,7 +336,7 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
       </section>
 
       <div className="glance-grid">
-        {campusCards.map(({ campus, selectedSlot, totalPlanned, expanded: isExpanded, recs, midDelta }) => {
+        {campusCards.map(({ campus, selectedSlot, phases, totalPlanned, expanded: isExpanded, recs, midDelta }) => {
           const selectedActual =
             mode === "awaiting" ? selectedSlot?.plannedSeconds ?? null : selectedSlot?.actualSeconds ?? null;
           const delta =
@@ -343,7 +352,7 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
                 onClick={() =>
                   setExpanded((current) => ({
                     ...current,
-                    [campus.code]: !(current[campus.code] ?? true),
+                    [campus.code]: !(current[campus.code] ?? false),
                   }))
                 }
               >
@@ -407,7 +416,7 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
                   <>
                     <div className="phase-bar" aria-hidden>
                       {PHASE_META.map((phase) => {
-                        const amount = campus.phases[phase.key].plannedSeconds;
+                        const amount = phases[phase.key].plannedSeconds;
                         const width = totalPlanned > 0 ? (amount / totalPlanned) * 100 : 0;
                         return (
                           <span
@@ -427,7 +436,7 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
                             {phase.label}
                           </span>
                           <strong className="tabular">
-                            {formatDuration(campus.phases[phase.key].actualSeconds)}
+                            {formatDuration(phases[phase.key].actualSeconds)}
                           </strong>
                         </div>
                       ))}
@@ -471,7 +480,7 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
                             className="tabular"
                             style={{ fontSize: 26, fontWeight: 700, color: "var(--ink)" }}
                           >
-                            {formatDuration(campus.phases.mid_service.actualSeconds)}
+                            {formatDuration(phases.mid_service.actualSeconds)}
                           </span>
                           {midDelta !== null && (
                             <span
