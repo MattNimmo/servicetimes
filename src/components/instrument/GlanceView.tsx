@@ -414,15 +414,20 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
 
                 {isExpanded ? (
                   <>
-                    <div className="phase-bar" aria-hidden>
+                    <div
+                      className="phase-bar"
+                      aria-label={`Phase breakdown. ${PHASE_META.map((phase) => `${phase.label}: ${formatDuration(phases[phase.key].actualSeconds)} actual, ${formatDuration(phases[phase.key].plannedSeconds)} planned`).join("; ")}.`}
+                    >
                       {PHASE_META.map((phase) => {
                         const amount = phases[phase.key].plannedSeconds;
                         const width = totalPlanned > 0 ? (amount / totalPlanned) * 100 : 0;
+                        const label = `${phase.label}: ${formatDuration(phases[phase.key].actualSeconds)} actual, ${formatDuration(phases[phase.key].plannedSeconds)} planned.`;
                         return (
                           <span
                             key={phase.key}
                             className={`phase-bar__segment ${phase.className}`}
                             style={{ width: `${width}%` }}
+                            title={label}
                           />
                         );
                       })}

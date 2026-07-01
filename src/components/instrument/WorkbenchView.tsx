@@ -37,6 +37,26 @@ const HORIZON_OPTIONS: Array<{ label: string; value: WorkbenchHorizon }> = [
 
 type WbMetric = "total" | "mid" | "message" | "worship";
 
+function metricLabel(metric: WbMetric) {
+  if (metric === "mid") return "mid-service";
+  if (metric === "message") return "message";
+  if (metric === "worship") return "worship";
+  return "total service";
+}
+
+function metricSeconds(pt: TrendPoint, metric: WbMetric) {
+  if (metric === "total") {
+    return { actual: pt.actualSeconds, planned: pt.plannedSeconds };
+  }
+  if (metric === "mid") {
+    return { actual: pt.midActualSeconds, planned: pt.midPlannedSeconds };
+  }
+  if (metric === "message") {
+    return { actual: pt.messageActualSeconds, planned: pt.messagePlannedSeconds };
+  }
+  return { actual: pt.worshipActualSeconds, planned: pt.worshipPlannedSeconds };
+}
+
 function formatBroadcastTime(isoOrTime: string | null): string | null {
   if (!isoOrTime) return null;
   const d = new Date(isoOrTime);
@@ -70,21 +90,7 @@ function TrendChart({
   }
 
   const deltas = trend.map((pt) => {
-    let actual: number | null = null;
-    let planned: number | null = null;
-    if (metric === "total") {
-      actual = pt.actualSeconds;
-      planned = pt.plannedSeconds;
-    } else if (metric === "mid") {
-      actual = pt.midActualSeconds;
-      planned = pt.midPlannedSeconds;
-    } else if (metric === "message") {
-      actual = pt.messageActualSeconds;
-      planned = pt.messagePlannedSeconds;
-    } else {
-      actual = pt.worshipActualSeconds;
-      planned = pt.worshipPlannedSeconds;
-    }
+    const { actual, planned } = metricSeconds(pt, metric);
     return actual !== null && planned !== null ? actual - planned : null;
   });
   const validDeltas = deltas.filter((d): d is number => d !== null);
@@ -119,13 +125,36 @@ function TrendChart({
     sorted.length > 0 ? sorted[Math.floor(sorted.length / 2)] : null;
   const medianY =
     medianDelta !== null ? centerY - (medianDelta / maxAbs) * (chartH / 2) : null;
+  const minDelta = sorted[0] ?? null;
+  const maxDelta = sorted[sorted.length - 1] ?? null;
+  const dateRange =
+    trend.length > 1
+      ? `${formatServiceDate(trend[0].serviceDate)} to ${formatServiceDate(trend[trend.length - 1].serviceDate)}`
+      : formatServiceDate(trend[0].serviceDate);
+  const summary = `${metricLabel(metric)} trend, ${dateRange}. Minimum ${formatDelta(minDelta)}, median ${formatDelta(medianDelta)}, maximum ${formatDelta(maxDelta)}.`;
 
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      style={{ width: "100%", height: 120 }}
-      aria-hidden
-    >
+    <>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        style={{ width: "100%", height: 120 }}
+        role="img"
+        aria-label={summary}
+      >
+      <title>{summary}</title>
+      <desc>
+        Each point shows actual time compared with planned time. Hollow points
+        mark moment services.
+      </desc>
+      <text x={padX} y={11} fill="var(--ink-70)" fontSize="11" fontWeight={700}>
+        {formatDelta(maxAbs)}
+      </text>
+      <text x={padX} y={centerY - 4} fill="var(--ink-70)" fontSize="11" fontWeight={700}>
+        0
+      </text>
+      <text x={padX} y={H - 3} fill="var(--ink-70)" fontSize="11" fontWeight={700}>
+        {formatDelta(-maxAbs)}
+      </text>
       <line
         x1={padX}
         y1={centerY}
@@ -146,6 +175,18 @@ function TrendChart({
           opacity={0.7}
         />
       )}
+      {medianY !== null && (
+        <text
+          x={W - padX}
+          y={Math.max(11, medianY - 4)}
+          textAnchor="end"
+          fill="var(--accent)"
+          fontSize="11"
+          fontWeight={700}
+        >
+          Median {formatDelta(medianDelta)}
+        </text>
+      )}
       {pathD && (
         <path
           d={pathD}
@@ -156,6 +197,12 @@ function TrendChart({
         />
       )}
       {pts.map((pt, i) => {
+        const source = trend[i];
+        const { actual, planned } = metricSeconds(source, metric);
+        const pointLabel =
+          pt.delta === null
+            ? `${formatServiceDate(source.serviceDate)}: no ${metricLabel(metric)} actual available`
+            : `${formatServiceDate(source.serviceDate)}: ${formatDuration(actual)} actual, ${formatDuration(planned)} planned, ${formatDelta(pt.delta)}${pt.isMoment ? ", moment service" : ""}`;
         if (pt.y === null) {
           return (
             <circle
@@ -166,7 +213,9 @@ function TrendChart({
               fill="none"
               stroke="var(--ink-70)"
               strokeWidth={1.5}
-            />
+            >
+              <title>{pointLabel}</title>
+            </circle>
           );
         }
         const color =
@@ -184,12 +233,18 @@ function TrendChart({
             fill="none"
             stroke={color}
             strokeWidth={1.5}
-          />
+          >
+            <title>{pointLabel}</title>
+          </circle>
         ) : (
-          <circle key={i} cx={pt.x} cy={pt.y} r={3} fill={color} />
+          <circle key={i} cx={pt.x} cy={pt.y} r={3} fill={color}>
+            <title>{pointLabel}</title>
+          </circle>
         );
       })}
-    </svg>
+      </svg>
+      <p className="sr-only">{summary}</p>
+    </>
   );
 }
 
@@ -215,9 +270,13 @@ function DivergingBar({
   const fraction = Math.min(Math.abs(delta) / planned, 1) * 0.48;
   const pct = fraction * 100;
   const isOver = delta > 0;
+  const label = `Planned ${formatDuration(planned)}, actual ${formatDuration(actual)}, delta ${formatDelta(delta)}.`;
 
   return (
     <div
+      aria-label={label}
+      title={label}
+      role="img"
       style={{
         position: "relative",
         height: 4,
@@ -269,18 +328,25 @@ function DivergingBar({
 
 function CrossMedianBars({ medians }: { medians: CrossCampusMedian[] }) {
   const max = Math.max(1, ...medians.map((m) => m.medianSeconds ?? 0));
+  const summary = medians
+    .map((m) => `${m.campusCode}${m.isActive ? " current" : ""}: ${m.medianSeconds !== null ? formatDuration(m.medianSeconds) : "no median"}`)
+    .join("; ");
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+    <div
+      aria-label={`Cross-campus close worship medians. ${summary}`}
+      style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}
+    >
       {medians.map((m) => {
         const pct = ((m.medianSeconds ?? 0) / max) * 100;
         const color = CAMPUS_COLORS[m.campusCode] ?? "var(--ink-70)";
+        const label = `${m.campusCode}${m.isActive ? " current campus" : ""}: ${m.medianSeconds !== null ? formatDuration(m.medianSeconds) : "no median"}.`;
         return (
-          <div key={m.campusCode} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div key={m.campusCode} title={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span
               style={{
                 width: 28,
                 fontSize: "var(--type-micro)",
-                fontWeight: 700,
+                fontWeight: m.isActive ? 800 : 700,
                 letterSpacing: "0.1em",
                 color: m.isActive ? "var(--ink)" : "var(--ink-70)",
                 textTransform: "uppercase",
@@ -295,6 +361,8 @@ function CrossMedianBars({ medians }: { medians: CrossCampusMedian[] }) {
                 borderRadius: 999,
                 background: "rgba(28,32,48,0.08)",
                 overflow: "hidden",
+                outline: m.isActive ? `2px solid ${color}` : "none",
+                outlineOffset: 2,
               }}
             >
               <div
@@ -319,6 +387,7 @@ function CrossMedianBars({ medians }: { medians: CrossCampusMedian[] }) {
             >
               {m.medianSeconds !== null ? formatDuration(m.medianSeconds) : "—"}
             </span>
+            {m.isActive && <span className="pill">Current</span>}
           </div>
         );
       })}
@@ -714,17 +783,22 @@ export default function WorkbenchView({
           </p>
 
           {/* Phase bar */}
-          <div className="phase-bar" aria-hidden>
+          <div
+            className="phase-bar"
+            aria-label={`Phase breakdown. ${PHASE_META.map((ph) => `${ph.label}: ${formatDuration(phases[ph.key].actualSeconds)} actual, ${formatDuration(phases[ph.key].plannedSeconds)} planned`).join("; ")}.`}
+          >
             {PHASE_META.map((ph) => {
               const width =
                 totalPlanned > 0
                   ? (phases[ph.key].plannedSeconds / totalPlanned) * 100
                   : 0;
+              const label = `${ph.label}: ${formatDuration(phases[ph.key].actualSeconds)} actual, ${formatDuration(phases[ph.key].plannedSeconds)} planned.`;
               return (
                 <span
                   key={ph.key}
-                  className={`phase-bar__segment phase-chip--${ph.key.replace("_", "-").split("_")[0]}`}
-                  style={{ width: `${width}%` }}
+                  className="phase-bar__segment"
+                  style={{ width: `${width}%`, background: ph.color }}
+                  title={label}
                 />
               );
             })}
@@ -777,6 +851,7 @@ export default function WorkbenchView({
 
           {/* Mini phase bar highlighting Live */}
           <div
+            aria-label={`Broadcast phase breakdown. ${PHASE_META.map((ph) => `${ph.label}: ${formatDuration(phases[ph.key].actualSeconds)} actual, ${formatDuration(phases[ph.key].plannedSeconds)} planned`).join("; ")}.`}
             style={{
               display: "flex",
               height: 6,
@@ -790,9 +865,11 @@ export default function WorkbenchView({
                 totalPlanned > 0
                   ? (phases[ph.key].plannedSeconds / totalPlanned) * 100
                   : 0;
+              const label = `${ph.label}: ${formatDuration(phases[ph.key].actualSeconds)} actual, ${formatDuration(phases[ph.key].plannedSeconds)} planned.`;
               return (
                 <div
                   key={ph.key}
+                  title={label}
                   style={{
                     width: `${width}%`,
                     background: ph.key === "live" ? "var(--accent)" : "rgba(28,32,48,0.15)",
