@@ -38,15 +38,15 @@ const STATUS_CONFIG = {
   not_tracked: {
     borderColor: "transparent",
     bg: "transparent",
-    chipColor: "var(--ink-35, rgba(28,32,48,0.35))",
-    chipBg: "rgba(28,32,48,0.06)",
+    chipColor: "var(--ink-35, var(--ink-disabled))",
+    chipBg: "var(--ink-fill-muted)",
     label: "NOT TRACKED",
   },
   rolled_up: {
     borderColor: "transparent",
     bg: "transparent",
-    chipColor: "var(--ink-35, rgba(28,32,48,0.35))",
-    chipBg: "rgba(28,32,48,0.06)",
+    chipColor: "var(--ink-35, var(--ink-disabled))",
+    chipBg: "var(--ink-fill-muted)",
     label: "↳ ROLLED UP",
   },
   unmapped: {
@@ -128,7 +128,7 @@ function SlotHeaderRow({
     <div
       style={{
         borderLeft: `3px solid ${borderColor}`,
-        background: "rgba(28,32,48,0.05)",
+        background: "var(--ink-fill-subtle)",
         padding: "10px 16px",
         display: "flex",
         alignItems: "flex-start",
@@ -211,7 +211,7 @@ function SlotIncidentChip({
               fontSize: "var(--type-caption)",
               padding: "2px 6px",
               borderRadius: 6,
-              border: "1px solid rgba(28,32,48,0.2)",
+              border: "1px solid var(--ink-border-control)",
               background: "rgba(255,255,255,0.7)",
               width: 60,
             }}
@@ -262,7 +262,7 @@ function SlotIncidentChip({
               fontSize: "var(--type-caption)",
               padding: "2px 6px",
               borderRadius: 6,
-              border: "1px solid rgba(28,32,48,0.2)",
+              border: "1px solid var(--ink-border-control)",
               background: "rgba(255,255,255,0.7)",
             }}
           >
@@ -301,7 +301,7 @@ function SlotIncidentChip({
               fontWeight: 700,
               padding: "3px 8px",
               borderRadius: 999,
-              border: "1px solid rgba(28,32,48,0.2)",
+              border: "1px solid var(--ink-border-control)",
               background: "transparent",
               cursor: "pointer",
               color: "var(--ink-70)",
@@ -348,9 +348,9 @@ function SectionHeaderRow({ section }: { section: TriageSection }) {
       className="triage-row"
       style={{
         padding: "8px 16px 6px",
-        background: "rgba(28,32,48,0.03)",
-        borderBottom: "1px solid rgba(28,32,48,0.07)",
-        borderTop: "1px solid rgba(28,32,48,0.07)",
+        background: "var(--ink-fill-faint)",
+        borderBottom: "1px solid var(--ink-line-soft)",
+        borderTop: "1px solid var(--ink-line-soft)",
       }}
     >
       <span className="triage-row__time" />
@@ -410,7 +410,7 @@ function MapActions({
           fontSize: "var(--type-micro)",
           padding: "2px 4px",
           borderRadius: 6,
-          border: "1px solid rgba(28,32,48,0.2)",
+          border: "1px solid var(--ink-border-control)",
           background: "rgba(255,255,255,0.7)",
           maxWidth: 140,
         }}
@@ -477,7 +477,7 @@ function ItemRow({
       className="triage-row"
       style={{
         padding: "9px 16px",
-        borderBottom: "1px solid rgba(28,32,48,0.05)",
+        borderBottom: "1px solid var(--ink-fill-subtle)",
         borderLeft: `3px solid ${cfg.borderColor}`,
         background: cfg.bg,
       }}
@@ -550,7 +550,7 @@ function ItemRow({
                 fontWeight: 700,
                 padding: "3px 8px",
                 borderRadius: 999,
-                border: "1px solid rgba(28,32,48,0.2)",
+                border: "1px solid var(--ink-border-control)",
                 background: "transparent",
                 cursor: "pointer",
                 color: "var(--ink-70)",
@@ -581,7 +581,7 @@ function ItemRow({
                 fontWeight: 700,
                 padding: "3px 8px",
                 borderRadius: 999,
-                border: "1px solid rgba(28,32,48,0.2)",
+                border: "1px solid var(--ink-border-control)",
                 background: "transparent",
                 cursor: "pointer",
                 color: "var(--ink-70)",
@@ -647,7 +647,7 @@ function IncidentActions({
             fontWeight: 700,
             padding: "3px 8px",
             borderRadius: 999,
-            border: "1px solid rgba(28,32,48,0.2)",
+            border: "1px solid var(--ink-border-control)",
             background: "transparent",
             cursor: "pointer",
             color: "var(--ink-70)",
@@ -668,7 +668,7 @@ function IncidentActions({
             fontWeight: 700,
             padding: "3px 8px",
             borderRadius: 999,
-            border: "1px solid rgba(28,32,48,0.2)",
+            border: "1px solid var(--ink-border-control)",
             background: "transparent",
             cursor: "pointer",
             color: "var(--ink-70)",
@@ -811,7 +811,7 @@ export default function TriageView({
           </div>
         )}
 
-        <span style={{ fontSize: 11, color: "var(--ink-35, rgba(28,32,48,0.35))" }}>
+        <span style={{ fontSize: 11, color: "var(--ink-35, var(--ink-disabled))" }}>
           {data.planTitle}
         </span>
       </div>
@@ -830,10 +830,10 @@ export default function TriageView({
       >
         {[
           { label: "✓ GOOD", color: "var(--under)" },
-          { label: "↳ ROLLED UP", color: "rgba(28,32,48,0.35)" },
+          { label: "↳ ROLLED UP", color: "var(--ink-disabled)" },
           { label: "UNMAPPED", color: "var(--amber-text)" },
           { label: "INCIDENT", color: "var(--over)" },
-          { label: "NOT TRACKED", color: "rgba(28,32,48,0.35)" },
+          { label: "NOT TRACKED", color: "var(--ink-disabled)" },
         ].map((l) => (
           <span key={l.label} style={{ color: l.color }}>
             {l.label}
@@ -846,7 +846,7 @@ export default function TriageView({
         {/* Column header */}
         <div
           className="triage-row"
-          style={{ padding: "10px 16px", borderBottom: "1px solid rgba(28,32,48,0.1)" }}
+          style={{ padding: "10px 16px", borderBottom: "1px solid var(--hairline)" }}
         >
           {(["TIME", "LEN", "TITLE", "STATUS · ACTION"] as const).map((h) => (
             <span

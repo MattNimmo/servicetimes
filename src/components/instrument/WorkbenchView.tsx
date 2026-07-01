@@ -160,7 +160,7 @@ function TrendChart({
         y1={centerY}
         x2={W - padX}
         y2={centerY}
-        stroke="rgba(28,32,48,0.13)"
+        stroke="var(--ink-line-medium)"
         strokeWidth={1}
       />
       {medianY !== null && (
@@ -191,7 +191,7 @@ function TrendChart({
         <path
           d={pathD}
           fill="none"
-          stroke="rgba(28,32,48,0.18)"
+          stroke="var(--ink-line-strong)"
           strokeWidth={1.5}
           strokeLinejoin="round"
         />
@@ -260,7 +260,7 @@ function DivergingBar({
       <div
         style={{
           height: 4,
-          background: "rgba(28,32,48,0.1)",
+          background: "var(--hairline)",
           borderRadius: 999,
         }}
       />
@@ -280,7 +280,7 @@ function DivergingBar({
       style={{
         position: "relative",
         height: 4,
-        background: "rgba(28,32,48,0.08)",
+        background: "var(--ink-fill-chart)",
         borderRadius: 999,
         overflow: "visible",
       }}
@@ -293,7 +293,7 @@ function DivergingBar({
           top: -2,
           width: 1,
           height: 8,
-          background: "rgba(28,32,48,0.3)",
+          background: "var(--ink-marker)",
           transform: "translateX(-50%)",
         }}
       />
@@ -359,7 +359,7 @@ function CrossMedianBars({ medians }: { medians: CrossCampusMedian[] }) {
                 flex: 1,
                 height: 6,
                 borderRadius: 999,
-                background: "rgba(28,32,48,0.08)",
+                background: "var(--ink-fill-chart)",
                 overflow: "hidden",
                 outline: m.isActive ? `2px solid ${color}` : "none",
                 outlineOffset: 2,
@@ -422,7 +422,7 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
           gridTemplateColumns: "180px 56px 1fr 96px",
           gap: 8,
           padding: "8px 16px",
-          borderBottom: "1px solid rgba(28,32,48,0.1)",
+          borderBottom: "1px solid var(--hairline)",
         }}
       >
         {["ELEMENT", "ALLOT", "", "ACTUAL · Δ"].map((h, i) => (
@@ -464,8 +464,8 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
                 gridTemplateColumns: "180px 56px 1fr 96px",
                 gap: 8,
                 padding: "10px 16px 6px",
-                background: "rgba(28,32,48,0.04)",
-                borderBottom: "1px solid rgba(28,32,48,0.07)",
+                background: "var(--ink-fill-soft)",
+                borderBottom: "1px solid var(--ink-line-soft)",
               }}
             >
               <span
@@ -503,7 +503,7 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
                     gridTemplateColumns: "180px 56px 1fr 96px",
                     gap: 8,
                     padding: "8px 16px",
-                    borderBottom: "1px solid rgba(28,32,48,0.05)",
+                    borderBottom: "1px solid var(--ink-fill-subtle)",
                     alignItems: "center",
                   }}
                 >
@@ -755,7 +755,7 @@ export default function WorkbenchView({
       {/* Bento grid */}
       <div className="wb-bento">
         {/* Total tile – span 2 */}
-        <div className="glass-card wb-tile wb-tile--span2" style={{ borderRadius: "var(--r-card)", padding: "18px 20px" }}>
+        <div className="glass-card wb-tile wb-tile--span2">
           <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)" }}>
             Total service · {HORIZON_OPTIONS.find((o) => o.value === horizon)?.label}
           </p>
@@ -827,7 +827,7 @@ export default function WorkbenchView({
         </div>
 
         {/* Broadcast window tile – span 2 */}
-        <div className="glass-card wb-tile wb-tile--span2" style={{ borderRadius: "var(--r-card)", padding: "18px 20px" }}>
+        <div className="glass-card wb-tile wb-tile--span2">
           <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", color: "var(--accent)" }}>
             Broadcast window
           </p>
@@ -857,7 +857,7 @@ export default function WorkbenchView({
               height: 6,
               borderRadius: 999,
               overflow: "hidden",
-              background: "rgba(28,32,48,0.08)",
+              background: "var(--ink-fill-chart)",
             }}
           >
             {PHASE_META.map((ph) => {
@@ -872,7 +872,7 @@ export default function WorkbenchView({
                   title={label}
                   style={{
                     width: `${width}%`,
-                    background: ph.key === "live" ? "var(--accent)" : "rgba(28,32,48,0.15)",
+                    background: ph.key === "live" ? "var(--accent)" : "var(--ink-fill-medium)",
                   }}
                 />
               );
@@ -887,8 +887,6 @@ export default function WorkbenchView({
         <div
           className="glass-card wb-tile"
           style={{
-            borderRadius: "var(--r-card)",
-            padding: "18px 20px",
             background: "rgba(217,138,32,0.08)",
           }}
         >
@@ -918,7 +916,7 @@ export default function WorkbenchView({
         </div>
 
         {/* Cross tile */}
-        <div className="glass-card wb-tile" style={{ borderRadius: "var(--r-card)", padding: "18px 20px" }}>
+        <div className="glass-card wb-tile">
           <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)" }}>
             Cross · close worship
           </p>
@@ -926,7 +924,7 @@ export default function WorkbenchView({
         </div>
 
         {/* Trend tile – span 2 */}
-        <div className="glass-card wb-tile wb-tile--span2" style={{ borderRadius: "var(--r-card)", padding: "18px 20px" }}>
+        <div className="glass-card wb-tile wb-tile--span2">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
             <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", margin: 0 }}>
               Variance · {HORIZON_OPTIONS.find((o) => o.value === horizon)?.label}
@@ -983,7 +981,7 @@ export default function WorkbenchView({
           marginTop: 0,
         }}
       >
-        <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid rgba(28,32,48,0.1)" }}>
+        <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--hairline)" }}>
           <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", margin: 0 }}>
             Element breakdown · {slotSummary.slotLabel}
           </p>

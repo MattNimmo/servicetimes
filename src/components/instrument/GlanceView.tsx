@@ -207,7 +207,7 @@ function RecommendationsPanel({
                 gap: 10,
                 padding: "8px 10px",
                 borderRadius: 10,
-                background: "rgba(28,32,48,0.04)",
+                background: "var(--ink-fill-soft)",
                 borderLeft: `3px solid ${URGENCY_COLOR[rec.urgency]}`,
               }}
             >

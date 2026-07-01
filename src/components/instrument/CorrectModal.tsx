@@ -176,7 +176,7 @@ function ModalPanel({
             width: "100%",
             padding: "10px 12px",
             borderRadius: 10,
-            border: "1px solid rgba(28,32,48,0.18)",
+            border: "1px solid var(--ink-line-strong)",
             background: "rgba(255,255,255,0.7)",
             fontSize: 16,
             fontWeight: 600,
@@ -200,7 +200,7 @@ function ModalPanel({
             style={{
               padding: "9px 18px",
               borderRadius: 999,
-              border: "1px solid rgba(28,32,48,0.18)",
+              border: "1px solid var(--ink-line-strong)",
               background: "transparent",
               fontSize: 11,
               fontWeight: 700,

@@ -626,6 +626,8 @@
 
 .wb-tile {
   min-width: 0;
+  border-radius: var(--r-card);
+  padding: 18px 20px;
 }
 
 .wb-tile--span2 {
