@@ -1,6 +1,6 @@
 # Build Plan — Design unification (one glass theme, readable, consistent)
 
-**Status:** In progress (Part 1 shipped 7c7505d; started 2026-06-30)
+**Status:** In progress (Part 1 shipped 7c7505d; Part 2.1 shipped b0a36c7; started 2026-06-30)
 **Audience:** Implementing engineer / codex (self-contained — no prior session context needed)
 **Repo:** `servicetimes` (Next.js 16 App Router + React server components + Supabase, deployed on Vercel)
 **Origin:** Design review on 2026-06-30, run against the **Impeccable** ECC design context (warm, app-like, readable-first for a non-technical leadership audience; Planning Center / Linear register, not a developer dashboard).
@@ -135,7 +135,7 @@ For each:
 
 Audience test for every change here: **"Would Nate read this in a meeting without squinting or asking what it means?"**
 
-### 2.1 — Enforce a legible type scale (no more 8–10px content)
+### 2.1 — Enforce a legible type scale (no more 8–10px content) — ✅ shipped (b0a36c7)
 
 The instrument and viewer are littered with `fontSize: 8/9/10` inline styles (e.g. `WorkbenchView.tsx` 8px "ADJ" tag ~L447; 9px eyebrows/labels throughout; `GlanceView.tsx` 10px recommendation *detail* ~L218; `TriageView.tsx` 9px chips/labels throughout).
 
