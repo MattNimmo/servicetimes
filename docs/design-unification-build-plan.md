@@ -1,6 +1,6 @@
 # Build Plan — Design unification (one glass theme, readable, consistent)
 
-**Status:** In progress (Part 1 shipped 7c7505d; Part 2.1 shipped b0a36c7; started 2026-06-30)
+**Status:** In progress (Part 1 shipped 7c7505d; Part 2.1–2.2 shipped b0a36c7/e6dac35; started 2026-06-30)
 **Audience:** Implementing engineer / codex (self-contained — no prior session context needed)
 **Repo:** `servicetimes` (Next.js 16 App Router + React server components + Supabase, deployed on Vercel)
 **Origin:** Design review on 2026-06-30, run against the **Impeccable** ECC design context (warm, app-like, readable-first for a non-technical leadership audience; Planning Center / Linear register, not a developer dashboard).
@@ -147,7 +147,7 @@ The instrument and viewer are littered with `fontSize: 8/9/10` inline styles (e.
 - Replace inline `fontSize` numbers with the scale tokens/classes as you extract classes in Part 3.
 - **Acceptance:** `rg -n "fontSize: ?([0-9]|10)\b" src` returns nothing; no computed font-size in the rendered UI is below 11px.
 
-### 2.2 — Fix low-contrast text
+### 2.2 — Fix low-contrast text — ✅ shipped (e6dac35)
 
 - `--ink-55` (55% ink) and `--ink-35` (35% ink) are used for meaningful small text; some places stack `opacity: 0.75–0.8` on already-muted amber (`GlanceView.tsx` ~L474; `WorkbenchView.tsx` ~L838). At small sizes these fail WCAG AA (needs ≥ 4.5:1 for text < ~18px).
 - **Add a darker muted token** (e.g. an `--ink-70`) and use it for any small text that currently uses `--ink-55`/`--ink-35` to convey real information. Reserve `--ink-35` for genuinely decorative/disabled states only.
