@@ -170,7 +170,7 @@ Mapped rows show the raw `element_key` (e.g. `live.message`) as the sub-note (`T
 Thread the lookup (or a resolved `elementDisplayName` field) down to `ItemRow`.
 **Acceptance:** mapped rows show a human-readable element name, not a dotted key.
 
-### 2.8 — Inline styles + hardcoded color literals *(MAINT; optional sweep)*
+### 2.8 — Inline styles + hardcoded color literals *(MAINT)* — ✅ shipped (`5b90fb1`) via `design-unification-build-plan.md` Part 3
 
 Triage is built almost entirely from inline style objects with hardcoded rgba literals that duplicate existing tokens — `rgba(207,82,44,…)` = `--over`, `rgba(185,106,20,…)` = `--amber-text`, `rgba(46,156,107,…)` = `--under`, `rgba(28,32,48,…)` = `--ink*`. Glance uses the semantic class system in `instrument.css`; Triage does not, so tokens are re-hardcoded dozens of times and palette changes drift. (This is the same class of issue that caused the phase-legend contrast bug, now fixed.)
 

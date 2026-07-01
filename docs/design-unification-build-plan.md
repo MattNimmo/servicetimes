@@ -1,6 +1,6 @@
 # Build Plan — Design unification (one glass theme, readable, consistent)
 
-**Status:** In progress (Part 1 shipped 7c7505d; Part 2 shipped b0a36c7/e6dac35/9d5a234; Part 3.2–3.5 shipped e98bd39/f39bca8/7630fb5/c56412d; started 2026-06-30)
+**Status:** ✅ Implemented (2026-07-01) — historical record.
 **Audience:** Implementing engineer / codex (self-contained — no prior session context needed)
 **Repo:** `servicetimes` (Next.js 16 App Router + React server components + Supabase, deployed on Vercel)
 **Origin:** Design review on 2026-06-30, run against the **Impeccable** ECC design context (warm, app-like, readable-first for a non-technical leadership audience; Planning Center / Linear register, not a developer dashboard).
@@ -167,9 +167,9 @@ All charts are currently `aria-hidden` with no tooltips, hover, or value labels:
 
 ---
 
-## Part 3 — Design consistency (P2)
+## Part 3 — Design consistency (P2) — ✅ shipped (5b90fb1)
 
-### 3.1 — Extract repeated inline styles into shared classes
+### 3.1 — Extract repeated inline styles into shared classes — ✅ shipped (5b90fb1)
 
 `GlanceView.tsx`, `WorkbenchView.tsx`, and `TriageView.tsx` rebuild the same visual primitives inline dozens of times with magic numbers. The same accent "Save/Map/Correct/Map" button is hand-copied ~6× in `TriageView.tsx`; ghost "Keep/Exclude/Undo/Unmap" buttons another ~5×; status pills and eyebrow labels are re-declared everywhere.
 
@@ -216,26 +216,26 @@ The two halves speak different color languages for the same concepts:
 
 ---
 
-## Part 4 — Interaction states (P2)
+## Part 4 — Interaction states (P2) — ✅ shipped (5b90fb1)
 
-### 4.1 — Consistent hover states on all controls
+### 4.1 — Consistent hover states on all controls — ✅ shipped (5b90fb1)
 
 Inline-built controls have no hover feedback: the Workbench campus selector (`WorkbenchView.tsx` ~L616–653), the trend metric toggles (~L858), and the many inline Triage buttons. The instrument's class-based controls (`.instrument-tab`, `.segment-option`, `.slot-picker__option`) do have hover — extend that to everything via the shared button/pill classes from Part 3.
 - Every clickable element gets a visible hover state (background/border/color shift) consistent with the segment-control pattern.
 - **Acceptance:** no interactive element is without a hover state; hover treatments are consistent across surfaces.
 
-### 4.2 — App-wide focus-visible
+### 4.2 — App-wide focus-visible — ✅ shipped (5b90fb1)
 
 The `:focus-visible` ring is scoped to `.instrument-root` (`instrument.css` ~L683). After unification the ring must cover the whole app (home, login, viewer).
 - Move the focus-visible rule to the shared layer so it applies app-wide; keep the special glance-header inset treatment.
 - **Acceptance:** keyboard-tabbing through `/`, `/login`, and `/variance` shows a consistent accent focus ring on every focusable element.
 
-### 4.3 — Adequate tap targets
+### 4.3 — Adequate tap targets — ✅ shipped (5b90fb1)
 
 Many inline buttons use `padding: "2px 6/7/8px"` and 9px text — well below a comfortable target. As controls move to `.btn`/`.pill` classes, set a minimum interactive height (~28–32px min, generous horizontal padding) while keeping the compact look.
 - **Acceptance:** all buttons/toggles meet a minimum ~28px interactive height; date steppers and metric toggles are comfortably clickable.
 
-### 4.4 — Active/disabled states
+### 4.4 — Active/disabled states — ✅ shipped (5b90fb1)
 
 - Ensure disabled states (e.g. the Triage prev/next date steppers, already handled with opacity) use a shared disabled treatment, not per-instance opacity magic numbers.
 - **Acceptance:** disabled and active states come from shared classes, not ad-hoc inline opacity.
