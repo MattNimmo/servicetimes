@@ -55,7 +55,7 @@ export default function Toast({
         onClick={onDismiss}
         style={{
           marginLeft: 4,
-          fontSize: 10,
+          fontSize: "var(--type-caption)",
           fontWeight: 700,
           letterSpacing: "0.12em",
           textTransform: "uppercase",

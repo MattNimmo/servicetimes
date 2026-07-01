@@ -169,7 +169,7 @@ function RecommendationsPanel({
       <p
         style={{
           margin: "0 0 6px",
-          fontSize: 9,
+          fontSize: "var(--type-micro)",
           fontWeight: 700,
           letterSpacing: "0.2em",
           textTransform: "uppercase",
@@ -215,14 +215,14 @@ function RecommendationsPanel({
                 <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 700, color: "var(--ink)" }}>
                   {rec.label}
                 </p>
-                <p style={{ margin: 0, fontSize: 10, color: "var(--ink-55)", lineHeight: 1.4 }}>
+                <p style={{ margin: 0, fontSize: "var(--type-caption)", color: "var(--ink-55)", lineHeight: 1.4 }}>
                   {rec.detail}
                 </p>
               </div>
               <a
                 href={rec.actionHref}
                 style={{
-                  fontSize: 9,
+                  fontSize: "var(--type-micro)",
                   fontWeight: 700,
                   letterSpacing: "0.1em",
                   color: "var(--accent)",
@@ -456,7 +456,7 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
                         <p
                           style={{
                             margin: "0 0 1px",
-                            fontSize: 9,
+                            fontSize: "var(--type-micro)",
                             fontWeight: 700,
                             letterSpacing: "0.2em",
                             textTransform: "uppercase",
@@ -468,9 +468,8 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
                         <p
                           style={{
                             margin: "0 0 6px",
-                            fontSize: 9,
+                            fontSize: "var(--type-micro)",
                             color: "var(--amber-text)",
-                            opacity: 0.75,
                           }}
                         >
                           the part you actually control

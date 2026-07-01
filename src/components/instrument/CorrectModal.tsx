@@ -65,7 +65,7 @@ function ModalPanel({
       <p
         style={{
           margin: "0 0 16px",
-          fontSize: 9,
+          fontSize: "var(--type-micro)",
           fontWeight: 700,
           letterSpacing: "0.2em",
           textTransform: "uppercase",
@@ -88,7 +88,7 @@ function ModalPanel({
           <p
             style={{
               margin: "0 0 4px",
-              fontSize: 9,
+              fontSize: "var(--type-micro)",
               fontWeight: 700,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
@@ -108,7 +108,7 @@ function ModalPanel({
           <p
             style={{
               margin: "0 0 4px",
-              fontSize: 9,
+              fontSize: "var(--type-micro)",
               fontWeight: 700,
               letterSpacing: "0.18em",
               textTransform: "uppercase",
@@ -129,7 +129,7 @@ function ModalPanel({
       <p
         style={{
           margin: "0 0 16px",
-          fontSize: 10,
+          fontSize: "var(--type-caption)",
           fontWeight: 700,
           letterSpacing: "0.14em",
           textTransform: "uppercase",

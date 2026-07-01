@@ -279,7 +279,7 @@ function CrossMedianBars({ medians }: { medians: CrossCampusMedian[] }) {
             <span
               style={{
                 width: 28,
-                fontSize: 9,
+                fontSize: "var(--type-micro)",
                 fontWeight: 700,
                 letterSpacing: "0.1em",
                 color: m.isActive ? "var(--ink)" : "var(--ink-55)",
@@ -312,7 +312,7 @@ function CrossMedianBars({ medians }: { medians: CrossCampusMedian[] }) {
               className="tabular"
               style={{
                 width: 40,
-                fontSize: 10,
+                fontSize: "var(--type-caption)",
                 textAlign: "right",
                 color: m.isActive ? "var(--ink)" : "var(--ink-55)",
               }}
@@ -360,7 +360,7 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
           <span
             key={i}
             style={{
-              fontSize: 9,
+              fontSize: "var(--type-micro)",
               fontWeight: 700,
               letterSpacing: "0.18em",
               color: "var(--ink-55)",
@@ -401,7 +401,7 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
             >
               <span
                 style={{
-                  fontSize: 9,
+                  fontSize: "var(--type-micro)",
                   fontWeight: 700,
                   letterSpacing: "0.18em",
                   color: "var(--ink)",
@@ -414,7 +414,7 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
               <span />
               <span
                 className="tabular"
-                style={{ fontSize: 10, color: "var(--ink-55)", textAlign: "right" }}
+                style={{ fontSize: "var(--type-caption)", color: "var(--ink-55)", textAlign: "right" }}
               >
                 {formatDuration(sectionPlanned)} · {formatDuration(sectionActual)}
               </span>
@@ -444,7 +444,7 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
                     {el.isHumanAdjusted && (
                       <span
                         style={{
-                          fontSize: 8,
+                          fontSize: "var(--type-micro)",
                           fontWeight: 700,
                           letterSpacing: "0.1em",
                           padding: "1px 4px",
@@ -473,7 +473,7 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
                   {el.isBlocked ? (
                     <span
                       style={{
-                        fontSize: 9,
+                        fontSize: "var(--type-micro)",
                         fontWeight: 700,
                         letterSpacing: "0.1em",
                         padding: "2px 6px",
@@ -503,7 +503,7 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
                     >
                       {formatDuration(el.actualSeconds)}{" "}
                       {delta !== null && (
-                        <span style={{ fontSize: 10, opacity: 0.75 }}>
+                        <span style={{ fontSize: "var(--type-caption)" }}>
                           {formatDelta(delta)}
                         </span>
                       )}
@@ -687,7 +687,7 @@ export default function WorkbenchView({
       <div className="wb-bento">
         {/* Total tile – span 2 */}
         <div className="glass-card wb-tile wb-tile--span2" style={{ borderRadius: "var(--r-card)", padding: "18px 20px" }}>
-          <p className="instrument-eyebrow" style={{ fontSize: 9 }}>
+          <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)" }}>
             Total service · {HORIZON_OPTIONS.find((o) => o.value === horizon)?.label}
           </p>
           <div style={{ display: "flex", alignItems: "flex-end", gap: 12, marginTop: 8 }}>
@@ -709,7 +709,7 @@ export default function WorkbenchView({
               {formatDelta(delta)}
             </p>
           </div>
-          <p style={{ margin: "4px 0 12px", fontSize: 10, color: "var(--ink-55)", letterSpacing: "0.1em" }}>
+          <p style={{ margin: "4px 0 12px", fontSize: "var(--type-caption)", color: "var(--ink-55)", letterSpacing: "0.1em" }}>
             VS PROV. TARGET · n={trend.length}
           </p>
 
@@ -734,7 +734,7 @@ export default function WorkbenchView({
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginTop: 10 }}>
             {PHASE_META.map((ph) => (
               <div key={ph.key} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: "var(--ink-55)", textTransform: "uppercase" }}>
+                <span style={{ fontSize: "var(--type-micro)", fontWeight: 700, letterSpacing: "0.12em", color: "var(--ink-55)", textTransform: "uppercase" }}>
                   {ph.label}
                 </span>
                 <span
@@ -754,7 +754,7 @@ export default function WorkbenchView({
 
         {/* Broadcast window tile – span 2 */}
         <div className="glass-card wb-tile wb-tile--span2" style={{ borderRadius: "var(--r-card)", padding: "18px 20px" }}>
-          <p className="instrument-eyebrow" style={{ fontSize: 9, color: "var(--accent)" }}>
+          <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", color: "var(--accent)" }}>
             Broadcast window
           </p>
           {broadcastStart && broadcastEnd ? (
@@ -801,7 +801,7 @@ export default function WorkbenchView({
               );
             })}
           </div>
-          <p style={{ margin: "6px 0 0", fontSize: 10, color: "var(--ink-55)", letterSpacing: "0.08em" }}>
+          <p style={{ margin: "6px 0 0", fontSize: "var(--type-caption)", color: "var(--ink-55)", letterSpacing: "0.08em" }}>
             LIVE → END · the message block, after mid &amp; before local
           </p>
         </div>
@@ -815,7 +815,7 @@ export default function WorkbenchView({
             background: "rgba(217,138,32,0.08)",
           }}
         >
-          <p className="instrument-eyebrow" style={{ fontSize: 9, color: "var(--amber-text)" }}>
+          <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", color: "var(--amber-text)" }}>
             Mid · the lever
           </p>
           <p
@@ -835,14 +835,14 @@ export default function WorkbenchView({
           >
             {formatDelta(midDelta)}
           </p>
-          <p style={{ margin: "8px 0 0", fontSize: 10, color: "var(--amber-text)", opacity: 0.8, letterSpacing: "0.08em" }}>
+          <p style={{ margin: "8px 0 0", fontSize: "var(--type-caption)", color: "var(--amber-text)", letterSpacing: "0.08em" }}>
             THE PART YOU ACTUALLY CONTROL
           </p>
         </div>
 
         {/* Cross tile */}
         <div className="glass-card wb-tile" style={{ borderRadius: "var(--r-card)", padding: "18px 20px" }}>
-          <p className="instrument-eyebrow" style={{ fontSize: 9 }}>
+          <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)" }}>
             Cross · close worship
           </p>
           <CrossMedianBars medians={allCampusMedians} />
@@ -851,7 +851,7 @@ export default function WorkbenchView({
         {/* Trend tile – span 2 */}
         <div className="glass-card wb-tile wb-tile--span2" style={{ borderRadius: "var(--r-card)", padding: "18px 20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-            <p className="instrument-eyebrow" style={{ fontSize: 9, margin: 0 }}>
+            <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", margin: 0 }}>
               Variance · {HORIZON_OPTIONS.find((o) => o.value === horizon)?.label}
             </p>
             <div style={{ display: "flex", gap: 4 }}>
@@ -861,7 +861,7 @@ export default function WorkbenchView({
                   type="button"
                   onClick={() => setWbMetric(m)}
                   style={{
-                    fontSize: 9,
+                    fontSize: "var(--type-micro)",
                     fontWeight: 700,
                     letterSpacing: "0.1em",
                     padding: "2px 7px",
@@ -879,7 +879,7 @@ export default function WorkbenchView({
             </div>
           </div>
           <TrendChart trend={trend} metric={wbMetric} />
-          <p style={{ margin: "4px 0 0", fontSize: 10, color: "var(--ink-55)" }}>
+          <p style={{ margin: "4px 0 0", fontSize: "var(--type-caption)", color: "var(--ink-55)" }}>
             ○ moment · — median{" "}
             {wbMetric === "total" && (
               <span className="tabular">
@@ -907,7 +907,7 @@ export default function WorkbenchView({
         }}
       >
         <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid rgba(28,32,48,0.1)" }}>
-          <p className="instrument-eyebrow" style={{ fontSize: 9, margin: 0 }}>
+          <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", margin: 0 }}>
             Element breakdown · {slotSummary.slotLabel}
           </p>
         </div>

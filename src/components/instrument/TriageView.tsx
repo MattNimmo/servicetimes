@@ -157,7 +157,7 @@ function SlotHeaderRow({
       ) : (
         <span
           style={{
-            fontSize: 10,
+            fontSize: "var(--type-caption)",
             fontWeight: 700,
             letterSpacing: "0.12em",
             color: "var(--under)",
@@ -184,7 +184,7 @@ function SlotIncidentChip({
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span
           style={{
-            fontSize: 9,
+            fontSize: "var(--type-micro)",
             fontWeight: 700,
             letterSpacing: "0.12em",
             padding: "2px 7px",
@@ -195,7 +195,7 @@ function SlotIncidentChip({
         >
           {label}
         </span>
-        <span style={{ fontSize: 10, color: "var(--ink-55)", fontVariantNumeric: "tabular-nums" }}>
+        <span style={{ fontSize: "var(--type-caption)", color: "var(--ink-55)", fontVariantNumeric: "tabular-nums" }}>
           {formatDuration(incident.rawActualSeconds)} actual /{" "}
           {formatDuration(incident.plannedSeconds)} plan
         </span>
@@ -208,7 +208,7 @@ function SlotIncidentChip({
             defaultValue={incident.rawActualSeconds !== null ? formatDuration(incident.rawActualSeconds) : ""}
             placeholder="75:30"
             style={{
-              fontSize: 10,
+              fontSize: "var(--type-caption)",
               padding: "2px 6px",
               borderRadius: 6,
               border: "1px solid rgba(28,32,48,0.2)",
@@ -219,7 +219,7 @@ function SlotIncidentChip({
           <button
             type="submit"
             style={{
-              fontSize: 9,
+              fontSize: "var(--type-micro)",
               fontWeight: 700,
               padding: "3px 8px",
               borderRadius: 999,
@@ -241,7 +241,7 @@ function SlotIncidentChip({
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span
           style={{
-            fontSize: 9,
+            fontSize: "var(--type-micro)",
             fontWeight: 700,
             letterSpacing: "0.12em",
             padding: "2px 7px",
@@ -259,7 +259,7 @@ function SlotIncidentChip({
             name="slotId"
             defaultValue=""
             style={{
-              fontSize: 10,
+              fontSize: "var(--type-caption)",
               padding: "2px 6px",
               borderRadius: 6,
               border: "1px solid rgba(28,32,48,0.2)",
@@ -280,7 +280,7 @@ function SlotIncidentChip({
             name="slotResolutionAction"
             value="map"
             style={{
-              fontSize: 9,
+              fontSize: "var(--type-micro)",
               fontWeight: 700,
               padding: "3px 8px",
               borderRadius: 999,
@@ -297,7 +297,7 @@ function SlotIncidentChip({
             name="slotResolutionAction"
             value="exclude"
             style={{
-              fontSize: 9,
+              fontSize: "var(--type-micro)",
               fontWeight: 700,
               padding: "3px 8px",
               borderRadius: 999,
@@ -318,7 +318,7 @@ function SlotIncidentChip({
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <span
         style={{
-          fontSize: 9,
+          fontSize: "var(--type-micro)",
           fontWeight: 700,
           letterSpacing: "0.12em",
           padding: "2px 7px",
@@ -329,7 +329,7 @@ function SlotIncidentChip({
       >
         {label}
       </span>
-      <span style={{ fontSize: 10, color: "var(--ink-55)", fontVariantNumeric: "tabular-nums" }}>
+      <span style={{ fontSize: "var(--type-caption)", color: "var(--ink-55)", fontVariantNumeric: "tabular-nums" }}>
         {formatDuration(incident.rawActualSeconds)} actual /{" "}
         {formatDuration(incident.plannedSeconds)} plan
       </span>
@@ -357,7 +357,7 @@ function SectionHeaderRow({ section }: { section: TriageSection }) {
       <span className="triage-row__len" />
       <span
         style={{
-          fontSize: 9,
+          fontSize: "var(--type-micro)",
           fontWeight: 700,
           letterSpacing: "0.2em",
           textTransform: "uppercase",
@@ -368,7 +368,7 @@ function SectionHeaderRow({ section }: { section: TriageSection }) {
       </span>
       <span
         style={{
-          fontSize: 9,
+          fontSize: "var(--type-micro)",
           fontWeight: 700,
           letterSpacing: "0.12em",
           padding: "2px 7px",
@@ -407,7 +407,7 @@ function MapActions({
         name="elementWithSection"
         defaultValue=""
         style={{
-          fontSize: 9,
+          fontSize: "var(--type-micro)",
           padding: "2px 4px",
           borderRadius: 6,
           border: "1px solid rgba(28,32,48,0.2)",
@@ -434,7 +434,7 @@ function MapActions({
       <button
         type="submit"
         style={{
-          fontSize: 9,
+          fontSize: "var(--type-micro)",
           fontWeight: 700,
           padding: "3px 8px",
           borderRadius: 999,
@@ -485,7 +485,7 @@ function ItemRow({
       {/* Cumulative time */}
       <span
         className="triage-row__time tabular"
-        style={{ fontSize: 10, color: "var(--ink-55)", fontWeight: 500 }}
+        style={{ fontSize: "var(--type-caption)", color: "var(--ink-55)", fontWeight: 500 }}
       >
         {formatCumulative(cumulative)}
       </span>
@@ -502,7 +502,7 @@ function ItemRow({
       <div>
         <span style={{ fontSize: 12, fontWeight: 500 }}>{item.rawTitle}</span>
         {item.elementKey && item.elementKey !== item.rawTitle && (
-          <p style={{ margin: 0, fontSize: 10, color: "var(--ink-55)" }}>
+          <p style={{ margin: 0, fontSize: "var(--type-caption)", color: "var(--ink-55)" }}>
             {elementName.get(item.elementKey) ?? item.elementKey}
           </p>
         )}
@@ -512,7 +512,7 @@ function ItemRow({
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
         <span
           style={{
-            fontSize: 9,
+            fontSize: "var(--type-micro)",
             fontWeight: 700,
             letterSpacing: "0.12em",
             padding: "2px 7px",
@@ -546,7 +546,7 @@ function ItemRow({
             <button
               type="submit"
               style={{
-                fontSize: 9,
+                fontSize: "var(--type-micro)",
                 fontWeight: 700,
                 padding: "3px 8px",
                 borderRadius: 999,
@@ -577,7 +577,7 @@ function ItemRow({
             <button
               type="submit"
               style={{
-                fontSize: 9,
+                fontSize: "var(--type-micro)",
                 fontWeight: 700,
                 padding: "3px 8px",
                 borderRadius: 999,
@@ -622,7 +622,7 @@ function IncidentActions({
             })
           }
           style={{
-            fontSize: 9,
+            fontSize: "var(--type-micro)",
             fontWeight: 700,
             padding: "3px 8px",
             borderRadius: 999,
@@ -643,7 +643,7 @@ function IncidentActions({
         <button
           type="submit"
           style={{
-            fontSize: 9,
+            fontSize: "var(--type-micro)",
             fontWeight: 700,
             padding: "3px 8px",
             borderRadius: 999,
@@ -664,7 +664,7 @@ function IncidentActions({
         <button
           type="submit"
           style={{
-            fontSize: 9,
+            fontSize: "var(--type-micro)",
             fontWeight: 700,
             padding: "3px 8px",
             borderRadius: 999,
@@ -823,7 +823,7 @@ export default function TriageView({
           gap: 16,
           flexWrap: "wrap",
           marginBottom: 20,
-          fontSize: 10,
+          fontSize: "var(--type-caption)",
           fontWeight: 700,
           letterSpacing: "0.12em",
         }}
@@ -853,7 +853,7 @@ export default function TriageView({
               key={h}
               className={h === "TIME" ? "triage-row__time" : h === "LEN" ? "triage-row__len" : undefined}
               style={{
-                fontSize: 9,
+                fontSize: "var(--type-micro)",
                 fontWeight: 700,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
