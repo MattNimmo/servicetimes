@@ -414,176 +414,85 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
   ).sort((a, b) => a.sort - b.sort);
 
   return (
-    <div>
-      {/* Table header */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "180px 56px 1fr 96px",
-          gap: 8,
-          padding: "8px 16px",
-          borderBottom: "1px solid var(--hairline)",
-        }}
-      >
-        {["ELEMENT", "ALLOT", "", "ACTUAL · Δ"].map((h, i) => (
-          <span
-            key={i}
-            style={{
-              fontSize: "var(--type-micro)",
-              fontWeight: 700,
-              letterSpacing: "0.18em",
-              color: "var(--ink-70)",
-              textTransform: "uppercase",
-            }}
-          >
-            {h}
-          </span>
-        ))}
-      </div>
+    <div className="data-table-scroll">
+      <table className="data-table wb-element-table">
+        <thead>
+          <tr>
+            <th>Element</th>
+            <th className="wb-element-table__allot">Allot</th>
+            <th className="wb-element-table__bar">Variance</th>
+            <th className="wb-element-table__actual">Actual · Δ</th>
+          </tr>
+        </thead>
+        {sections.map((section) => {
+          const sectionElements = elements.filter((e) => e.sectionKey === section.key);
+          const sectionPlanned = sectionElements.reduce(
+            (t, e) => t + e.plannedSeconds,
+            0,
+          );
+          const sectionActuals = sectionElements
+            .map((e) => e.actualSeconds)
+            .filter((v): v is number => v !== null);
+          const sectionActual =
+            sectionActuals.length > 0
+              ? sectionActuals.reduce((t, v) => t + v, 0)
+              : null;
 
-      {sections.map((section) => {
-        const sectionElements = elements.filter((e) => e.sectionKey === section.key);
-        const sectionPlanned = sectionElements.reduce(
-          (t, e) => t + e.plannedSeconds,
-          0,
-        );
-        const sectionActuals = sectionElements
-          .map((e) => e.actualSeconds)
-          .filter((v): v is number => v !== null);
-        const sectionActual =
-          sectionActuals.length > 0
-            ? sectionActuals.reduce((t, v) => t + v, 0)
-            : null;
+          return (
+            <tbody key={section.key}>
+              <tr className="data-table__section">
+                <td colSpan={3}>{section.name}</td>
+                <td className="data-table__section-summary tabular">
+                  {formatDuration(sectionPlanned)} · {formatDuration(sectionActual)}
+                </td>
+              </tr>
+              {sectionElements.map((el) => {
+                const delta =
+                  el.actualSeconds !== null
+                    ? el.actualSeconds - el.plannedSeconds
+                    : null;
+                const actualColor =
+                  delta === null
+                    ? "var(--ink-70)"
+                    : delta > 0
+                      ? "var(--over)"
+                      : delta < 0
+                        ? "var(--under)"
+                        : "var(--ink)";
 
-        return (
-          <div key={section.key}>
-            {/* Section header */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "180px 56px 1fr 96px",
-                gap: 8,
-                padding: "10px 16px 6px",
-                background: "var(--ink-fill-soft)",
-                borderBottom: "1px solid var(--ink-line-soft)",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "var(--type-micro)",
-                  fontWeight: 700,
-                  letterSpacing: "0.18em",
-                  color: "var(--ink)",
-                  textTransform: "uppercase",
-                  gridColumn: "1 / 3",
-                }}
-              >
-                {section.name}
-              </span>
-              <span />
-              <span
-                className="tabular"
-                style={{ fontSize: "var(--type-caption)", color: "var(--ink-70)", textAlign: "right" }}
-              >
-                {formatDuration(sectionPlanned)} · {formatDuration(sectionActual)}
-              </span>
-            </div>
-
-            {/* Element rows */}
-            {sectionElements.map((el) => {
-              const delta =
-                el.actualSeconds !== null
-                  ? el.actualSeconds - el.plannedSeconds
-                  : null;
-              return (
-                <div
-                  key={el.elementKey}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "180px 56px 1fr 96px",
-                    gap: 8,
-                    padding: "8px 16px",
-                    borderBottom: "1px solid var(--ink-fill-subtle)",
-                    alignItems: "center",
-                  }}
-                >
-                  {/* Element name */}
-                  <span style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}>
-                    {el.elementName}
-                    {el.isHumanAdjusted && (
-                      <span
-                        style={{
-                          fontSize: "var(--type-micro)",
-                          fontWeight: 700,
-                          letterSpacing: "0.1em",
-                          padding: "1px 4px",
-                          borderRadius: 4,
-                          border: "1px solid var(--accent)",
-                          color: "var(--accent)",
-                        }}
-                      >
-                        ADJ
+                return (
+                  <tr key={el.elementKey}>
+                    <td>
+                      <span className="wb-element-table__name">
+                        {el.elementName}
+                        {el.isHumanAdjusted && <span className="pill">ADJ</span>}
                       </span>
-                    )}
-                  </span>
-
-                  {/* Allotted */}
-                  <span
-                    className="tabular"
-                    style={{ fontSize: 11, color: "var(--ink-70)" }}
-                  >
-                    {formatDuration(el.plannedSeconds)}
-                  </span>
-
-                  {/* Bar */}
-                  <DivergingBar planned={el.plannedSeconds} actual={el.actualSeconds} />
-
-                  {/* Actual + delta */}
-                  {el.isBlocked ? (
-                    <span
-                      style={{
-                        fontSize: "var(--type-micro)",
-                        fontWeight: 700,
-                        letterSpacing: "0.1em",
-                        padding: "2px 6px",
-                        borderRadius: 999,
-                        background: "rgba(185,106,20,0.1)",
-                        color: "var(--amber-text)",
-                        textAlign: "center",
-                      }}
-                    >
-                      NEEDS REVIEW
-                    </span>
-                  ) : (
-                    <span
-                      className="tabular"
-                      style={{
-                        fontSize: 11,
-                        textAlign: "right",
-                        color:
-                          delta === null
-                            ? "var(--ink-70)"
-                            : delta > 0
-                              ? "var(--over)"
-                              : delta < 0
-                                ? "var(--under)"
-                                : "var(--ink)",
-                      }}
-                    >
-                      {formatDuration(el.actualSeconds)}{" "}
-                      {delta !== null && (
-                        <span style={{ fontSize: "var(--type-caption)" }}>
-                          {formatDelta(delta)}
-                        </span>
+                    </td>
+                    <td className="muted tabular">{formatDuration(el.plannedSeconds)}</td>
+                    <td>
+                      <DivergingBar planned={el.plannedSeconds} actual={el.actualSeconds} />
+                    </td>
+                    <td className="wb-element-table__actual tabular" style={{ color: actualColor }}>
+                      {el.isBlocked ? (
+                        <span className="pill pill--review">Needs review</span>
+                      ) : (
+                        <>
+                          {formatDuration(el.actualSeconds)}{" "}
+                          {delta !== null && (
+                            <span style={{ fontSize: "var(--type-caption)" }}>
+                              {formatDelta(delta)}
+                            </span>
+                          )}
+                        </>
                       )}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        );
-      })}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          );
+        })}
+      </table>
     </div>
   );
 }
