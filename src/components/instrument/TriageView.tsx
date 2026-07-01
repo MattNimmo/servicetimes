@@ -397,8 +397,12 @@ function ItemRow({
       </span>
 
       {/* Title */}
-      <div>
+      <div className="triage-row__title">
         <span style={{ fontSize: 12, fontWeight: 500 }}>{item.rawTitle}</span>
+        <p className="triage-row__meta">
+          <span>{formatCumulative(cumulative)}</span>
+          <span>{item.plannedSeconds !== null ? formatDuration(item.plannedSeconds) : "—"}</span>
+        </p>
         {item.elementKey && item.elementKey !== item.rawTitle && (
           <p style={{ margin: 0, fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
             {elementName.get(item.elementKey) ?? item.elementKey}
@@ -407,7 +411,7 @@ function ItemRow({
       </div>
 
       {/* Status + action */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+      <div className="triage-row__actions">
         <span className={`pill ${cfg.pillClass}`}>
           {item.status === "incident" && item.incident
             ? item.incident.kind.replace(/_/g, " ").toUpperCase()
