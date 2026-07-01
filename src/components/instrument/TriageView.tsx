@@ -207,14 +207,8 @@ function SlotIncidentChip({
             name="correctedActual"
             defaultValue={incident.rawActualSeconds !== null ? formatDuration(incident.rawActualSeconds) : ""}
             placeholder="75:30"
-            style={{
-              fontSize: "var(--type-caption)",
-              padding: "2px 6px",
-              borderRadius: 6,
-              border: "1px solid var(--ink-border-control)",
-              background: "rgba(255,255,255,0.7)",
-              width: 60,
-            }}
+            className="glass-input glass-input--compact"
+            style={{ width: 60 }}
           />
           <button
             type="submit"
@@ -249,13 +243,7 @@ function SlotIncidentChip({
           <select
             name="slotId"
             defaultValue=""
-            style={{
-              fontSize: "var(--type-caption)",
-              padding: "2px 6px",
-              borderRadius: 6,
-              border: "1px solid var(--ink-border-control)",
-              background: "rgba(255,255,255,0.7)",
-            }}
+            className="glass-select"
           >
             <option value="" disabled>
               Map to slot…
@@ -379,14 +367,7 @@ function MapActions({
       <select
         name="elementWithSection"
         defaultValue=""
-        style={{
-          fontSize: "var(--type-micro)",
-          padding: "2px 4px",
-          borderRadius: 6,
-          border: "1px solid var(--ink-border-control)",
-          background: "rgba(255,255,255,0.7)",
-          maxWidth: 140,
-        }}
+        className="glass-select glass-select--compact"
       >
         <option value="" disabled>
           Map to…

@@ -172,17 +172,11 @@ function ModalPanel({
           placeholder="e.g. 42:30"
           pattern="\d+:\d{2}"
           required
+          className="glass-input"
           style={{
-            width: "100%",
-            padding: "10px 12px",
-            borderRadius: 10,
-            border: "1px solid var(--ink-line-strong)",
-            background: "rgba(255,255,255,0.7)",
             fontSize: 16,
             fontWeight: 600,
             fontVariantNumeric: "tabular-nums",
-            outline: "none",
-            boxSizing: "border-box",
           }}
         />
 
