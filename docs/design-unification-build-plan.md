@@ -1,6 +1,6 @@
 # Build Plan — Design unification (one glass theme, readable, consistent)
 
-**Status:** In progress (Part 1 shipped 7c7505d; Part 2.1–2.2 shipped b0a36c7/e6dac35; started 2026-06-30)
+**Status:** In progress (Part 1 shipped 7c7505d; Part 2 shipped b0a36c7/e6dac35/9d5a234; started 2026-06-30)
 **Audience:** Implementing engineer / codex (self-contained — no prior session context needed)
 **Repo:** `servicetimes` (Next.js 16 App Router + React server components + Supabase, deployed on Vercel)
 **Origin:** Design review on 2026-06-30, run against the **Impeccable** ECC design context (warm, app-like, readable-first for a non-technical leadership audience; Planning Center / Linear register, not a developer dashboard).
@@ -131,7 +131,7 @@ For each:
 
 ---
 
-## Part 2 — Readability (P1)
+## Part 2 — Readability (P1) — ✅ shipped (b0a36c7/e6dac35/9d5a234)
 
 Audience test for every change here: **"Would Nate read this in a meeting without squinting or asking what it means?"**
 
@@ -155,7 +155,7 @@ The instrument and viewer are littered with `fontSize: 8/9/10` inline styles (e.
 - **Verify** each foreground/background pair used for text meets **AA (4.5:1)** against the glass surface it sits on (account for the translucent card over the gradient — test against the effective composited background, not pure white).
 - **Acceptance:** every text token/background pair in the UI passes AA at its rendered size; no `opacity` on text-bearing elements below 1 except intentional disabled states.
 
-### 2.3 — Make charts readable and accessible
+### 2.3 — Make charts readable and accessible — ✅ shipped (9d5a234)
 
 All charts are currently `aria-hidden` with no tooltips, hover, or value labels: `TrendChart` (`WorkbenchView.tsx` ~L50–194), the phase bars (`GlanceView.tsx` ~L417 / `WorkbenchView.tsx` ~L717), `DivergingBar` (~L196), `CrossMedianBars` (~L270). A leader can see a shape but cannot read a number — this violates "shouldn't need a legend to understand at a glance" and "interactivity signals confidence."
 
