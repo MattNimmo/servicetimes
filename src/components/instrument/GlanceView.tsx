@@ -28,6 +28,10 @@ function slotOptions(campus: GlanceCampus) {
   return campus.slots.map((slot) => slot.slotLabel);
 }
 
+function targetLabel(campus: GlanceCampus) {
+  return campus.isReferenceTargetApproved ? "reference target" : "provisional target";
+}
+
 function statusLabel(
   campus: GlanceCampus,
   selectedSlot: ServiceSlotSummary | undefined,
@@ -58,7 +62,7 @@ function verdictLabel(campus: GlanceCampus, selectedSlot: ServiceSlotSummary | u
   if (selectedSlot.actualSeconds === null) return "Broadcast actual has not fully landed yet.";
 
   const delta = selectedSlot.actualSeconds - campus.referenceTargetSeconds;
-  if (delta <= 0) return "Cleared the provisional target.";
+  if (delta <= 0) return `Cleared the ${targetLabel(campus)}.`;
   if (delta <= 60) return "Within normal range and only slightly over target.";
   if (campus.openIncidentCount > 0) {
     return `${campus.openIncidentCount} review item${campus.openIncidentCount === 1 ? "" : "s"} should be checked next.`;
@@ -143,7 +147,7 @@ function buildRecommendations(
       if (totalDelta > 120) {
         recs.push({
           urgency: "medium",
-          label: `Service ran ${formatDelta(totalDelta)} over the provisional target`,
+          label: `Service ran ${formatDelta(totalDelta)} over the ${targetLabel(campus)}`,
           detail: "Use Workbench to identify which phase is carrying the most variance before next week.",
           actionLabel: "Open Workbench →",
           actionHref: workbenchHref,
@@ -391,7 +395,7 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
                 <div className="glance-card__total-row">
                   <div>
                     <p className="glance-card__label">
-                      {selectedSlot?.slotLabel ?? "No slot"} · total · provisional target
+                      {selectedSlot?.slotLabel ?? "No slot"} · total · {targetLabel(campus)}
                     </p>
                     <p className="glance-card__total tabular">
                       {formatDuration(selectedActual)}

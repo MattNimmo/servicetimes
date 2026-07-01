@@ -523,7 +523,15 @@ export default function WorkbenchView({
     router.push(`/instrument/workbench?${p.toString()}`);
   }
 
-  const { slot: slotSummary, phases, trend, allCampusMedians, referenceTargetSeconds } = data;
+  const {
+    slot: slotSummary,
+    phases,
+    trend,
+    allCampusMedians,
+    referenceTargetSeconds,
+    isReferenceTargetApproved,
+  } = data;
+  const targetLabel = isReferenceTargetApproved ? "REF. TARGET" : "PROV. TARGET";
   const totalPlanned = Object.values(phases).reduce(
     (t, p) => t + p.plannedSeconds,
     0,
@@ -667,7 +675,7 @@ export default function WorkbenchView({
             </p>
           </div>
           <p style={{ margin: "4px 0 12px", fontSize: "var(--type-caption)", color: "var(--ink-70)", letterSpacing: "0.1em" }}>
-            VS PROV. TARGET · n={trend.length}
+            VS {targetLabel} · n={trend.length}
           </p>
 
           {/* Phase bar */}

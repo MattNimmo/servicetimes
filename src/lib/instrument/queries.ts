@@ -27,6 +27,7 @@ export type GlanceCampus = {
   code: CampusCode;
   name: string;
   referenceTargetSeconds: number;
+  isReferenceTargetApproved: boolean;
   serviceDate: string;
   planId: number;
   slots: ServiceSlotSummary[];
@@ -39,6 +40,7 @@ type CampusRow = {
   code: CampusCode;
   name: string;
   reference_target_seconds: number;
+  reference_target_status: "provisional" | "approved";
 };
 
 type PlanRow = {
@@ -91,7 +93,7 @@ function sumNullable(values: Array<number | null>) {
 
 async function listInstrumentCampuses() {
   const campuses = await readRows<CampusRow>("campuses", {
-    select: "id,code,name,reference_target_seconds",
+    select: "id,code,name,reference_target_seconds,reference_target_status",
     order: "code.asc",
   });
 
@@ -260,6 +262,7 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
     code: campus.code,
     name: campus.name,
     referenceTargetSeconds: campus.reference_target_seconds,
+    isReferenceTargetApproved: campus.reference_target_status === "approved",
     serviceDate: plan.service_date,
     planId: plan.id,
     slots: summaries,
@@ -345,6 +348,7 @@ export type WorkbenchData = {
   trend: TrendPoint[];
   allCampusMedians: CrossCampusMedian[];
   referenceTargetSeconds: number;
+  isReferenceTargetApproved: boolean;
   availableSlots: Array<{ id: number; label: string; expectedLocalStart: string }>;
 };
 
@@ -448,7 +452,7 @@ export async function listInstrumentServiceDates(code: string): Promise<ServiceD
 async function campusByCode(code: string): Promise<CampusRow | null> {
   const rows = await readRows<CampusRow>("campuses", {
     code: `eq.${code.toUpperCase()}`,
-    select: "id,code,name,reference_target_seconds",
+    select: "id,code,name,reference_target_seconds,reference_target_status",
     limit: "1",
   });
   return rows[0] ?? null;
@@ -835,6 +839,7 @@ export async function getWorkbenchData(
     trend: trendPoints,
     allCampusMedians,
     referenceTargetSeconds: campus.reference_target_seconds,
+    isReferenceTargetApproved: campus.reference_target_status === "approved",
     availableSlots: allSlots.map((s) => ({
       id: s.id,
       label: s.slot_label,

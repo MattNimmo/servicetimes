@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(26);
+select plan(31);
 
 select has_table('public', 'campuses', 'campuses exists');
 select has_table('public', 'plan_times', 'plan_times exists');
@@ -17,6 +17,45 @@ select results_eq(
   $$select count(*)::bigint from public.campuses$$,
   $$values (4::bigint)$$,
   'four campuses are seeded'
+);
+
+select results_eq(
+  $$select reference_target_status, reference_target_approved_by is null, reference_target_approved_at is null from public.campuses where code = 'SLP'$$,
+  $$values ('provisional'::text, true, true)$$,
+  'campus reference targets start as provisional'
+);
+
+select throws_ok(
+  $$
+    insert into public.campuses
+      (code, name, pco_service_type_id, reference_target_status)
+    values
+      ('BAD', 'Bad Target', 'bad-target', 'approved')
+  $$,
+  '23514',
+  null,
+  'approved campus targets require approval metadata'
+);
+
+select throws_ok(
+  $$select public.approve_campus_reference_target('SLP', 0, 'test')$$,
+  'P0001',
+  'reference target must be a positive duration',
+  'reference target approvals require a positive duration'
+);
+
+select public.approve_campus_reference_target('SLP', 4380, 'phase3-test');
+
+select results_eq(
+  $$select reference_target_seconds, reference_target_status, reference_target_approved_by, reference_target_approved_at is not null from public.campuses where code = 'SLP'$$,
+  $$values (4380, 'approved'::text, 'phase3-test'::text, true)$$,
+  'approving a campus target stores the approved reference value'
+);
+
+select results_eq(
+  $$select count(*)::bigint from public.admin_audit_log where actor = 'phase3-test' and action = 'approve_reference_target' and entity_type = 'campus' and entity_id = 'SLP'$$,
+  $$values (1::bigint)$$,
+  'approving a campus target writes an audit row'
 );
 
 select results_eq(
