@@ -218,16 +218,7 @@ function SlotIncidentChip({
           />
           <button
             type="submit"
-            style={{
-              fontSize: "var(--type-micro)",
-              fontWeight: 700,
-              padding: "3px 8px",
-              borderRadius: 999,
-              border: "none",
-              background: "var(--accent)",
-              color: "white",
-              cursor: "pointer",
-            }}
+            className="btn btn--primary btn--compact"
           >
             Save
           </button>
@@ -279,16 +270,7 @@ function SlotIncidentChip({
             type="submit"
             name="slotResolutionAction"
             value="map"
-            style={{
-              fontSize: "var(--type-micro)",
-              fontWeight: 700,
-              padding: "3px 8px",
-              borderRadius: 999,
-              border: "none",
-              background: "var(--accent)",
-              color: "white",
-              cursor: "pointer",
-            }}
+            className="btn btn--primary btn--compact"
           >
             Map
           </button>
@@ -296,16 +278,7 @@ function SlotIncidentChip({
             type="submit"
             name="slotResolutionAction"
             value="exclude"
-            style={{
-              fontSize: "var(--type-micro)",
-              fontWeight: 700,
-              padding: "3px 8px",
-              borderRadius: 999,
-              border: "1px solid var(--ink-border-control)",
-              background: "transparent",
-              cursor: "pointer",
-              color: "var(--ink-70)",
-            }}
+            className="btn btn--ghost btn--compact"
           >
             Exclude
           </button>
@@ -433,17 +406,7 @@ function MapActions({
       </select>
       <button
         type="submit"
-        style={{
-          fontSize: "var(--type-micro)",
-          fontWeight: 700,
-          padding: "3px 8px",
-          borderRadius: 999,
-          border: "none",
-          background: "var(--accent)",
-          color: "white",
-          cursor: "pointer",
-          letterSpacing: "0.1em",
-        }}
+        className="btn btn--primary btn--compact"
       >
         Map
       </button>
@@ -545,17 +508,7 @@ function ItemRow({
             <input type="hidden" name="redirectTo" value={redirectTo} />
             <button
               type="submit"
-              style={{
-                fontSize: "var(--type-micro)",
-                fontWeight: 700,
-                padding: "3px 8px",
-                borderRadius: 999,
-                border: "1px solid var(--ink-border-control)",
-                background: "transparent",
-                cursor: "pointer",
-                color: "var(--ink-70)",
-                letterSpacing: "0.1em",
-              }}
+              className="btn btn--ghost btn--compact"
             >
               Undo
             </button>
@@ -576,17 +529,7 @@ function ItemRow({
             <input type="hidden" name="redirectTo" value={redirectTo} />
             <button
               type="submit"
-              style={{
-                fontSize: "var(--type-micro)",
-                fontWeight: 700,
-                padding: "3px 8px",
-                borderRadius: 999,
-                border: "1px solid var(--ink-border-control)",
-                background: "transparent",
-                cursor: "pointer",
-                color: "var(--ink-70)",
-                letterSpacing: "0.1em",
-              }}
+              className="btn btn--ghost btn--compact"
             >
               Unmap
             </button>
@@ -621,17 +564,7 @@ function IncidentActions({
               redirectTo,
             })
           }
-          style={{
-            fontSize: "var(--type-micro)",
-            fontWeight: 700,
-            padding: "3px 8px",
-            borderRadius: 999,
-            border: "none",
-            background: "var(--accent)",
-            color: "white",
-            cursor: "pointer",
-            letterSpacing: "0.1em",
-          }}
+          className="btn btn--primary btn--compact"
         >
           Correct
         </button>
@@ -642,17 +575,7 @@ function IncidentActions({
         <input type="hidden" name="redirectTo" value={redirectTo} />
         <button
           type="submit"
-          style={{
-            fontSize: "var(--type-micro)",
-            fontWeight: 700,
-            padding: "3px 8px",
-            borderRadius: 999,
-            border: "1px solid var(--ink-border-control)",
-            background: "transparent",
-            cursor: "pointer",
-            color: "var(--ink-70)",
-            letterSpacing: "0.1em",
-          }}
+          className="btn btn--ghost btn--compact"
         >
           Keep
         </button>
@@ -663,17 +586,7 @@ function IncidentActions({
         <input type="hidden" name="redirectTo" value={redirectTo} />
         <button
           type="submit"
-          style={{
-            fontSize: "var(--type-micro)",
-            fontWeight: 700,
-            padding: "3px 8px",
-            borderRadius: 999,
-            border: "1px solid var(--ink-border-control)",
-            background: "transparent",
-            cursor: "pointer",
-            color: "var(--ink-70)",
-            letterSpacing: "0.1em",
-          }}
+          className="btn btn--ghost btn--compact"
         >
           Exclude
         </button>

@@ -152,6 +152,13 @@ a {
   width: 100%;
 }
 
+.btn--compact {
+  min-height: 1.75rem;
+  padding: 0.28rem 0.62rem;
+  font-size: var(--type-micro);
+  letter-spacing: 0.1em;
+}
+
 .glass-input {
   width: 100%;
   min-height: 2.9rem;
