@@ -20,13 +20,13 @@ schema + RLS + seeds deployed, all four campuses loaded and reconciled for the
 The data the product exists to expose — plan-vs-actual service timing — is now
 flowing into `plans`, `plan_times`, `items`, `item_times`, and `review_incidents`.
 
-But **everything above the data layer is unbuilt**: there is no auth, no read
-path, no UI beyond a scaffold homepage, and every table is locked to
-`service_role` (RLS on, anon/authenticated revoked). Six tables
-(`correction_sets`, `correction_values`, `plan_time_slot_resolutions`,
-`item_bucket_overrides`, `plan_changes`, `admin_audit_log`) have no writer yet.
-Open `review_incidents` only ever auto-close via ingestion's `superseded` path —
-nothing resolves them to kept/corrected/excluded.
+At the start of this plan, everything above the data layer was unbuilt: no auth,
+no read path, no UI beyond a scaffold homepage, and no writers for the operator
+overlay tables. As of 2026-07-01, the auth gate, viewer variance pages, operator
+review/correction flows, instrument surfaces, and planned-item `plan_changes`
+generation/review workflow have shipped. The remaining work is operational:
+production secret/firewall configuration, hosted migration rollout, and database
+test validation with local/CI Postgres available.
 
 This plan refines the build roadmap for the product layer and fully specifies the
 **first slice**: a viewer-facing plan-vs-actual variance dashboard behind a

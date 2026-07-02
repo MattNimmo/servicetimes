@@ -39,7 +39,7 @@ This plan does not exist in isolation. As of 2026-06-30 the other plans in `docs
 
 - **`ux-review-fixes-build-plan.md`** — 🟡 partially implemented. **Item 2.8 (refactor Triage's inline styles + hardcoded color literals) is folded into Part 3 of this plan** — do it here, not there. Still open there and unrelated to this plan: 2.6 (responsive grid collapse) and 2.7 (element display-name leak). Don't undo its shipped fixes: 2.1 minus sign, 2.3 focus rings, 2.4 disabled steppers, 2.5 labeled date picker (see Part 4.2 — extend, don't remove them).
 - **`operator-upgrades-build-plan.md`** — ✅ fully implemented (2026-06-28). Historical record.
-- **`product-layer-build-plan.md`** — ✅ Phases 0–2B implemented (2026-06-28); Phase 3 not started. The viewer variance pages this plan reskins were built under its Phase 1.
+- **`product-layer-build-plan.md`** — ✅ Phases 0–3 code path implemented (2026-07-01); deployment gates remain. The viewer variance pages this plan reskins were built under its Phase 1.
 - **`instrument-build-plan.md`** — ✅ complete. The glass theme + classes this plan promotes app-wide originate here.
 
 ## Documentation discipline (a rule, not a suggestion)
