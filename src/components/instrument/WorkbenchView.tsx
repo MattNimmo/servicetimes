@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { CSSProperties } from "react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type {
   CrossCampusMedian,
@@ -15,6 +15,7 @@ import type {
 } from "@/lib/instrument/queries";
 import { generatePlanChangesAction, resolvePlanChangeAction } from "@/lib/operator/review-actions";
 import { formatDelta, formatDuration, formatServiceDate } from "@/lib/variance/format";
+import Toast from "./Toast";
 
 const CAMPUS_CODES = ["SLP", "MG", "ELK", "LV"] as const;
 
@@ -600,7 +601,20 @@ export default function WorkbenchView({
   canManageRecommendations: boolean;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [wbMetric, setWbMetric] = useState<WbMetric>("total");
+  const [toast, setToast] = useState<string | null>(null);
+  const redirectTo = `/instrument/workbench?campus=${campus}&slot=${encodeURIComponent(slot)}&horizon=${horizon}`;
+
+  const dismissToast = useCallback(() => setToast(null), []);
+
+  useEffect(() => {
+    const msg = searchParams.get("toast");
+    if (!msg) return;
+    const id = setTimeout(() => setToast(msg), 0);
+    router.replace(redirectTo);
+    return () => clearTimeout(id);
+  }, [searchParams, router, redirectTo]);
 
   function navigate(params: {
     campus?: string;
@@ -624,7 +638,6 @@ export default function WorkbenchView({
     isReferenceTargetApproved,
   } = data;
   const targetLabel = isReferenceTargetApproved ? "REF. TARGET" : "PROV. TARGET";
-  const redirectTo = `/instrument/workbench?campus=${campus}&slot=${encodeURIComponent(slot)}&horizon=${horizon}`;
   const totalPlanned = Object.values(phases).reduce(
     (t, p) => t + p.plannedSeconds,
     0,
@@ -974,6 +987,7 @@ export default function WorkbenchView({
         </div>
         <ElementTable elements={data.elements} />
       </div>
+      <Toast message={toast} onDismiss={dismissToast} />
     </main>
   );
 }
