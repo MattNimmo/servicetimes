@@ -9,7 +9,8 @@ rules (`f62fcfc`), and the PCO-familiar service-flow operator workspace
 superseding the reference-target generator in `c407977`); Workbench generation,
 review, apply, and dismiss shipped in `747a184`. Production auth secrets, the
 login rate-limit gate, and local/CI database test validation remain operational
-steps.
+steps. Workbench review actions now surface their redirect feedback in-app
+(`d15d07d`).
 
 ## Context
 
