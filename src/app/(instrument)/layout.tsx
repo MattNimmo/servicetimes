@@ -1,3 +1,4 @@
+import DashboardGuide from "@/components/instrument/DashboardGuide";
 import InstrumentNav from "@/components/instrument/InstrumentNav";
 import { getSession } from "@/lib/auth/server";
 import { getTriageBadgeCount } from "@/lib/instrument/queries";
@@ -28,6 +29,7 @@ export default async function InstrumentLayout({
           isOperator={session?.role === "operator"}
           triageBadge={triageBadge}
         />
+        <DashboardGuide />
         {children}
       </div>
     </div>
