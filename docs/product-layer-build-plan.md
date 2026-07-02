@@ -5,9 +5,9 @@ in five slices: slot-actual corrections (`05c1ae9`), slot-resolution workflow
 (`d785bd8`), item-time actual corrections (`7ab229d`), non-production exclusion
 rules (`f62fcfc`), and the PCO-familiar service-flow operator workspace
 (`15496a2`). **Phase 3 is started**: reference-target approval guardrails shipped
-(`bb6bbc5`) and the approved-reference recommendation generator shipped
-(`c407977`). The next Phase 3 slice is approving the real per-campus targets,
-then surfacing/applying generated recommendation `plan_changes`. Production auth
+(`bb6bbc5`) and the planned-item recommendation generator shipped (`46e7fe0`,
+superseding the reference-target generator in `c407977`). The next Phase 3 slice
+is surfacing/applying generated recommendation `plan_changes`. Production auth
 secrets and the login rate-limit gate remain operational steps.
 
 ## Context
@@ -51,9 +51,10 @@ better; reuse what exists; do not fabricate precision the data doesn't have.**
   with `admin_audit_log` coverage. Operator-only. Consumes `unmapped_items`.
 - **Phase 3 — references, recommendations, and levers** (**started**). Reference
   target approval metadata + audited approval helper shipped in `bb6bbc5`.
-  Approved-reference `plan_changes` generation shipped in `c407977`. Next:
-  approve real per-campus `reference_target_seconds`, then surface/apply
-  generated recommendations.
+  Planned-item `plan_changes` generation shipped in `46e7fe0` after clarifying
+  that targets are the planned item times for each service/location, not
+  approved campus-wide reference durations. Next: surface/apply generated
+  recommendations.
 - **Cross-cutting — taxonomy grooming.** Resolve the intentionally-unmapped
   combined-title items and song rollup candidates (per
   `docs/pco-taxonomy-review-2026-06-23.md`) via the Phase 2 tools.
@@ -63,9 +64,9 @@ better; reuse what exists; do not fabricate precision the data doesn't have.**
 > not display that value or any derived reference delta. Phase 3 now has an
 > explicit `reference_target_status` guard, audited
 > `approve_campus_reference_target(...)` helper, and
-> `generate_reference_plan_changes(...)` helper. The real target values still
-> need to be supplied and approved before recommendations can be generated for
-> production campuses.
+> `generate_planned_item_plan_changes(...)` helper. Recommendation targets are
+> the planned item durations for that service/location; campus reference targets
+> are separate display/operating context and do not gate recommendations.
 
 ---
 
@@ -375,27 +376,27 @@ approved operating reference:
 - Add pgTAP coverage for provisional defaults, approval consistency, bad input,
   approved target writes, and audit-log writes.
 
-### Phase 3 slice 2 — approved-reference plan-change generator — ✅ shipped (`c407977`)
+### Phase 3 slice 2 — planned-item plan-change generator — ✅ shipped (`46e7fe0`)
 
-This slice creates the recommendation write path without inventing target
-values:
+This slice creates the recommendation write path using the service plan itself as
+the target source:
 
-- Add `generate_reference_plan_changes(campus_code, service_date, actor,
+- Add `generate_planned_item_plan_changes(campus_code, service_date, actor,
   min_element_delta_seconds)` as the single database entry point for generating
   recommendation `plan_changes`.
-- Refuse provisional campus targets, so the default 4500-second placeholder
-  cannot create recommendations.
+- Drop the earlier reference-target generator from `c407977`; it had the wrong
+  target model.
 - Generate recommendations only from complete, over-plan,
-  `is_lever_eligible` element variance in slots that exceeded the approved
-  campus reference target.
-- Store service and element variance evidence on each recommendation.
+  `is_lever_eligible` element variance where actual element duration exceeds
+  the planned element duration for that same service/location.
+- Store planned-item target evidence on each recommendation.
 - Avoid duplicating an already-open campus/slot/element recommendation.
-- Add pgTAP coverage for provisional-target rejection, lever eligibility,
-  evidence payloads, and duplicate suppression.
+- Add pgTAP coverage that recommendations do not require approved campus
+  reference targets, plus lever eligibility, evidence payloads, and duplicate
+  suppression.
 
-Next Phase 3 slice: run a reviewed target migration or approval script with the
-real SLP/MG/ELK/LV reference durations, then expose generated `plan_changes` in
-an operator-facing review/apply surface.
+Next Phase 3 slice: expose generated `plan_changes` in an operator-facing
+review/apply surface.
 
 ### Deployment gates
 
