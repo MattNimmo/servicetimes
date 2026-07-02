@@ -6,19 +6,23 @@ select plan(8);
 
 select has_function(
   'public',
+  'generate_planned_item_plan_changes',
+  array['text', 'date', 'text', 'integer'],
+  'planned-item plan-change generator exists'
+);
+
+select hasnt_function(
+  'public',
   'generate_reference_plan_changes',
   array['text', 'date', 'text', 'integer'],
-  'reference plan-change generator exists'
+  'reference-target generator is replaced'
 );
 
-select throws_ok(
-  $$select public.generate_reference_plan_changes('MG', '2026-07-05', 'operator', 30)$$,
-  '23514',
-  'reference target for campus MG is not approved',
-  'provisional reference targets cannot generate plan changes'
+select results_eq(
+  $$select reference_target_status from public.campuses where code = 'ELK'$$,
+  $$values ('provisional'::text)$$,
+  'planned-item recommendations do not require approved campus reference targets'
 );
-
-select public.approve_campus_reference_target('ELK', 4500, 'reference-test');
 
 insert into public.plans (
   pco_plan_id,
@@ -125,9 +129,9 @@ values
   );
 
 select results_eq(
-  $$select (public.generate_reference_plan_changes('ELK', '2026-07-05', 'operator', 30)->>'inserted_count')::integer$$,
+  $$select (public.generate_planned_item_plan_changes('ELK', '2026-07-05', 'operator', 30)->>'inserted_count')::integer$$,
   $$values (1)$$,
-  'approved reference variance creates one lever-eligible recommendation'
+  'planned item variance creates one lever-eligible recommendation'
 );
 
 select results_eq(
@@ -143,13 +147,13 @@ select results_eq(
 );
 
 select results_eq(
-  $$select evidence->>'slot_delta_seconds', evidence->>'element_delta_seconds' from public.plan_changes where element_key = 'mid.close_worship'$$,
-  $$values ('120'::text, '70'::text)$$,
-  'recommendation evidence captures slot and element deltas'
+  $$select evidence->>'target_source', evidence->>'element_delta_seconds' from public.plan_changes where element_key = 'mid.close_worship'$$,
+  $$values ('planned_item_seconds'::text, '70'::text)$$,
+  'recommendation evidence captures the planned item target source and delta'
 );
 
 select results_eq(
-  $$select (public.generate_reference_plan_changes('ELK', '2026-07-05', 'operator', 30)->>'inserted_count')::integer$$,
+  $$select (public.generate_planned_item_plan_changes('ELK', '2026-07-05', 'operator', 30)->>'inserted_count')::integer$$,
   $$values (0)$$,
   'open recommendations are not duplicated'
 );
