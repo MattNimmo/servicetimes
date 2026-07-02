@@ -338,6 +338,23 @@ export type CrossCampusMedian = {
   isActive: boolean;
 };
 
+export type WorkbenchPlanChangeRecommendation = {
+  id: number;
+  elementKey: string;
+  elementName: string;
+  fromSeconds: number | null;
+  toSeconds: number;
+  deltaSeconds: number | null;
+  evidence: {
+    targetSource?: string;
+    serviceDate?: string;
+    slotLabel?: string;
+    elementActualSeconds?: number;
+    elementPlannedSeconds?: number;
+    elementDeltaSeconds?: number;
+  };
+};
+
 export type WorkbenchData = {
   campus: { code: CampusCode; name: string };
   serviceDate: string;
@@ -345,6 +362,7 @@ export type WorkbenchData = {
   slot: ServiceSlotSummary;
   phases: PhaseBreakdown;
   elements: WorkbenchElementRow[];
+  recommendations: WorkbenchPlanChangeRecommendation[];
   trend: TrendPoint[];
   allCampusMedians: CrossCampusMedian[];
   referenceTargetSeconds: number;
@@ -510,6 +528,37 @@ async function activeItemOverrides(itemIds: number[]): Promise<Set<number>> {
   return new Set(rows.map((r) => r.item_id));
 }
 
+function numberEvidence(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function stringEvidence(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function mapPlanChangeRecommendation(
+  row: PlanChangeRow,
+  elementNameByKey: Map<string, string>,
+): WorkbenchPlanChangeRecommendation {
+  return {
+    id: row.id,
+    elementKey: row.element_key,
+    elementName: elementNameByKey.get(row.element_key) ?? row.element_key,
+    fromSeconds: row.from_seconds,
+    toSeconds: row.to_seconds,
+    deltaSeconds:
+      row.from_seconds !== null ? row.from_seconds - row.to_seconds : null,
+    evidence: {
+      targetSource: stringEvidence(row.evidence.target_source),
+      serviceDate: stringEvidence(row.evidence.service_date),
+      slotLabel: stringEvidence(row.evidence.slot_label),
+      elementActualSeconds: numberEvidence(row.evidence.element_actual_seconds),
+      elementPlannedSeconds: numberEvidence(row.evidence.element_planned_seconds),
+      elementDeltaSeconds: numberEvidence(row.evidence.element_delta_seconds),
+    },
+  };
+}
+
 type FullElementVarianceRow = {
   element_key: string;
   element_name: string;
@@ -523,6 +572,14 @@ type FullElementVarianceRow = {
   actual_is_complete: boolean;
   plan_time_id: number;
   effective_slot_id: number;
+};
+
+type PlanChangeRow = {
+  id: number;
+  element_key: string;
+  from_seconds: number | null;
+  to_seconds: number;
+  evidence: Record<string, unknown>;
 };
 
 type TriagePlanTimeRow = {
@@ -611,7 +668,7 @@ export async function getWorkbenchData(
 
   const latestPlan = plans[0];
 
-  const [elements, planTimesForSlot, allIds] = await Promise.all([
+  const [elements, planTimesForSlot, allIds, planChanges] = await Promise.all([
     readRows<FullElementVarianceRow>("element_variance", {
       plan_id: `eq.${latestPlan.id}`,
       effective_slot_id: `eq.${slot.id}`,
@@ -630,6 +687,14 @@ export async function getWorkbenchData(
       },
     ),
     allPlanTimeIds(latestPlan.id),
+    readRows<PlanChangeRow>("plan_changes", {
+      campus_id: `eq.${campus.id}`,
+      slot_id: `eq.${slot.id}`,
+      status: "eq.open",
+      source: "eq.recommendation",
+      select: "id,element_key,from_seconds,to_seconds,evidence",
+      order: "approved_at.desc,id.desc",
+    }),
   ]);
 
   const latestPlanTime = planTimesForSlot[0] ?? null;
@@ -692,6 +757,12 @@ export async function getWorkbenchData(
     isBlocked: isElementBlocked(incidents, ev.plan_time_id, ev.effective_slot_id, ev.item_ids),
     isHumanAdjusted: ev.item_ids.some((id) => adjustedItemIds.has(id)),
   }));
+  const elementNameByKey = new Map(
+    elementRows.map((element) => [element.elementKey, element.elementName]),
+  );
+  const recommendations = planChanges.map((change) =>
+    mapPlanChangeRecommendation(change, elementNameByKey),
+  );
 
   // Build trend data with bulk queries (5 queries regardless of horizon depth)
   const allPlanIds = plans.map((p) => p.id);
@@ -836,6 +907,7 @@ export async function getWorkbenchData(
     slot: slotSummary,
     phases: buildPhaseBreakdown(elements),
     elements: elementRows,
+    recommendations,
     trend: trendPoints,
     allCampusMedians,
     referenceTargetSeconds: campus.reference_target_seconds,

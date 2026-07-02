@@ -248,3 +248,60 @@ export async function correctItemTimeIncidentAction(formData: FormData) {
   revalidatePath("/variance");
   redirect(withToast(redirectTo, "Correction saved"));
 }
+
+export async function generatePlanChangesAction(formData: FormData) {
+  const session = await requireRole("operator");
+  const campus = formData.get("campus");
+  const serviceDate = formData.get("serviceDate");
+  const redirectTo = safeRedirectPath(formData.get("redirectTo"));
+
+  if (typeof campus !== "string" || campus.trim() === "") {
+    throw new Error("Campus is required.");
+  }
+  if (typeof serviceDate !== "string" || serviceDate.trim() === "") {
+    throw new Error("Service date is required.");
+  }
+
+  const result = await postRpc<{
+    ok: boolean;
+    campus: string;
+    service_date: string;
+    plan_id: number;
+    inserted_count: number;
+  }>("generate_planned_item_plan_changes", {
+    p_campus_code: campus,
+    p_service_date: serviceDate,
+    p_actor: session.role,
+    p_min_element_delta_seconds: 30,
+  });
+
+  revalidatePath("/instrument");
+  redirect(withToast(redirectTo, `${result.inserted_count} recommendation${result.inserted_count === 1 ? "" : "s"} generated`));
+}
+
+export async function resolvePlanChangeAction(formData: FormData) {
+  const session = await requireRole("operator");
+  const planChangeId = Number(formData.get("planChangeId"));
+  const resolution = formData.get("resolution");
+  const redirectTo = safeRedirectPath(formData.get("redirectTo"));
+
+  if (!Number.isInteger(planChangeId) || planChangeId <= 0) {
+    throw new Error("Invalid recommendation.");
+  }
+  if (resolution !== "applied" && resolution !== "dismissed") {
+    throw new Error("Invalid recommendation resolution.");
+  }
+
+  await postRpc<{
+    ok: boolean;
+    plan_change_id: number;
+    status: string;
+  }>("resolve_plan_change", {
+    p_plan_change_id: planChangeId,
+    p_resolution: resolution,
+    p_actor: session.role,
+  });
+
+  revalidatePath("/instrument");
+  redirect(withToast(redirectTo, resolution === "applied" ? "Recommendation applied" : "Recommendation dismissed"));
+}

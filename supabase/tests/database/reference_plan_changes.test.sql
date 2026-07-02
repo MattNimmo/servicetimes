@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(8);
+select plan(16);
 
 select has_function(
   'public',
@@ -156,6 +156,90 @@ select results_eq(
   $$select (public.generate_planned_item_plan_changes('ELK', '2026-07-05', 'operator', 30)->>'inserted_count')::integer$$,
   $$values (0)$$,
   'open recommendations are not duplicated'
+);
+
+select has_function(
+  'public',
+  'resolve_plan_change',
+  array['bigint', 'text', 'text'],
+  'plan-change resolution workflow exists'
+);
+
+select lives_ok(
+  $$select public.resolve_plan_change(
+    (select id from public.plan_changes where element_key = 'mid.close_worship'),
+    'applied',
+    'operator'
+  )$$,
+  'open recommendations can be applied'
+);
+
+select results_eq(
+  $$select status, applied_at is not null from public.plan_changes where element_key = 'mid.close_worship'$$,
+  $$values ('applied'::text, true)$$,
+  'applied recommendations store status and timestamp'
+);
+
+select isnt_empty(
+  $$select 1 from public.admin_audit_log
+    where action = 'plan_change.applied'
+      and entity_type = 'plan_change'
+      and before_state->>'status' = 'open'
+      and after_state->>'status' = 'applied'$$,
+  'applying a recommendation writes an audit row'
+);
+
+select throws_ok(
+  $$select public.resolve_plan_change(
+    (select id from public.plan_changes where element_key = 'mid.close_worship'),
+    'dismissed',
+    'operator'
+  )$$,
+  '23514',
+  null,
+  'applied recommendations cannot be dismissed afterward'
+);
+
+select results_eq(
+  $$select (public.generate_planned_item_plan_changes('ELK', '2026-07-05', 'operator', 30)->>'inserted_count')::integer$$,
+  $$values (0)$$,
+  'applied recommendations are not regenerated'
+);
+
+insert into public.plan_changes (
+  campus_id,
+  slot_id,
+  element_key,
+  from_seconds,
+  to_seconds,
+  source,
+  evidence,
+  approved_by
+)
+values (
+  (select id from public.campuses where code = 'ELK'),
+  (select id from public.service_slots where campus_id = (select id from public.campuses where code = 'ELK') and slot_label = '11am'),
+  'mid.greet',
+  95,
+  45,
+  'recommendation',
+  jsonb_build_object('target_source', 'planned_item_seconds'),
+  'operator'
+);
+
+select lives_ok(
+  $$select public.resolve_plan_change(
+    (select id from public.plan_changes where element_key = 'mid.greet'),
+    'dismissed',
+    'operator'
+  )$$,
+  'open recommendations can be dismissed'
+);
+
+select results_eq(
+  $$select status, applied_at is null from public.plan_changes where element_key = 'mid.greet'$$,
+  $$values ('dismissed'::text, true)$$,
+  'dismissed recommendations store status without an applied timestamp'
 );
 
 select * from finish();
