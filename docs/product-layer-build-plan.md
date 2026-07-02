@@ -4,11 +4,12 @@ Status: **Phases 0–2B fully implemented** (as of 2026-06-28). Phase 2B shipped
 in five slices: slot-actual corrections (`05c1ae9`), slot-resolution workflow
 (`d785bd8`), item-time actual corrections (`7ab229d`), non-production exclusion
 rules (`f62fcfc`), and the PCO-familiar service-flow operator workspace
-(`15496a2`). **Phase 3 is started**: reference-target approval guardrails shipped
+(`15496a2`). **Phase 3 code path is implemented**: reference-target approval guardrails shipped
 (`bb6bbc5`) and the planned-item recommendation generator shipped (`46e7fe0`,
-superseding the reference-target generator in `c407977`). The next Phase 3 slice
-is surfacing/applying generated recommendation `plan_changes`. Production auth
-secrets and the login rate-limit gate remain operational steps.
+superseding the reference-target generator in `c407977`); Workbench generation,
+review, apply, and dismiss shipped in `747a184`. Production auth secrets, the
+login rate-limit gate, and local/CI database test validation remain operational
+steps.
 
 ## Context
 
@@ -49,12 +50,12 @@ better; reuse what exists; do not fabricate precision the data doesn't have.**
   `review_incidents` (kept/corrected/excluded), write `correction_sets` /
   `correction_values`, `plan_time_slot_resolutions`, `item_bucket_overrides`,
   with `admin_audit_log` coverage. Operator-only. Consumes `unmapped_items`.
-- **Phase 3 — references, recommendations, and levers** (**started**). Reference
+- **Phase 3 — references, recommendations, and levers** (**code path implemented**). Reference
   target approval metadata + audited approval helper shipped in `bb6bbc5`.
   Planned-item `plan_changes` generation shipped in `46e7fe0` after clarifying
   that targets are the planned item times for each service/location, not
-  approved campus-wide reference durations. Next: surface/apply generated
-  recommendations.
+  approved campus-wide reference durations. Workbench generation/review/apply
+  shipped in `747a184`.
 - **Cross-cutting — taxonomy grooming.** Resolve the intentionally-unmapped
   combined-title items and song rollup candidates (per
   `docs/pco-taxonomy-review-2026-06-23.md`) via the Phase 2 tools.
@@ -395,8 +396,24 @@ the target source:
   reference targets, plus lever eligibility, evidence payloads, and duplicate
   suppression.
 
-Next Phase 3 slice: expose generated `plan_changes` in an operator-facing
-review/apply surface.
+### Phase 3 slice 3 — plan-change review/apply surface — ✅ shipped (`747a184`)
+
+This slice completes the operator loop for generated recommendations:
+
+- Add `resolve_plan_change(plan_change_id, resolution, actor)` for audited
+  `open → applied` and `open → dismissed` transitions.
+- Keep Apply as a status transition only; it never mutates raw PCO evidence.
+- Prevent applied recommendations from being immediately regenerated as new
+  open recommendations.
+- Query open recommendations into Workbench for the selected campus/slot.
+- Add an operator-only Generate / Apply / Dismiss panel in Workbench; viewer
+  sessions can see recommendation context without mutation controls.
+- Add pgTAP coverage for apply, dismiss, audit rows, post-apply immutability, and
+  duplicate suppression.
+
+Remaining after this slice: run the pgTAP database suite in an environment with
+local Supabase/Postgres available, then deploy the Phase 3 migrations and use
+Workbench to generate/review recommendations against live service data.
 
 ### Deployment gates
 
