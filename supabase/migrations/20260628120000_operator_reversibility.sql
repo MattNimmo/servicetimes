@@ -1,7 +1,7 @@
 -- Operator reversibility: undo a resolved/corrected incident, and unmap an element override.
 
 -- 1) Unified "undo this fix" for a resolved incident.
-create function public.reopen_review_incident(
+create or replace function public.reopen_review_incident(
   p_incident_id bigint,
   p_actor text
 )
@@ -66,7 +66,7 @@ revoke all on function public.reopen_review_incident(bigint, text) from public, 
 grant execute on function public.reopen_review_incident(bigint, text) to service_role;
 
 -- 2) Unmap: revoke the active item->element override, reverting to the ingested element_key.
-create function public.revoke_item_element_mapping(
+create or replace function public.revoke_item_element_mapping(
   p_item_id bigint,
   p_actor text
 )
