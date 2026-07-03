@@ -536,7 +536,7 @@ export function buildIngestionPlan(
     })
     .sort((left, right) => left.sequence - right.sequence);
 
-  const itemTimes = bundle.itemTimes.flatMap(({ id, attributes, relationships }) => {
+  const allItemTimes = bundle.itemTimes.flatMap(({ id, attributes, relationships }) => {
     const pcoItemId = relationshipId(relationships.item);
     const pcoPlanTimeId = relationshipId(relationships.plan_time);
     if (!pcoItemId || !pcoPlanTimeId) return [];
@@ -599,6 +599,28 @@ export function buildIngestionPlan(
       },
     ];
   });
+
+  // PCO occasionally carries two ItemTime rows for the same item + plan_time
+  // (e.g. a restarted timer). The DB enforces one per pair — keep the most
+  // complete: a finished timer beats an open one, a later end beats an
+  // earlier one, and the higher PCO id is the stable tiebreak.
+  const bestItemTimeByPair = new Map<string, (typeof allItemTimes)[number]>();
+  for (const candidate of allItemTimes) {
+    const key = `${candidate.pcoItemId}:${candidate.pcoPlanTimeId}`;
+    const current = bestItemTimeByPair.get(key);
+    if (!current) {
+      bestItemTimeByPair.set(key, candidate);
+      continue;
+    }
+    const candidateWins =
+      (candidate.actualSeconds !== null) !== (current.actualSeconds !== null)
+        ? candidate.actualSeconds !== null
+        : (candidate.liveEndAt ?? "") !== (current.liveEndAt ?? "")
+          ? (candidate.liveEndAt ?? "") > (current.liveEndAt ?? "")
+          : candidate.pcoItemTimeId > current.pcoItemTimeId;
+    if (candidateWins) bestItemTimeByPair.set(key, candidate);
+  }
+  const itemTimes = [...bestItemTimeByPair.values()];
 
   for (const planTime of planTimes.filter(({ detectedSlotLabel }) => detectedSlotLabel)) {
     if (planTime.actualServiceSeconds === null) continue;

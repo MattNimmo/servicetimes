@@ -473,6 +473,45 @@ describe("buildIngestionPlan", () => {
     });
   });
 
+  it("keeps one item time per item + plan_time, preferring the completed timer", () => {
+    // PCO occasionally duplicates ItemTime rows for the same pair (restarted
+    // timer). The DB enforces uniqueness, so ingestion must dedupe.
+    const result = buildIngestionPlan(
+      campus,
+      {
+        plan,
+        planTimes: [productionTime],
+        items: [pcoItem("message", 1, "Message", "item", 2280)],
+        itemTimes: [
+          itemTime(
+            "open-duplicate",
+            "message",
+            productionTime.id,
+            2280,
+            "2026-06-21T15:30:00Z",
+            null,
+          ),
+          itemTime(
+            "completed-timer",
+            "message",
+            productionTime.id,
+            2280,
+            "2026-06-21T15:30:00Z",
+            "2026-06-21T16:08:00Z",
+          ),
+        ],
+      },
+      PCO_TAXONOMY,
+    );
+
+    const forPair = result.itemTimes.filter(
+      ({ pcoItemId, pcoPlanTimeId }) =>
+        pcoItemId === "message" && pcoPlanTimeId === productionTime.id,
+    );
+    expect(forPair).toHaveLength(1);
+    expect(forPair[0].pcoItemTimeId).toBe("completed-timer");
+  });
+
   it("does not raise slot incidents for run-through names like Full service", () => {
     const result = buildIngestionPlan(
       campus,

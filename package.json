@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "ingest": "node --conditions=react-server --import tsx scripts/ingest-weekend.ts",
     "backfill": "node --conditions=react-server --import tsx scripts/backfill-history.ts",
+    "backfill:report": "node --conditions=react-server --import tsx scripts/backfill-report.ts",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
