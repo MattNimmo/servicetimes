@@ -99,6 +99,7 @@ insert into public.element_aliases
   (section_key, raw_title_normalized, match_type, priority, element_key)
 values
   ('pre_service', 'countdown video', 'exact', 10, 'pre.countdown'),
+  ('pre_service', '5 minute countdown', 'exact', 10, 'pre.countdown'),
   ('worship_open', 'worship bundle', 'exact', 10, 'worship.open'),
   ('worship_open', 'musical worship bundle', 'exact', 10, 'worship.open'),
   ('worship_open', 'communion', 'exact', 10, 'worship.communion'),

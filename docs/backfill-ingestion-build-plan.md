@@ -1,6 +1,6 @@
 # Build Plan — 12-Month Historical Backfill
 
-**Status:** 📋 **Planned (2026-07-02)** — scope agreed with product owner (Matt).
+**Status:** ✅ **Implemented (2026-07-03)** — all phases executed. 211 plans (216 ingestable, 6 honestly skipped) backfilled across 4 campuses; census-driven taxonomy hardening cut distinct unmapped titles 204 → ~60 recurring-free long tail; `backfill_quality`: 346 plan_times, 75% green / 42 yellow / 45 red; 16 historical `missing_item_end` incidents bulk-kept; sampling QA 8/8 PASS (`npm run backfill:report`, `scripts/backfill-verify-sample.ts`). Remaining reds/yellows are the operator exception queue in Triage (special Sundays, timer bleeds, one-off content).
 **Audience:** Implementing engineer (self-contained — no prior session context needed)
 **Repo:** `servicetimes` (Next.js 16 App Router + Supabase, deployed on Vercel; PCO Services API source)
 

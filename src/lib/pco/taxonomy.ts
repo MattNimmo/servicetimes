@@ -23,6 +23,7 @@ export const PCO_TAXONOMY = {
   elementAliases: [
     ...[
       ["pre_service", "countdown video", "pre.countdown"],
+      ["pre_service", "5 minute countdown", "pre.countdown"],
       ["worship_open", "worship bundle", "worship.open"],
       ["worship_open", "musical worship bundle", "worship.open"],
       ["worship_open", "communion", "worship.communion"],
