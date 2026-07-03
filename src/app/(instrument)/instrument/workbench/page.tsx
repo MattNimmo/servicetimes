@@ -17,7 +17,7 @@ type WorkbenchPageProps = {
 export default async function InstrumentWorkbenchPage({
   searchParams,
 }: WorkbenchPageProps) {
-  const session = await requireRole("viewer");
+  await requireRole("viewer");
   const params = await searchParams;
   const campus = (params.campus?.toUpperCase() ?? "SLP") as string;
   const slot = params.slot ?? "9am";
@@ -32,7 +32,6 @@ export default async function InstrumentWorkbenchPage({
       campus={campus}
       slot={slot}
       horizon={horizon}
-      canManageRecommendations={session.role === "operator"}
     />
   );
 }

@@ -11,9 +11,7 @@ import type {
   WorkbenchData,
   WorkbenchElementRow,
   WorkbenchHorizon,
-  WorkbenchPlanChangeRecommendation,
 } from "@/lib/instrument/queries";
-import { generatePlanChangesAction, resolvePlanChangeAction } from "@/lib/operator/review-actions";
 import { formatDelta, formatDuration, formatServiceDate } from "@/lib/variance/format";
 import Toast from "./Toast";
 
@@ -499,106 +497,16 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
   );
 }
 
-function RecommendationPanel({
-  recommendations,
-  redirectTo,
-  campus,
-  serviceDate,
-  canManage,
-}: {
-  recommendations: WorkbenchPlanChangeRecommendation[];
-  redirectTo: string;
-  campus: string;
-  serviceDate: string;
-  canManage: boolean;
-}) {
-  return (
-    <section className="glass-card wb-recommendations">
-      <div className="wb-recommendations__header">
-        <div>
-          <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", margin: 0 }}>
-            Plan changes
-          </p>
-          <p className="wb-recommendations__subtitle">
-            Planned item targets · {recommendations.length} open
-          </p>
-        </div>
-        {canManage && (
-          <form action={generatePlanChangesAction}>
-            <input type="hidden" name="campus" value={campus} />
-            <input type="hidden" name="serviceDate" value={serviceDate} />
-            <input type="hidden" name="redirectTo" value={redirectTo} />
-            <button type="submit" className="btn btn--ghost btn--compact">
-              Generate
-            </button>
-          </form>
-        )}
-      </div>
-
-      {recommendations.length === 0 ? (
-        <p className="wb-recommendations__empty">
-          No open planned-item recommendations for this slot.
-        </p>
-      ) : (
-        <div className="wb-recommendations__list">
-          {recommendations.map((rec) => (
-            <article key={rec.id} className="wb-recommendation">
-              <div className="wb-recommendation__main">
-                <span className="pill pill--review">Review</span>
-                <div>
-                  <h3>{rec.elementName}</h3>
-                  <p>
-                    Target {formatDuration(rec.toSeconds)} · actual{" "}
-                    {formatDuration(rec.fromSeconds)} ·{" "}
-                    <span className="tabular">{formatDelta(rec.deltaSeconds)}</span>
-                  </p>
-                </div>
-              </div>
-              <div className="wb-recommendation__evidence">
-                <span>{rec.evidence.slotLabel ?? "Slot"}</span>
-                <span>{rec.evidence.serviceDate ?? "Current service"}</span>
-                <span>{rec.evidence.targetSource === "planned_item_seconds" ? "planned item" : "target"}</span>
-              </div>
-              {canManage && (
-                <div className="wb-recommendation__actions">
-                  <form action={resolvePlanChangeAction}>
-                    <input type="hidden" name="planChangeId" value={String(rec.id)} />
-                    <input type="hidden" name="resolution" value="applied" />
-                    <input type="hidden" name="redirectTo" value={redirectTo} />
-                    <button type="submit" className="btn btn--primary btn--compact">
-                      Apply
-                    </button>
-                  </form>
-                  <form action={resolvePlanChangeAction}>
-                    <input type="hidden" name="planChangeId" value={String(rec.id)} />
-                    <input type="hidden" name="resolution" value="dismissed" />
-                    <input type="hidden" name="redirectTo" value={redirectTo} />
-                    <button type="submit" className="btn btn--ghost btn--compact">
-                      Dismiss
-                    </button>
-                  </form>
-                </div>
-              )}
-            </article>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
 export default function WorkbenchView({
   data,
   campus,
   slot,
   horizon,
-  canManageRecommendations,
 }: {
   data: WorkbenchData;
   campus: string;
   slot: string;
   horizon: WorkbenchHorizon;
-  canManageRecommendations: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -965,14 +873,6 @@ export default function WorkbenchView({
           </p>
         </div>
       </div>
-
-      <RecommendationPanel
-        recommendations={data.recommendations}
-        redirectTo={redirectTo}
-        campus={data.campus.code}
-        serviceDate={data.serviceDate}
-        canManage={canManageRecommendations}
-      />
 
       {/* Element table */}
       <div
