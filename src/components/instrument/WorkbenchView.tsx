@@ -96,13 +96,15 @@ function TrendChart({
   const validDeltas = deltas.filter((d): d is number => d !== null);
   const maxAbs = Math.max(600, ...validDeltas.map(Math.abs));
 
-  const W = 400,
-    H = 120,
-    padX = 20,
-    padY = 14;
-  const chartW = W - 2 * padX;
+  const W = 560,
+    H = 150,
+    padX = 40,
+    padY = 18;
+  const chartW = W - padX - 14;
   const chartH = H - 2 * padY;
   const centerY = padY + chartH / 2;
+  // Denser horizons get smaller markers so 52 points stay readable.
+  const dotR = trend.length > 30 ? 2.6 : trend.length > 10 ? 3.2 : 4;
 
   const pts = trend.map((pt, i) => {
     const x =
@@ -137,28 +139,28 @@ function TrendChart({
     <>
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        style={{ width: "100%", height: 120 }}
+        style={{ width: "100%", height: 150 }}
         role="img"
         aria-label={summary}
       >
-      <title>{summary}</title>
+      {/* No chart-level <title>: it would swallow the per-point tooltips. */}
       <desc>
         Each point shows actual time compared with planned time. Hollow points
         mark moment services.
       </desc>
-      <text x={padX} y={11} fill="var(--ink-70)" fontSize="11" fontWeight={700}>
+      <text x={2} y={padY + 4} fill="var(--ink-70)" fontSize="10" fontWeight={700}>
         {formatDelta(maxAbs)}
       </text>
-      <text x={padX} y={centerY - 4} fill="var(--ink-70)" fontSize="11" fontWeight={700}>
+      <text x={2} y={centerY + 3} fill="var(--ink-70)" fontSize="10" fontWeight={700}>
         0
       </text>
-      <text x={padX} y={H - 3} fill="var(--ink-70)" fontSize="11" fontWeight={700}>
+      <text x={2} y={H - padY + 4} fill="var(--ink-70)" fontSize="10" fontWeight={700}>
         {formatDelta(-maxAbs)}
       </text>
       <line
         x1={padX}
         y1={centerY}
-        x2={W - padX}
+        x2={W - 14}
         y2={centerY}
         stroke="var(--ink-line-medium)"
         strokeWidth={1}
@@ -167,7 +169,7 @@ function TrendChart({
         <line
           x1={padX}
           y1={medianY}
-          x2={W - padX}
+          x2={W - 14}
           y2={medianY}
           stroke="var(--accent)"
           strokeWidth={1}
@@ -177,23 +179,34 @@ function TrendChart({
       )}
       {medianY !== null && (
         <text
-          x={W - padX}
-          y={Math.max(11, medianY - 4)}
+          x={W - 14}
+          y={Math.max(11, medianY - 5)}
           textAnchor="end"
           fill="var(--accent)"
-          fontSize="11"
+          fontSize="10"
           fontWeight={700}
         >
           Median {formatDelta(medianDelta)}
         </text>
+      )}
+      {trend.length > 1 && (
+        <>
+          <text x={padX} y={H - 2} fill="var(--ink-70)" fontSize="10">
+            {formatServiceDate(trend[0].serviceDate)}
+          </text>
+          <text x={W - 14} y={H - 2} textAnchor="end" fill="var(--ink-70)" fontSize="10">
+            {formatServiceDate(trend[trend.length - 1].serviceDate)}
+          </text>
+        </>
       )}
       {pathD && (
         <path
           d={pathD}
           fill="none"
           stroke="var(--ink-line-strong)"
-          strokeWidth={1.5}
+          strokeWidth={1}
           strokeLinejoin="round"
+          opacity={trend.length > 30 ? 0.45 : 0.7}
         />
       )}
       {pts.map((pt, i) => {
@@ -202,44 +215,35 @@ function TrendChart({
         const pointLabel =
           pt.delta === null
             ? `${formatServiceDate(source.serviceDate)}: no ${metricLabel(metric)} actual available`
-            : `${formatServiceDate(source.serviceDate)}: ${formatDuration(actual)} actual, ${formatDuration(planned)} planned, ${formatDelta(pt.delta)}${pt.isMoment ? ", moment service" : ""}`;
-        if (pt.y === null) {
-          return (
-            <circle
-              key={i}
-              cx={pt.x}
-              cy={centerY}
-              r={3.5}
-              fill="none"
-              stroke="var(--ink-70)"
-              strokeWidth={1.5}
-            >
-              <title>{pointLabel}</title>
-            </circle>
-          );
-        }
+            : `${formatServiceDate(source.serviceDate)} · ${metricLabel(metric)}: actual ${formatDuration(actual)} vs plan ${formatDuration(planned)} → ${formatDelta(pt.delta)}${pt.isMoment ? " · moment service" : ""}`;
+        const cy = pt.y ?? centerY;
         const color =
-          pt.delta === 0
+          pt.delta === null || pt.delta === 0
             ? "var(--ink-70)"
-            : (pt.delta ?? 0) > 0
+            : pt.delta > 0
               ? "var(--over)"
               : "var(--under)";
-        return pt.isMoment ? (
-          <circle
-            key={i}
-            cx={pt.x}
-            cy={pt.y}
-            r={3.5}
-            fill="none"
-            stroke={color}
-            strokeWidth={1.5}
-          >
-            <title>{pointLabel}</title>
-          </circle>
-        ) : (
-          <circle key={i} cx={pt.x} cy={pt.y} r={3} fill={color}>
-            <title>{pointLabel}</title>
-          </circle>
+        const hollow = pt.isMoment || pt.y === null;
+        return (
+          <g key={i}>
+            {/* generous invisible hit target so every point is hoverable */}
+            <circle cx={pt.x} cy={cy} r={Math.max(8, dotR + 5)} fill="transparent">
+              <title>{pointLabel}</title>
+            </circle>
+            {hollow ? (
+              <circle
+                cx={pt.x}
+                cy={cy}
+                r={dotR + 0.5}
+                fill="none"
+                stroke={color}
+                strokeWidth={1.5}
+                pointerEvents="none"
+              />
+            ) : (
+              <circle cx={pt.x} cy={cy} r={dotR} fill={color} pointerEvents="none" />
+            )}
+          </g>
         );
       })}
       </svg>

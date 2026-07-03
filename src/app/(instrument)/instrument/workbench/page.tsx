@@ -21,7 +21,9 @@ export default async function InstrumentWorkbenchPage({
   const params = await searchParams;
   const campus = (params.campus?.toUpperCase() ?? "SLP") as string;
   const slot = params.slot ?? "9am";
-  const horizon = (params.horizon ?? "last") as WorkbenchHorizon;
+  // Default to 6 weeks so the workbench opens with trend context, not a
+  // single Sunday.
+  const horizon = (params.horizon ?? "6wk") as WorkbenchHorizon;
 
   const data = await getWorkbenchData(campus, slot, horizon);
   if (!data) notFound();

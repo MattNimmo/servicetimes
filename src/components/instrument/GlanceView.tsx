@@ -3,8 +3,155 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import type { GlanceCampus, PhaseBreakdown, PhaseKey, ServiceSlotSummary } from "@/lib/instrument/queries";
+import type {
+  BroadcastTrendPoint,
+  GlanceCampus,
+  PhaseBreakdown,
+  PhaseKey,
+  ServiceSlotSummary,
+} from "@/lib/instrument/queries";
 import { formatDelta, formatDuration, formatServiceDate } from "@/lib/variance/format";
+
+const CAMPUS_TIME_ZONE = "America/Chicago";
+
+type BroadcastWindowHorizon = "6wk" | "6mo" | "12mo";
+
+const BROADCAST_HORIZONS: Array<{ value: BroadcastWindowHorizon; label: string; sundays: number }> = [
+  { value: "6wk", label: "6 wk", sundays: 6 },
+  { value: "6mo", label: "6 mo", sundays: 26 },
+  { value: "12mo", label: "12 mo", sundays: 52 },
+];
+
+function formatClock(iso: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: CAMPUS_TIME_ZONE,
+  }).formatToParts(new Date(iso));
+  const hour = parts.find((p) => p.type === "hour")?.value ?? "";
+  const minute = parts.find((p) => p.type === "minute")?.value ?? "";
+  const period = parts.find((p) => p.type === "dayPeriod")?.value ?? "";
+  return `${hour}:${minute}${period.toLowerCase().startsWith("p") ? "p" : "a"}`;
+}
+
+const SLOT_COLORS = ["var(--accent)", "var(--phase-mid)", "var(--elk)", "var(--lv)"];
+
+// Broadcast-window trend for the broadcast-origin campus. Location-agnostic,
+// so it sits above the per-campus cards.
+function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
+  const [horizon, setHorizon] = useState<BroadcastWindowHorizon>("6wk");
+  if (points.length === 0) return null;
+
+  const sundays = BROADCAST_HORIZONS.find((h) => h.value === horizon)?.sundays ?? 6;
+  const allDates = [...new Set(points.map((p) => p.serviceDate))].sort();
+  const windowDates = new Set(allDates.slice(-sundays));
+  const visible = points.filter((p) => windowDates.has(p.serviceDate));
+
+  const slotLabels = [...new Set(visible.map((p) => p.slotLabel))].sort();
+  const slotColor = new Map(slotLabels.map((label, i) => [label, SLOT_COLORS[i % SLOT_COLORS.length]]));
+
+  const minutes = visible.map((p) => p.windowSeconds / 60);
+  const minMin = Math.floor(Math.min(...minutes) - 2);
+  const maxMin = Math.ceil(Math.max(...minutes) + 2);
+  const median = [...minutes].sort((a, b) => a - b)[Math.floor(minutes.length / 2)] ?? null;
+
+  const W = 560;
+  const H = 150;
+  const padX = 34;
+  const padY = 16;
+  const chartW = W - padX - 12;
+  const chartH = H - 2 * padY;
+  const dates = [...windowDates].sort();
+  const xFor = (serviceDate: string) => {
+    const idx = dates.indexOf(serviceDate);
+    return padX + (dates.length === 1 ? chartW / 2 : (idx / (dates.length - 1)) * chartW);
+  };
+  const yFor = (windowSeconds: number) =>
+    padY + chartH - ((windowSeconds / 60 - minMin) / Math.max(1, maxMin - minMin)) * chartH;
+  const medianY = median !== null ? padY + chartH - ((median - minMin) / Math.max(1, maxMin - minMin)) * chartH : null;
+
+  const dotR = dates.length > 30 ? 2.6 : 3.4;
+
+  return (
+    <section className="glass-card" style={{ borderRadius: "var(--r-glance)", padding: "1.1rem 1.25rem", marginBottom: "1.1rem" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <p className="instrument-eyebrow" style={{ margin: 0 }}>Broadcast window</p>
+          <p style={{ margin: "4px 0 0", fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
+            Bumper end → message end at the broadcast origin · median{" "}
+            {median !== null ? formatDuration(Math.round(median * 60)) : "—"} live
+          </p>
+        </div>
+        <div className="segment-control__options">
+          {BROADCAST_HORIZONS.map((h) => (
+            <button
+              key={h.value}
+              type="button"
+              className={horizon === h.value ? "segment-option segment-option--active" : "segment-option"}
+              onClick={() => setHorizon(h.value)}
+            >
+              {h.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 150, marginTop: 8 }} role="img" aria-label={`Broadcast window trend over ${horizon}`}>
+        <text x={2} y={padY + 4} fill="var(--ink-70)" fontSize="10" fontWeight={700}>
+          {maxMin}m
+        </text>
+        <text x={2} y={H - padY} fill="var(--ink-70)" fontSize="10" fontWeight={700}>
+          {minMin}m
+        </text>
+        <line x1={padX} y1={padY + chartH} x2={W - 12} y2={padY + chartH} stroke="var(--ink-line-medium)" strokeWidth={1} />
+        {medianY !== null && (
+          <line x1={padX} y1={medianY} x2={W - 12} y2={medianY} stroke="var(--accent)" strokeWidth={1} strokeDasharray="3 3" opacity={0.7} />
+        )}
+        {dates.length > 1 && (
+          <>
+            <text x={padX} y={H - 2} fill="var(--ink-70)" fontSize="10">
+              {formatServiceDate(dates[0])}
+            </text>
+            <text x={W - 12} y={H - 2} textAnchor="end" fill="var(--ink-70)" fontSize="10">
+              {formatServiceDate(dates[dates.length - 1])}
+            </text>
+          </>
+        )}
+        {visible.map((p, i) => {
+          const label = `${formatServiceDate(p.serviceDate)} · ${p.slotLabel}: ${formatClock(p.startsAt)} → ${formatClock(p.endsAt)} · ${formatDuration(p.windowSeconds)} live${p.isMessageBlock ? "" : " (full live block — message timers unavailable)"}`;
+          return (
+            <g key={`${p.serviceDate}-${p.slotLabel}-${i}`}>
+              {/* generous invisible hit target so hover tooltips are easy */}
+              <circle cx={xFor(p.serviceDate)} cy={yFor(p.windowSeconds)} r={10} fill="transparent">
+                <title>{label}</title>
+              </circle>
+              <circle
+                cx={xFor(p.serviceDate)}
+                cy={yFor(p.windowSeconds)}
+                r={dotR}
+                fill={slotColor.get(p.slotLabel)}
+                opacity={p.isMessageBlock ? 1 : 0.45}
+                pointerEvents="none"
+              />
+            </g>
+          );
+        })}
+      </svg>
+
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
+        {slotLabels.map((label) => (
+          <span key={label} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 999, background: slotColor.get(label) }} />
+            {label}
+          </span>
+        ))}
+        <span>· faded = raw live block (no message timers)</span>
+        <span>· dashed = median</span>
+      </div>
+    </section>
+  );
+}
 
 const EMPTY_PHASES: PhaseBreakdown = {
   worship_open: { plannedSeconds: 0, actualSeconds: null },
@@ -297,7 +444,13 @@ function RecommendationsPanel({
   );
 }
 
-export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
+export default function GlanceView({
+  campuses,
+  broadcastTrend,
+}: {
+  campuses: GlanceCampus[];
+  broadcastTrend: BroadcastTrendPoint[];
+}) {
   const [mode, setMode] = useState<"actuals" | "awaiting">("actuals");
   const [recWindow, setRecWindow] = useState<6 | 12>(6);
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
@@ -389,6 +542,8 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
           </div>
         </div>
       </section>
+
+      <BroadcastWindowTrend points={broadcastTrend} />
 
       <div className="glance-grid">
         {campusCards.map(({ campus, selectedSlot, phases, totalPlanned, expanded: isExpanded, recs, midDelta }) => {

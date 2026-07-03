@@ -370,6 +370,123 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
   };
 }
 
+// ── Broadcast window trend (location-agnostic; broadcast-origin campus) ─────
+
+export type BroadcastTrendPoint = {
+  serviceDate: string;
+  slotLabel: string;
+  windowSeconds: number;
+  startsAt: string;
+  endsAt: string;
+  // true when derived from bumper-end → message-end item timers; false when
+  // it fell back to the PlanTime's raw live bounds.
+  isMessageBlock: boolean;
+};
+
+/**
+ * The broadcast window (bumper end → message end, falling back to the raw
+ * live bounds) for every production service at the broadcast-origin campus
+ * over the last 52 Sundays, oldest first.
+ */
+export async function getBroadcastWindowTrend(): Promise<BroadcastTrendPoint[]> {
+  const origin = (
+    await readRows<CampusRow & { is_broadcast_origin: boolean }>("campuses", {
+      is_broadcast_origin: "eq.true",
+      select: "id,code,name,reference_target_seconds,reference_target_status",
+      limit: "1",
+    })
+  )[0];
+  if (!origin) return [];
+
+  const plans = await readRows<PlanRow>("plans", {
+    campus_id: `eq.${origin.id}`,
+    select: "id,campus_id,service_date",
+    order: "service_date.desc,sort_date.desc",
+    limit: "52",
+  });
+  if (plans.length === 0) return [];
+  const planIds = plans.map(({ id }) => id);
+  const serviceDateByPlanId = new Map(plans.map((p) => [p.id, p.service_date]));
+
+  const [planTimes, slots, windowItems] = await Promise.all([
+    readRows<{
+      id: number;
+      plan_id: number;
+      effective_slot_id: number;
+      live_starts_at: string | null;
+      live_ends_at: string | null;
+    }>("effective_plan_times", {
+      plan_id: `in.(${planIds.join(",")})`,
+      effective_slot_id: "not.is.null",
+      time_type: "eq.service",
+      is_manually_excluded: "eq.false",
+      select: "id,plan_id,effective_slot_id,live_starts_at,live_ends_at",
+    }),
+    readRows<ServiceSlotRow>("service_slots", {
+      campus_id: `eq.${origin.id}`,
+      select: "id,slot_label,expected_local_start,is_active",
+    }),
+    readRows<{ id: number; plan_id: number; element_key: string }>("items", {
+      plan_id: `in.(${planIds.join(",")})`,
+      element_key: "in.(live.bumper,live.message)",
+      select: "id,plan_id,element_key",
+    }),
+  ]);
+
+  const slotLabelById = new Map(slots.map((s) => [s.id, s.slot_label]));
+  const itemById = new Map(windowItems.map((i) => [i.id, i]));
+
+  const itemTimes =
+    windowItems.length > 0 && planTimes.length > 0
+      ? await readRows<{ item_id: number; plan_time_id: number; live_end_at: string | null }>(
+          "item_times",
+          {
+            item_id: `in.(${windowItems.map(({ id }) => id).join(",")})`,
+            plan_time_id: `in.(${planTimes.map(({ id }) => id).join(",")})`,
+            select: "item_id,plan_time_id,live_end_at",
+          },
+        )
+      : [];
+
+  // plan_time → latest live_end_at per element
+  const endsByPlanTime = new Map<number, { bumper: string | null; message: string | null }>();
+  for (const it of itemTimes) {
+    if (!it.live_end_at) continue;
+    const element = itemById.get(it.item_id)?.element_key;
+    if (!element) continue;
+    const entry = endsByPlanTime.get(it.plan_time_id) ?? { bumper: null, message: null };
+    if (element === "live.bumper") {
+      if (!entry.bumper || it.live_end_at > entry.bumper) entry.bumper = it.live_end_at;
+    } else if (!entry.message || it.live_end_at > entry.message) {
+      entry.message = it.live_end_at;
+    }
+    endsByPlanTime.set(it.plan_time_id, entry);
+  }
+
+  const points: BroadcastTrendPoint[] = [];
+  for (const pt of planTimes) {
+    const ends = endsByPlanTime.get(pt.id);
+    const startsAt = ends?.bumper ?? pt.live_starts_at;
+    const endsAt = ends?.message ?? pt.live_ends_at;
+    if (!startsAt || !endsAt) continue;
+    const windowSeconds = Math.round((Date.parse(endsAt) - Date.parse(startsAt)) / 1000);
+    if (!Number.isFinite(windowSeconds) || windowSeconds <= 0) continue;
+    points.push({
+      serviceDate: serviceDateByPlanId.get(pt.plan_id) ?? "",
+      slotLabel: slotLabelById.get(pt.effective_slot_id) ?? "?",
+      windowSeconds,
+      startsAt,
+      endsAt,
+      isMessageBlock: Boolean(ends?.bumper && ends?.message),
+    });
+  }
+
+  return points.sort(
+    (a, b) =>
+      a.serviceDate.localeCompare(b.serviceDate) || a.slotLabel.localeCompare(b.slotLabel),
+  );
+}
+
 export async function getGlanceData(): Promise<GlanceCampus[]> {
   const campuses = await listInstrumentCampuses();
   const results = await Promise.all(campuses.map((campus) => buildCampusGlance(campus)));
