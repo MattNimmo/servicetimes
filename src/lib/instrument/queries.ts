@@ -1208,6 +1208,11 @@ export async function getTriageData(
     // Group items into sections
     const sectionMap = new Map<string, TriageItem[]>();
     for (const item of triageItems) {
+      // Resolved PCO headers are structural — the section band already renders
+      // them, so listing them again as NOT TRACKED rows is pure noise. Keep
+      // only headers that failed to resolve (UNSECTIONED), so the operator can
+      // see the raw title that needs a section alias.
+      if (item.itemType === "header" && item.sectionKey !== null) continue;
       const key = item.sectionKey ?? "__unsectioned__";
       if (!sectionMap.has(key)) sectionMap.set(key, []);
       sectionMap.get(key)!.push(item);
