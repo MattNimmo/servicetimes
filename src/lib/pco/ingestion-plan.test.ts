@@ -443,6 +443,43 @@ describe("buildIngestionPlan", () => {
     ).toEqual(["song-1", "song-2"]);
   });
 
+  it("does not flag bundle overlap for timed items that merely mention worship", () => {
+    const result = buildIngestionPlan(
+      campus,
+      {
+        plan,
+        planTimes: [productionTime],
+        items: [
+          pcoItem("header-mid", 1, "Mid-Service", "header", 0),
+          pcoItem("host-pastor", 2, "Host Pastor//Close Worship", "item", 60),
+          pcoItem("close-worship-song", 3, "Close Worship Song", "song", 240),
+        ],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(result.incidents.some(({ kind }) => kind === "bundle_overlap")).toBe(false);
+  });
+
+  it("still flags bundle overlap for timed bundles that do not resolve to worship.open", () => {
+    const result = buildIngestionPlan(
+      campus,
+      {
+        plan,
+        planTimes: [productionTime],
+        items: [
+          pcoItem("band-bundle", 1, "Band Bundle", "item", 600),
+          pcoItem("timed-song", 2, "Song One", "song", 300),
+        ],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(result.incidents.some(({ kind }) => kind === "bundle_overlap")).toBe(true);
+  });
+
   it("classifies unmapped taxonomy rows without silently assigning them", () => {
     const result = buildIngestionPlan(
       campus,

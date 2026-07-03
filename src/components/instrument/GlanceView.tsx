@@ -91,10 +91,47 @@ const URGENCY_COLOR: Record<GlanceRecommendation["urgency"], string> = {
   low: "var(--ink-70)",
 };
 
+// Windowed element patterns (the "Pattern window" toggle): an element that
+// keeps running ≥30s over plan across the selected window becomes a
+// Confirmed/Emerging pattern recommendation, à la the legacy ecc-times report.
+function buildPatternRecommendations(
+  campus: GlanceCampus,
+  recWindow: 6 | 12,
+  workbenchHref: string,
+): GlanceRecommendation[] {
+  return campus.elementPatterns
+    .map((pattern) => ({
+      pattern,
+      stats: recWindow === 6 ? pattern.window6 : pattern.window12,
+    }))
+    .filter(({ stats }) => stats.weeksWithData >= 2 && (stats.avgDeltaSeconds ?? 0) > 0)
+    .map(({ pattern, stats }) => {
+      const ratio = stats.weeksOver / stats.weeksWithData;
+      const confirmed = stats.weeksWithData >= 4 && ratio >= 0.6;
+      const emerging = !confirmed && stats.weeksOver >= 2 && ratio >= 0.4;
+      if (!confirmed && !emerging) return null;
+      return {
+        rec: {
+          urgency: confirmed ? ("medium" as const) : ("low" as const),
+          label: `${confirmed ? "Confirmed" : "Emerging"} pattern: ${pattern.elementName} avg ${formatDelta(stats.avgDeltaSeconds)} (${recWindow} wk)`,
+          detail: `Ran 30s+ over plan in ${stats.weeksOver} of ${stats.weeksWithData} tracked weeks. Consider a planned-item target change.`,
+          actionLabel: "Open Workbench →",
+          actionHref: workbenchHref,
+        },
+        avgDelta: stats.avgDeltaSeconds ?? 0,
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+    .sort((a, b) => b.avgDelta - a.avgDelta)
+    .slice(0, 3)
+    .map(({ rec }) => rec);
+}
+
 function buildRecommendations(
   campus: GlanceCampus,
   selectedSlot: ServiceSlotSummary | undefined,
   mode: "actuals" | "awaiting",
+  recWindow: 6 | 12,
 ): GlanceRecommendation[] {
   if (mode === "awaiting") return [];
 
@@ -166,6 +203,8 @@ function buildRecommendations(
       actionHref: triageHref,
     });
   }
+
+  recs.push(...buildPatternRecommendations(campus, recWindow, workbenchHref));
 
   return recs.sort((a, b) => {
     const order = { high: 0, medium: 1, low: 2 };
@@ -278,7 +317,7 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
           campus.slots.find((slot) => slot.slotLabel === selectedLabel) ?? campus.slots[0];
         const phases = selectedSlot?.phases ?? EMPTY_PHASES;
         const totalPlanned = totalPlannedSeconds(phases);
-        const recs = buildRecommendations(campus, selectedSlot, mode);
+        const recs = buildRecommendations(campus, selectedSlot, mode, recWindow);
 
         return {
           campus,
@@ -293,7 +332,7 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
               : null,
         };
       }),
-    [campuses, expanded, glanceSvc, mode],
+    [campuses, expanded, glanceSvc, mode, recWindow],
   );
 
   return (

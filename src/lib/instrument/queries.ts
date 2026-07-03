@@ -24,6 +24,19 @@ export type ServiceSlotSummary = {
   phases: PhaseBreakdown;
 };
 
+export type GlancePatternWindowStats = {
+  weeksWithData: number;
+  weeksOver: number;
+  avgDeltaSeconds: number | null;
+};
+
+export type GlanceElementPattern = {
+  elementKey: string;
+  elementName: string;
+  window6: GlancePatternWindowStats;
+  window12: GlancePatternWindowStats;
+};
+
 export type GlanceCampus = {
   code: CampusCode;
   name: string;
@@ -34,6 +47,7 @@ export type GlanceCampus = {
   slots: ServiceSlotSummary[];
   openIncidentCount: number;
   unmappedCount: number;
+  elementPatterns: GlanceElementPattern[];
 };
 
 type CampusRow = {
@@ -176,11 +190,40 @@ function buildPhaseBreakdown(rows: ElementVarianceRow[]) {
   return phases;
 }
 
+// Element must be at least this far over plan in a week to count toward a
+// windowed pattern (matches the plan-change recommendation threshold).
+const PATTERN_OVER_THRESHOLD_SECONDS = 30;
+
+function windowStats(
+  deltasByRecency: Array<number | null>,
+  window: number,
+): GlancePatternWindowStats {
+  const deltas = deltasByRecency
+    .slice(0, window)
+    .filter((d): d is number => d !== null);
+  return {
+    weeksWithData: deltas.length,
+    weeksOver: deltas.filter((d) => d >= PATTERN_OVER_THRESHOLD_SECONDS).length,
+    avgDeltaSeconds:
+      deltas.length > 0
+        ? Math.round(deltas.reduce((t, d) => t + d, 0) / deltas.length)
+        : null,
+  };
+}
+
 async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null> {
-  const plan = await latestPlanForCampus(campus.id);
+  // Latest 12 Sundays: [0] powers the card itself, the full list powers the
+  // 6/12-week pattern window.
+  const recentPlans = await readRows<PlanRow>("plans", {
+    campus_id: `eq.${campus.id}`,
+    select: "id,campus_id,service_date",
+    order: "service_date.desc,sort_date.desc",
+    limit: "12",
+  });
+  const plan = recentPlans[0] ?? null;
   if (!plan) return null;
 
-  const [planTimes, everyPlanTime, slots, elements, unmapped] = await Promise.all([
+  const [planTimes, everyPlanTime, slots, elements, unmapped, windowedElements] = await Promise.all([
     readRows<EffectivePlanTimeRow>("effective_plan_times", {
       plan_id: `eq.${plan.id}`,
       effective_slot_id: "not.is.null",
@@ -201,6 +244,17 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
       select: "effective_slot_id,section_key,planned_seconds,actual_seconds",
     }),
     unmappedCount(campus.code, plan.service_date),
+    readRows<{
+      plan_id: number;
+      element_key: string;
+      element_name: string;
+      planned_seconds: number;
+      actual_seconds: number | null;
+      actual_is_complete: boolean;
+    }>("element_variance", {
+      plan_id: `in.(${recentPlans.map(({ id }) => id).join(",")})`,
+      select: "plan_id,element_key,element_name,planned_seconds,actual_seconds,actual_is_complete",
+    }),
   ]);
 
   const [incidents, corrections] = await Promise.all([
@@ -261,6 +315,47 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
       phases: summary.phases,
     }));
 
+  // ── Windowed element patterns (6/12wk) ──────────────────────────────────
+  // Per element, one delta per Sunday (summed across slots; only weeks where
+  // every slot's actual landed count as data), ordered most-recent first.
+  const planRecency = new Map(recentPlans.map((p, idx) => [p.id, idx]));
+  type WeekAgg = { planned: number; actual: number; complete: boolean };
+  const perElement = new Map<
+    string,
+    { elementName: string; weeks: Map<number, WeekAgg> }
+  >();
+  for (const row of windowedElements) {
+    const recency = planRecency.get(row.plan_id);
+    if (recency === undefined) continue;
+    if (!perElement.has(row.element_key)) {
+      perElement.set(row.element_key, { elementName: row.element_name, weeks: new Map() });
+    }
+    const weeks = perElement.get(row.element_key)!.weeks;
+    const agg = weeks.get(recency) ?? { planned: 0, actual: 0, complete: true };
+    agg.planned += row.planned_seconds;
+    if (row.actual_seconds === null || !row.actual_is_complete) {
+      agg.complete = false;
+    } else {
+      agg.actual += row.actual_seconds;
+    }
+    weeks.set(recency, agg);
+  }
+
+  const elementPatterns: GlanceElementPattern[] = [...perElement.entries()]
+    .map(([elementKey, { elementName, weeks }]) => {
+      const deltasByRecency = recentPlans.map((_, idx) => {
+        const agg = weeks.get(idx);
+        return agg && agg.complete ? agg.actual - agg.planned : null;
+      });
+      return {
+        elementKey,
+        elementName,
+        window6: windowStats(deltasByRecency, 6),
+        window12: windowStats(deltasByRecency, 12),
+      };
+    })
+    .filter((p) => p.window12.weeksWithData > 0);
+
   return {
     code: campus.code,
     name: campus.name,
@@ -271,6 +366,7 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
     slots: summaries,
     openIncidentCount: incidents.length,
     unmappedCount: unmapped,
+    elementPatterns,
   };
 }
 
@@ -414,6 +510,9 @@ export type TriageItem = {
   elementKey: string | null;
   plannedSeconds: number | null;
   actualSeconds: number | null;
+  // Wall-clock PCO timer record for this item in the selected slot.
+  liveStartAt: string | null;
+  liveEndAt: string | null;
   status: TriageItemStatus;
   incident: TriageItemIncident | null;
   resolvedIncidentId: number | null;
@@ -433,6 +532,9 @@ export type TriageSlot = {
   slotLabel: string;
   pcoName: string | null;
   startsAt: string | null;
+  // Scheduled local start of the production slot ("09:00:00") — anchors the
+  // PLAN clock column in Triage.
+  expectedLocalStart: string | null;
   slotIncidents: SlotIncident[];
   sections: TriageSection[];
 };
@@ -612,6 +714,8 @@ type TriageItemTimeRow = {
   item_id: number;
   plan_time_id: number;
   actual_seconds: number | null;
+  live_start_at: string | null;
+  live_end_at: string | null;
 };
 
 const SLOT_BLOCKING_KINDS = new Set([
@@ -1010,7 +1114,7 @@ export async function getTriageData(
     planTimeIds.length > 0
       ? readRows<TriageItemTimeRow>("item_times", {
           plan_time_id: `in.(${planTimeIds.join(",")})`,
-          select: "id,item_id,plan_time_id,actual_seconds",
+          select: "id,item_id,plan_time_id,actual_seconds,live_start_at,live_end_at",
         })
       : Promise.resolve([] as TriageItemTimeRow[]),
     resolvedTriageIncidents(planTimeIds),
@@ -1020,8 +1124,14 @@ export async function getTriageData(
   const slotById = new Map(allSlots.map((s) => [s.id, s]));
   const availableSlotsList = allSlots.map((s) => ({ id: s.id, label: s.slot_label }));
 
-  // item_times lookup: planTimeId → itemId → { id, actualSeconds }
-  const itemTimesByPlanTime = new Map<number, Map<number, { id: number; actualSeconds: number | null }>>();
+  // item_times lookup: planTimeId → itemId → { id, actualSeconds, live window }
+  const itemTimesByPlanTime = new Map<
+    number,
+    Map<
+      number,
+      { id: number; actualSeconds: number | null; liveStartAt: string | null; liveEndAt: string | null }
+    >
+  >();
   for (const it of itemTimes) {
     if (!itemTimesByPlanTime.has(it.plan_time_id)) {
       itemTimesByPlanTime.set(it.plan_time_id, new Map());
@@ -1029,6 +1139,8 @@ export async function getTriageData(
     itemTimesByPlanTime.get(it.plan_time_id)!.set(it.item_id, {
       id: it.id,
       actualSeconds: it.actual_seconds,
+      liveStartAt: it.live_start_at,
+      liveEndAt: it.live_end_at,
     });
   }
 
@@ -1156,6 +1268,8 @@ export async function getTriageData(
         elementKey: item.element_key,
         plannedSeconds: item.planned_seconds,
         actualSeconds: itemTime?.actualSeconds ?? null,
+        liveStartAt: itemTime?.liveStartAt ?? null,
+        liveEndAt: itemTime?.liveEndAt ?? null,
         status,
         incident,
         resolvedIncidentId,
@@ -1208,6 +1322,7 @@ export async function getTriageData(
       slotLabel: slot?.slot_label ?? "Unknown",
       pcoName: pt.pco_name,
       startsAt: pt.starts_at,
+      expectedLocalStart: slot?.expected_local_start ?? null,
       slotIncidents,
       sections,
     };

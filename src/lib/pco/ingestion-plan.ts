@@ -265,6 +265,13 @@ function analyzeTimedBundles(
       continue;
     }
 
+    // Only actual bundles can double-count plan time. Titles that merely
+    // mention worship ("Host Pastor//Close Worship") are regular timed items
+    // followed by unrelated songs — flagging them is pure noise.
+    if (!/bundle/i.test(parent.attributes.title)) {
+      continue;
+    }
+
     incidents.push(
       ...[...assignments].map(([planTimeId, slotLabel]) =>
         incident(

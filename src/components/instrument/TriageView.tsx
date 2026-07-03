@@ -109,6 +109,84 @@ function formatCumulative(seconds: number): string {
   return seconds < 0 ? `−${str}` : str;
 }
 
+// All campuses broadcast in Central time (see src/lib/pco/campuses.ts).
+const CAMPUS_TIME_ZONE = "America/Chicago";
+
+function formatClockParts(hours24: number, minutes: number): string {
+  const suffix = hours24 >= 12 ? "p" : "a";
+  const h = hours24 % 12 === 0 ? 12 : hours24 % 12;
+  return `${h}:${String(minutes).padStart(2, "0")}${suffix}`;
+}
+
+// PLAN clock: the slot's scheduled local start ("09:00:00") plus the item's
+// cumulative planned offset — "24:00 into the 11am" renders as 11:24a.
+function formatPlanClock(expectedLocalStart: string, offsetSeconds: number): string {
+  const [h = 0, m = 0] = expectedLocalStart.split(":").map(Number);
+  const total = (((h * 3600 + m * 60 + offsetSeconds) % 86400) + 86400) % 86400;
+  return formatClockParts(Math.floor(total / 3600), Math.floor((total % 3600) / 60));
+}
+
+// ACTUAL clock: the wall-clock start PCO recorded for the item's timer.
+function formatActualClock(iso: string | null): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: CAMPUS_TIME_ZONE,
+  }).formatToParts(date);
+  const hour = parts.find((p) => p.type === "hour")?.value ?? "";
+  const minute = parts.find((p) => p.type === "minute")?.value ?? "";
+  const period = parts.find((p) => p.type === "dayPeriod")?.value ?? "";
+  return `${hour}:${minute}${period.toLowerCase().startsWith("p") ? "p" : "a"}`;
+}
+
+// For each open bundle_overlap incident, explain on the timed parent row what
+// overlapped and — when both timers were recorded — whether the plan time was
+// actually double-counted.
+function buildOverlapHints(sections: TriageSection[]): Map<number, string> {
+  const allItems = sections.flatMap((s) => s.items);
+  const groups = new Map<number, TriageItem[]>();
+  for (const item of allItems) {
+    if (item.incident?.kind === "bundle_overlap") {
+      groups.set(item.incident.id, [...(groups.get(item.incident.id) ?? []), item]);
+    }
+  }
+
+  const hints = new Map<number, string>();
+  for (const involved of groups.values()) {
+    const parent = involved.find((i) => i.itemType !== "song") ?? involved[0];
+    const children = involved.filter((i) => i !== parent);
+    if (!parent || children.length === 0) continue;
+
+    let verdict = "Compare the ACTUAL clocks on these rows to decide.";
+    if (parent.liveStartAt && parent.liveEndAt) {
+      const parentStart = Date.parse(parent.liveStartAt);
+      const parentEnd = Date.parse(parent.liveEndAt);
+      const timedChildren = children.filter((c) => c.liveStartAt && c.liveEndAt);
+      if (timedChildren.length > 0) {
+        const ranInside = timedChildren.every(
+          (c) => Date.parse(c.liveStartAt!) >= parentStart && Date.parse(c.liveEndAt!) <= parentEnd,
+        );
+        const ranAfter = timedChildren.every((c) => Date.parse(c.liveStartAt!) >= parentEnd);
+        if (ranInside) {
+          verdict = "The songs ran inside this item's timer — plan time is double-counted. Correct or Exclude.";
+        } else if (ranAfter) {
+          verdict = "Timers ran back-to-back, not overlapping — likely fine. Keep.";
+        }
+      }
+    }
+
+    hints.set(
+      parent.id,
+      `Plan may double-count: this item (${formatDuration(parent.plannedSeconds)}) plus ${children.length} timed song${children.length === 1 ? "" : "s"} below it. ${verdict}`,
+    );
+  }
+  return hints;
+}
+
 function SlotHeaderRow({
   slot,
   redirectTo,
@@ -280,6 +358,8 @@ function SectionHeaderRow({ section }: { section: TriageSection }) {
       }}
     >
       <span className="triage-row__time" />
+      <span className="triage-row__time" />
+      <span className="triage-row__len" />
       <span className="triage-row__len" />
       <span
         style={{
@@ -421,26 +501,30 @@ function ResolveForm({
 
 function ItemRow({
   item,
-  cumulative,
+  planClock,
   redirectTo,
   onCorrect,
   onToast,
   availableElements,
   elementName,
+  overlapHint,
 }: {
   item: TriageItem;
-  cumulative: number;
+  planClock: string;
   redirectTo: string;
   onCorrect: (payload: CorrectModalPayload) => void;
   onToast: (msg: string) => void;
   availableElements: AvailableElement[];
   elementName: Map<string, string>;
+  overlapHint?: string;
 }) {
   const cfg = STATUS_CONFIG[item.status];
   const delta =
     item.actualSeconds !== null && item.plannedSeconds !== null
       ? item.actualSeconds - item.plannedSeconds
       : null;
+  const actualClock = formatActualClock(item.liveStartAt);
+  const actualLen = item.actualSeconds !== null ? formatDuration(item.actualSeconds) : null;
 
   return (
     <div
@@ -452,15 +536,27 @@ function ItemRow({
         background: cfg.bg,
       }}
     >
-      {/* Cumulative time */}
+      {/* Plan clock (slot start + cumulative planned offset) */}
       <span
         className="triage-row__time tabular"
         style={{ fontSize: "var(--type-caption)", color: "var(--ink-70)", fontWeight: 500 }}
       >
-        {formatCumulative(cumulative)}
+        {planClock}
       </span>
 
-      {/* Planned */}
+      {/* Actual clock (recorded PCO timer start) */}
+      <span
+        className="triage-row__time tabular"
+        style={{
+          fontSize: "var(--type-caption)",
+          color: actualClock ? "var(--ink)" : "var(--ink-disabled)",
+          fontWeight: actualClock ? 600 : 500,
+        }}
+      >
+        {actualClock ?? "—"}
+      </span>
+
+      {/* Planned length */}
       <span
         className="triage-row__len tabular"
         style={{ fontSize: 11, color: "var(--ink-70)" }}
@@ -468,16 +564,39 @@ function ItemRow({
         {item.plannedSeconds !== null ? formatDuration(item.plannedSeconds) : "—"}
       </span>
 
+      {/* Actual length */}
+      <span
+        className="triage-row__len tabular"
+        style={{
+          fontSize: 11,
+          color:
+            delta === null
+              ? "var(--ink-disabled)"
+              : delta > 0
+                ? "var(--over)"
+                : "var(--under)",
+        }}
+      >
+        {actualLen ?? "—"}
+      </span>
+
       {/* Title */}
       <div className="triage-row__title">
         <span style={{ fontSize: 12, fontWeight: 500 }}>{item.rawTitle}</span>
         <p className="triage-row__meta">
-          <span>{formatCumulative(cumulative)}</span>
+          <span>{planClock}</span>
+          {actualClock && <span>{actualClock}</span>}
           <span>{item.plannedSeconds !== null ? formatDuration(item.plannedSeconds) : "—"}</span>
+          {actualLen && <span>{actualLen}</span>}
         </p>
         {item.elementKey && item.elementKey !== item.rawTitle && (
           <p style={{ margin: 0, fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
             {elementName.get(item.elementKey) ?? item.elementKey}
+          </p>
+        )}
+        {overlapHint && (
+          <p style={{ margin: "3px 0 0", fontSize: "var(--type-caption)", color: "var(--over)", lineHeight: 1.4 }}>
+            {overlapHint}
           </p>
         )}
       </div>
@@ -764,10 +883,19 @@ export default function TriageView({
           className="triage-row"
           style={{ padding: "10px 16px", borderBottom: "1px solid var(--hairline)" }}
         >
-          {(["TIME", "LEN", "TITLE", "STATUS · ACTION"] as const).map((h) => (
+          {(
+            [
+              { label: "PLAN", className: "triage-row__time" },
+              { label: "ACTUAL", className: "triage-row__time" },
+              { label: "LEN", className: "triage-row__len" },
+              { label: "ACT", className: "triage-row__len" },
+              { label: "TITLE", className: undefined },
+              { label: "STATUS · ACTION", className: undefined },
+            ] as const
+          ).map((h) => (
             <span
-              key={h}
-              className={h === "TIME" ? "triage-row__time" : h === "LEN" ? "triage-row__len" : undefined}
+              key={h.label}
+              className={h.className}
               style={{
                 fontSize: "var(--type-micro)",
                 fontWeight: 700,
@@ -776,7 +904,7 @@ export default function TriageView({
                 color: "var(--ink-70)",
               }}
             >
-              {h}
+              {h.label}
             </span>
           ))}
         </div>
@@ -797,6 +925,13 @@ export default function TriageView({
         {activeSlot &&
           (() => {
             const cumulatives = buildCumulativeMap(activeSlot.sections);
+            const overlapHints = buildOverlapHints(activeSlot.sections);
+            const planClockFor = (itemId: number) => {
+              const offset = cumulatives.get(itemId) ?? 0;
+              return activeSlot.expectedLocalStart
+                ? formatPlanClock(activeSlot.expectedLocalStart, offset)
+                : formatCumulative(offset);
+            };
             return (
               <div key={activeSlot.planTimeId}>
                 <SlotHeaderRow slot={activeSlot} redirectTo={redirectTo} />
@@ -807,12 +942,13 @@ export default function TriageView({
                       <ItemRow
                         key={`${activeSlot.planTimeId}:${item.id}`}
                         item={item}
-                        cumulative={cumulatives.get(item.id) ?? 0}
+                        planClock={planClockFor(item.id)}
                         redirectTo={redirectTo}
                         onCorrect={setModal}
                         onToast={showToast}
                         availableElements={data.availableElements}
                         elementName={elementName}
+                        overlapHint={overlapHints.get(item.id)}
                       />
                     ))}
                   </div>

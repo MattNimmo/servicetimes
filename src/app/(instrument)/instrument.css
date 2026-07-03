@@ -985,7 +985,8 @@
 
 .triage-row {
   display: grid;
-  grid-template-columns: 74px 52px 1fr auto;
+  /* PLAN clock · ACTUAL clock · planned LEN · actual LEN · title · actions */
+  grid-template-columns: 58px 58px 48px 48px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
 }
