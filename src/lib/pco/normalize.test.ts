@@ -9,6 +9,7 @@ import {
   type NormalizableItem,
   type SectionAlias,
 } from "@/lib/pco/normalize";
+import { PCO_TAXONOMY } from "@/lib/pco/taxonomy";
 
 const sectionAliases: SectionAlias[] = [
   {
@@ -245,12 +246,22 @@ describe("normalizePlanItems golden taxonomy", () => {
         item(2, "Bumper Video", "media"),
         item(3, "Unmapped Campus Moment", "header"),
         item(4, "Bumper Video", "media"),
+        item(5, "Campus Prayer", "item"),
       ],
       "MG",
       { sectionAliases, elementAliases },
     );
 
+    // The unknown header clears the live-section context; the item resolves
+    // via the global fallback (adopting the alias's section), NOT by
+    // inheriting the previous header's section.
     expect(normalized[3]).toMatchObject({
+      sectionKey: "live",
+      elementKey: "live.bumper",
+      resolutionSource: "alias",
+    });
+    // A title with no alias anywhere stays unmapped with no section bleed.
+    expect(normalized[4]).toMatchObject({
       sectionKey: null,
       elementKey: null,
       resolutionSource: "unmapped",
@@ -282,17 +293,102 @@ describe("normalizePlanItems golden taxonomy", () => {
     });
   });
 
-  it("does not map communion without the worship section context", () => {
+  it("maps communion via the unambiguous global fallback when no section resolves", () => {
     const normalized = normalizePlanItems(
       [item(1, "Communion")],
       "SLP",
       { sectionAliases, elementAliases },
     );
 
+    // "communion" exists in exactly one section's aliases, so the
+    // cross-section fallback resolves it even without a header — and the
+    // item adopts the alias's home section.
     expect(normalized[0]).toMatchObject({
-      sectionKey: null,
+      sectionKey: "worship_open",
+      elementKey: "worship.communion",
+      resolutionSource: "alias",
+    });
+  });
+
+  it("falls back to a global alias for unsectioned and wrong-section items", () => {
+    const normalized = normalizePlanItems(
+      [
+        item(1, "Offering"), // no header at all
+        item(2, "Praise & Worship", "header"),
+        item(3, "Close Worship"), // stale worship section; alias lives in mid
+      ],
+      "ELK",
+      { sectionAliases: PCO_TAXONOMY.sectionAliases, elementAliases: PCO_TAXONOMY.elementAliases },
+    );
+
+    expect(normalized[0]).toMatchObject({
+      sectionKey: "mid_service",
+      elementKey: "mid.offering.general",
+      resolutionSource: "alias",
+    });
+    expect(normalized[2]).toMatchObject({
+      sectionKey: "mid_service",
+      elementKey: "mid.close_worship",
+      resolutionSource: "alias",
+    });
+  });
+
+  it("leaves ambiguous global fallback titles unmapped", () => {
+    const ambiguous: ElementAlias[] = [
+      ...elementAliases,
+      {
+        campusCode: null,
+        sectionKey: "mid_service",
+        rawTitleNormalized: "communion",
+        matchType: "exact",
+        priority: 10,
+        elementKey: "mid.communion",
+      },
+    ];
+    const normalized = normalizePlanItems(
+      [item(1, "Communion")],
+      "SLP",
+      { sectionAliases, elementAliases: ambiguous },
+    );
+
+    expect(normalized[0]).toMatchObject({
       elementKey: null,
       resolutionSource: "unmapped",
     });
+  });
+
+  it("structurally maps unresolved songs in the local section to worship response", () => {
+    const normalized = normalizePlanItems(
+      [item(1, "Local Response", "header"), item(2, "Center", "song")],
+      "MG",
+      { sectionAliases, elementAliases },
+    );
+
+    expect(normalized[1]).toMatchObject({
+      sectionKey: "local",
+      elementKey: "local.worship_response",
+      resolutionSource: "structural",
+    });
+  });
+
+  it("maps historical title families via regex aliases", () => {
+    const normalized = normalizePlanItems(
+      [
+        item(1, "Local Response", "header"),
+        item(2, "Worship Response - Trust In God", "song"),
+        item(3, "Salvation Response/Next steps"),
+        item(4, "Final Prayer/Dismissal"),
+        item(5, "Host Pastor//Close Worship"),
+        item(6, "Message/Bumper"),
+      ],
+      "LV",
+      { sectionAliases: PCO_TAXONOMY.sectionAliases, elementAliases: PCO_TAXONOMY.elementAliases },
+    );
+
+    expect(normalized[1].elementKey).toBe("local.worship_response");
+    expect(normalized[2].elementKey).toBe("local.salvation");
+    expect(normalized[3].elementKey).toBe("local.final_prayer");
+    expect(normalized[4].elementKey).toBe("mid.close_worship");
+    expect(normalized[5].elementKey).toBe("live.message");
   });
 });

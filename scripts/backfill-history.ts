@@ -24,6 +24,7 @@ import {
   type IngestionPlan,
   type PcoCampus,
 } from "@/lib/pco/ingestion-plan";
+import { isNonProductionName } from "@/lib/pco/non-production";
 import { PCO_TAXONOMY } from "@/lib/pco/taxonomy";
 import { persistIngestionPlan } from "@/lib/pco/ingestion-writer";
 
@@ -198,7 +199,13 @@ function recordPlanInCensus(census: Census, campus: PcoCampus, plan: IngestionPl
   }
 
   for (const planTime of plan.planTimes) {
-    if (planTime.timeType === "service" && planTime.detectedSlotLabel === null) {
+    if (
+      planTime.timeType === "service" &&
+      planTime.detectedSlotLabel === null &&
+      // Rehearsal-style names are excluded from analytics downstream — only
+      // report genuinely unresolved production times (specials, added slots).
+      !isNonProductionName(planTime.pcoName)
+    ) {
       census.slotFailures.push({
         campus: campus.code,
         serviceDate: plan.plan.serviceDate,

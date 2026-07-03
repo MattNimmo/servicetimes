@@ -443,6 +443,58 @@ describe("buildIngestionPlan", () => {
     ).toEqual(["song-1", "song-2"]);
   });
 
+  it("stops the header-less bundle rollup when the service moves past worship", () => {
+    // LV-shaped plan: no headers at all. The global alias fallback resolves
+    // "Worship Bundle" → worship.open and "Offering" → mid.offering.general;
+    // songs after the offering (the response song) must NOT roll up.
+    const result = buildIngestionPlan(
+      campus,
+      {
+        plan,
+        planTimes: [productionTime],
+        items: [
+          pcoItem("worship-bundle", 1, "Worship Bundle", "item", 900),
+          pcoItem("song-a", 2, "I Believe", "song", 300),
+          pcoItem("song-b", 3, "Gratitude", "song", 300),
+          pcoItem("offering", 4, "Offering", "item", 130),
+          pcoItem("response-song", 5, "Center", "song", 330),
+        ],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(
+      result.items.filter(({ isRollupChild }) => isRollupChild).map(({ pcoItemId }) => pcoItemId),
+    ).toEqual(["song-a", "song-b"]);
+    expect(result.items.find(({ pcoItemId }) => pcoItemId === "offering")).toMatchObject({
+      elementKey: "mid.offering.general",
+      isRollupChild: false,
+    });
+  });
+
+  it("does not raise slot incidents for run-through names like Full service", () => {
+    const result = buildIngestionPlan(
+      campus,
+      {
+        plan,
+        planTimes: [
+          productionTime,
+          planTime("mg-run-through", "2026-06-21T12:45:00Z", { name: "Full service " }),
+        ],
+        items: [],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(
+      result.incidents.filter(
+        ({ kind, planTimeId }) => kind === "slot_resolution" && planTimeId === "mg-run-through",
+      ),
+    ).toHaveLength(0);
+  });
+
   it("does not flag bundle overlap for timed items that merely mention worship", () => {
     const result = buildIngestionPlan(
       campus,
@@ -514,12 +566,6 @@ describe("buildIngestionPlan", () => {
           reason: "rollup_review",
         }),
         expect.objectContaining({
-          pcoItemId: "close-worship",
-          reason: "section_mismatch",
-          suggestedSectionKey: "mid_service",
-          suggestedElementKey: "mid.close_worship",
-        }),
-        expect.objectContaining({
           pcoItemId: "unknown",
           reason: "missing_alias",
         }),
@@ -529,6 +575,18 @@ describe("buildIngestionPlan", () => {
         }),
       ]),
     );
+    // "Close Worship" under a stale worship header now auto-resolves via the
+    // global fallback (adopting mid_service) instead of a review row.
+    expect(
+      result.items.find(({ pcoItemId }) => pcoItemId === "close-worship"),
+    ).toMatchObject({
+      sectionKey: "mid_service",
+      elementKey: "mid.close_worship",
+      resolutionSource: "alias",
+    });
+    expect(
+      result.taxonomyReview.some(({ pcoItemId }) => pcoItemId === "close-worship"),
+    ).toBe(false);
     expect(
       result.items.find(({ pcoItemId }) => pcoItemId === "combined"),
     ).toMatchObject({
@@ -540,7 +598,6 @@ describe("buildIngestionPlan", () => {
       missing_alias: 1,
       missing_section: 1,
       rollup_review: 1,
-      section_mismatch: 1,
     });
   });
 

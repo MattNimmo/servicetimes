@@ -6,6 +6,7 @@ import {
   resolveElement,
   type TaxonomyConfig,
 } from "@/lib/pco/normalize";
+import { isNonProductionName } from "@/lib/pco/non-production";
 import type { PCO_CAMPUSES } from "@/lib/pco/campuses";
 import type {
   PcoItem,
@@ -134,12 +135,9 @@ function incident(
 }
 
 function isNonProductionPlanTime(planTime: Pick<PcoPlanTime, "attributes">) {
-  const name = planTime.attributes.name?.trim().toLowerCase() ?? "";
   return (
     planTime.attributes.time_type === "rehearsal" ||
-    /rehearsal|run[ -]?through|walk[ -]?through|tech[ -]?team|translation|instrumentalists|vocalists|broadcast audio/.test(
-      name,
-    )
+    isNonProductionName(planTime.attributes.name)
   );
 }
 
@@ -245,6 +243,14 @@ function analyzeTimedBundles(
         /communion/i.test(child.attributes.title)
       ) {
         sawCommunion = true;
+        continue;
+      }
+      // A child that resolved to a non-worship element (offering, greet,
+      // announcements, …) means the service moved past the worship set.
+      // Without this boundary, header-less plans (LV) would sweep every
+      // later song — including response songs — into the bundle rollup.
+      if (childElementKey && !childElementKey.startsWith("worship.")) {
+        break;
       }
       if (child.attributes.item_type === "song") {
         if (campus.isBroadcastOrigin && sawCommunion) {

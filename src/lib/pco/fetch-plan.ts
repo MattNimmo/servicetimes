@@ -1,6 +1,7 @@
 import "server-only";
 
 import { normalizeNextPath, pcoGet, pcoGetAll } from "@/lib/pco/client";
+import { isNonProductionName } from "@/lib/pco/non-production";
 import type { PlanBundle } from "@/lib/pco/ingestion-plan";
 import type {
   PcoCollection,
@@ -15,27 +16,6 @@ function durationSeconds(start: string | null, end: string | null) {
 
   const duration = (Date.parse(end) - Date.parse(start)) / 1_000;
   return Number.isFinite(duration) ? duration : null;
-}
-
-// Mirrors the patterns in supabase/migrations/20260625213000_expand_non_production_name_rules.sql.
-// A plan_time whose name matches any of these is not a production service, even if time_type=service.
-const NON_PRODUCTION_NAME_PATTERNS = [
-  "rehearsal",
-  "run through",
-  "run-through",
-  "walk through",
-  "walk-through",
-  "tech team",
-  "tech-team",
-  "translation",
-  "instrumentalists",
-  "vocalists",
-  "broadcast audio",
-];
-
-function isNonProductionName(name: string | null): boolean {
-  const lower = (name ?? "").toLowerCase();
-  return NON_PRODUCTION_NAME_PATTERNS.some((p) => lower.includes(p));
 }
 
 export async function fetchLatestCompletedPlan(serviceTypeId: string) {

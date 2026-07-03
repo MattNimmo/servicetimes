@@ -115,6 +115,33 @@ export function resolveElement(
   );
 }
 
+/**
+ * Cross-section fallback: when section-scoped resolution fails (item has no
+ * section header, or sits under a stale one — both endemic in historical
+ * plans), match against ALL element aliases and accept the result only when
+ * every match agrees on a single element. Ambiguous titles stay unmapped.
+ */
+export function resolveElementGlobally(
+  rawTitle: string,
+  campusCode: string,
+  aliases: readonly ElementAlias[],
+): { elementKey: string; sectionKey: string } | null {
+  const normalized = normalizePcoTitle(rawTitle);
+  const matched = aliases.filter(
+    (alias) =>
+      (alias.campusCode === null || alias.campusCode === campusCode) &&
+      (alias.matchType === "exact"
+        ? alias.rawTitleNormalized === normalized
+        : new RegExp(alias.rawTitleNormalized, "u").test(normalized)),
+  );
+
+  const elementKeys = [...new Set(matched.map(({ elementKey }) => elementKey))];
+  if (elementKeys.length !== 1) return null;
+  // The item also adopts the alias's home section, so a stale or missing
+  // header doesn't leave it displayed under the wrong part of the service.
+  return { elementKey: elementKeys[0], sectionKey: matched[0].sectionKey };
+}
+
 export function normalizePlanItems(
   items: NormalizableItem[],
   campusCode: string,
@@ -143,7 +170,7 @@ export function normalizePlanItems(
         };
       }
 
-      const elementKey = activeSectionKey
+      const sectionScoped = activeSectionKey
         ? resolveElement(
             item.title,
             campusCode,
@@ -152,12 +179,32 @@ export function normalizePlanItems(
           )
         : null;
 
+      // Historical plans frequently lack headers (or carry stale ones), so a
+      // section-scoped miss falls back to an unambiguous global alias match,
+      // adopting the alias's home section.
+      const fallback = sectionScoped
+        ? null
+        : resolveElementGlobally(item.title, campusCode, config.elementAliases);
+
+      // Last resort: an unresolved *song* inside the local section is, by
+      // structure, the worship response song.
+      const structural =
+        !sectionScoped && !fallback && item.itemType === "song" && activeSectionKey === "local"
+          ? "local.worship_response"
+          : null;
+
+      const elementKey = sectionScoped ?? fallback?.elementKey ?? structural;
+
       return {
         ...item,
         rawTitleNormalized,
-        sectionKey: activeSectionKey,
+        sectionKey: fallback?.sectionKey ?? activeSectionKey,
         elementKey,
-        resolutionSource: elementKey ? "alias" : "unmapped",
+        resolutionSource: structural
+          ? "structural"
+          : elementKey
+            ? "alias"
+            : "unmapped",
       };
     });
 }
