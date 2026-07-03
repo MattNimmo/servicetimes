@@ -406,7 +406,9 @@ export default function GlanceView({ campuses }: { campuses: GlanceCampus[] }) {
                   </div>
                 </div>
 
-                {campus.slots.length > 1 ? (
+                {/* Always render the slot row (even single-slot campuses) so
+                    collapsed cards in the same row keep an even height. */}
+                {campus.slots.length > 0 ? (
                   <div className="slot-picker">
                     {campus.slots.map((slot) => (
                       <button

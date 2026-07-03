@@ -19,11 +19,17 @@ function withToast(path: string, msg: string) {
   return `${path}${sep}toast=${encodeURIComponent(msg)}`;
 }
 
-export async function resolveReviewIncidentAction(formData: FormData) {
+// Row-level triage actions return state (for useActionState) instead of
+// redirecting, so the page refreshes in place without losing scroll position.
+export type InlineActionState = { message: string; ts: number } | null;
+
+export async function resolveReviewIncidentAction(
+  _prev: InlineActionState,
+  formData: FormData,
+): Promise<InlineActionState> {
   const session = await requireRole("operator");
   const incidentId = Number(formData.get("incidentId"));
   const resolution = formData.get("resolution");
-  const redirectTo = safeRedirectPath(formData.get("redirectTo"));
 
   if (!Number.isInteger(incidentId) || incidentId <= 0) {
     throw new Error("Invalid review incident.");
@@ -43,7 +49,7 @@ export async function resolveReviewIncidentAction(formData: FormData) {
 
 
   revalidatePath("/instrument");
-  redirect(withToast(redirectTo, resolution === "kept" ? "Kept" : "Excluded"));
+  return { message: resolution === "kept" ? "Kept" : "Excluded", ts: Date.now() };
 }
 
 export async function correctPlanTimeIncidentAction(formData: FormData) {
@@ -121,10 +127,12 @@ export async function resolveSlotResolutionIncidentAction(formData: FormData) {
   redirect(withToast(redirectTo, "Slot resolved"));
 }
 
-export async function mapItemToElementAction(formData: FormData) {
+export async function mapItemToElementAction(
+  _prev: InlineActionState,
+  formData: FormData,
+): Promise<InlineActionState> {
   const session = await requireRole("operator");
   const itemId = Number(formData.get("itemId"));
-  const redirectTo = safeRedirectPath(formData.get("redirectTo"));
   const elementWithSection = formData.get("elementWithSection");
 
   if (!Number.isInteger(itemId) || itemId <= 0) {
@@ -158,13 +166,15 @@ export async function mapItemToElementAction(formData: FormData) {
 
   revalidatePath("/instrument");
   revalidatePath("/variance");
-  redirect(withToast(redirectTo, "Mapped"));
+  return { message: "Mapped", ts: Date.now() };
 }
 
-export async function reopenReviewIncidentAction(formData: FormData) {
+export async function reopenReviewIncidentAction(
+  _prev: InlineActionState,
+  formData: FormData,
+): Promise<InlineActionState> {
   const session = await requireRole("operator");
   const incidentId = Number(formData.get("incidentId"));
-  const redirectTo = safeRedirectPath(formData.get("redirectTo"));
 
   if (!Number.isInteger(incidentId) || incidentId <= 0) {
     throw new Error("Invalid review incident.");
@@ -178,13 +188,15 @@ export async function reopenReviewIncidentAction(formData: FormData) {
 
   revalidatePath("/instrument");
   revalidatePath("/variance");
-  redirect(withToast(redirectTo, "Reopened"));
+  return { message: "Reopened", ts: Date.now() };
 }
 
-export async function unmapItemAction(formData: FormData) {
+export async function unmapItemAction(
+  _prev: InlineActionState,
+  formData: FormData,
+): Promise<InlineActionState> {
   const session = await requireRole("operator");
   const itemId = Number(formData.get("itemId"));
-  const redirectTo = safeRedirectPath(formData.get("redirectTo"));
 
   if (!Number.isInteger(itemId) || itemId <= 0) {
     throw new Error("Invalid item.");
@@ -198,7 +210,7 @@ export async function unmapItemAction(formData: FormData) {
 
   revalidatePath("/instrument");
   revalidatePath("/variance");
-  redirect(withToast(redirectTo, "Unmapped"));
+  return { message: "Unmapped", ts: Date.now() };
 }
 
 export async function correctItemTimeIncidentAction(formData: FormData) {

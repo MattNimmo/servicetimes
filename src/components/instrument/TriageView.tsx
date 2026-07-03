@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useActionState, useCallback, useEffect, useState } from "react";
 
 import {
   correctPlanTimeIncidentAction,
@@ -10,6 +10,7 @@ import {
   resolveReviewIncidentAction,
   resolveSlotResolutionIncidentAction,
   unmapItemAction,
+  type InlineActionState,
 } from "@/lib/operator/review-actions";
 import type {
   AvailableElement,
@@ -298,28 +299,46 @@ function SectionHeaderRow({ section }: { section: TriageSection }) {
   );
 }
 
+// Surfaces the returned message from a non-redirecting row action as a toast.
+function useInlineToast(state: InlineActionState, onToast: (msg: string) => void) {
+  useEffect(() => {
+    if (state?.message) onToast(state.message);
+  }, [state, onToast]);
+}
+
+const MAP_BUTTON_LABEL = {
+  unmapped: "Map",
+  good: "Re-map",
+  rolled_up: "Un-roll",
+} as const;
+
 function MapActions({
   item,
-  redirectTo,
   availableElements,
-  variant = "map",
+  variant,
+  onToast,
 }: {
   item: TriageItem;
-  redirectTo: string;
   availableElements: AvailableElement[];
-  variant?: "map" | "remap";
+  variant: keyof typeof MAP_BUTTON_LABEL;
+  onToast: (msg: string) => void;
 }) {
-  // Group elements by section for <optgroup>
-  const groups = new Map<string, AvailableElement[]>();
+  const [state, formAction, pending] = useActionState(mapItemToElementAction, null);
+  useInlineToast(state, onToast);
+
+  // Group elements by section for <optgroup>; availableElements arrive
+  // pre-sorted in service-flow order (pre-service → worship → … → post).
+  const groups = new Map<string, { label: string; elements: AvailableElement[] }>();
   for (const el of availableElements) {
-    if (!groups.has(el.sectionKey)) groups.set(el.sectionKey, []);
-    groups.get(el.sectionKey)!.push(el);
+    if (!groups.has(el.sectionKey)) {
+      groups.set(el.sectionKey, { label: el.sectionLabel, elements: [] });
+    }
+    groups.get(el.sectionKey)!.elements.push(el);
   }
 
   return (
-    <form action={mapItemToElementAction} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+    <form action={formAction} style={{ display: "flex", alignItems: "center", gap: 4 }}>
       <input type="hidden" name="itemId" value={String(item.id)} />
-      <input type="hidden" name="redirectTo" value={redirectTo} />
       <select
         name="elementWithSection"
         defaultValue=""
@@ -328,12 +347,9 @@ function MapActions({
         <option value="" disabled>
           Map to…
         </option>
-        {Array.from(groups.entries()).map(([sectionKey, sectionEls]) => (
-          <optgroup
-            key={sectionKey}
-            label={sectionKey.replace(/_/g, " ").toUpperCase()}
-          >
-            {sectionEls.map((el) => (
+        {Array.from(groups.entries()).map(([sectionKey, group]) => (
+          <optgroup key={sectionKey} label={group.label}>
+            {group.elements.map((el) => (
               <option key={el.key} value={`${el.key}|${sectionKey}`}>
                 {el.displayName}
               </option>
@@ -343,9 +359,61 @@ function MapActions({
       </select>
       <button
         type="submit"
-        className={variant === "remap" ? "btn btn--ghost btn--compact" : "btn btn--primary btn--compact"}
+        disabled={pending}
+        className={variant === "unmapped" ? "btn btn--primary btn--compact" : "btn btn--ghost btn--compact"}
       >
-        {variant === "remap" ? "Re-map" : "Map"}
+        {MAP_BUTTON_LABEL[variant]}
+      </button>
+    </form>
+  );
+}
+
+function UnmapForm({ itemId, onToast }: { itemId: number; onToast: (msg: string) => void }) {
+  const [state, formAction, pending] = useActionState(unmapItemAction, null);
+  useInlineToast(state, onToast);
+
+  return (
+    <form action={formAction} style={{ display: "inline" }}>
+      <input type="hidden" name="itemId" value={String(itemId)} />
+      <button type="submit" disabled={pending} className="btn btn--ghost btn--compact">
+        Unmap
+      </button>
+    </form>
+  );
+}
+
+function ReopenForm({ incidentId, onToast }: { incidentId: number; onToast: (msg: string) => void }) {
+  const [state, formAction, pending] = useActionState(reopenReviewIncidentAction, null);
+  useInlineToast(state, onToast);
+
+  return (
+    <form action={formAction} style={{ display: "inline" }}>
+      <input type="hidden" name="incidentId" value={String(incidentId)} />
+      <button type="submit" disabled={pending} className="btn btn--ghost btn--compact">
+        Undo
+      </button>
+    </form>
+  );
+}
+
+function ResolveForm({
+  incidentId,
+  resolution,
+  onToast,
+}: {
+  incidentId: number;
+  resolution: "kept" | "excluded";
+  onToast: (msg: string) => void;
+}) {
+  const [state, formAction, pending] = useActionState(resolveReviewIncidentAction, null);
+  useInlineToast(state, onToast);
+
+  return (
+    <form action={formAction} style={{ display: "inline" }}>
+      <input type="hidden" name="incidentId" value={String(incidentId)} />
+      <input type="hidden" name="resolution" value={resolution} />
+      <button type="submit" disabled={pending} className="btn btn--ghost btn--compact">
+        {resolution === "kept" ? "Keep" : "Exclude"}
       </button>
     </form>
   );
@@ -356,6 +424,7 @@ function ItemRow({
   cumulative,
   redirectTo,
   onCorrect,
+  onToast,
   availableElements,
   elementName,
 }: {
@@ -363,6 +432,7 @@ function ItemRow({
   cumulative: number;
   redirectTo: string;
   onCorrect: (payload: CorrectModalPayload) => void;
+  onToast: (msg: string) => void;
   availableElements: AvailableElement[];
   elementName: Map<string, string>;
 }) {
@@ -429,20 +499,12 @@ function ItemRow({
             incident={item.incident}
             redirectTo={redirectTo}
             onCorrect={onCorrect}
+            onToast={onToast}
           />
         )}
 
         {item.status === "resolved" && item.resolvedIncidentId && (
-          <form action={reopenReviewIncidentAction} style={{ display: "inline" }}>
-            <input type="hidden" name="incidentId" value={String(item.resolvedIncidentId)} />
-            <input type="hidden" name="redirectTo" value={redirectTo} />
-            <button
-              type="submit"
-              className="btn btn--ghost btn--compact"
-            >
-              Undo
-            </button>
-          </form>
+          <ReopenForm incidentId={item.resolvedIncidentId} onToast={onToast} />
         )}
 
         {(item.status === "unmapped" ||
@@ -450,24 +512,13 @@ function ItemRow({
           item.status === "rolled_up") && (
           <MapActions
             item={item}
-            redirectTo={redirectTo}
             availableElements={availableElements}
-            variant={item.status === "unmapped" ? "map" : "remap"}
+            variant={item.status}
+            onToast={onToast}
           />
         )}
 
-        {item.hasOverride && (
-          <form action={unmapItemAction} style={{ display: "inline" }}>
-            <input type="hidden" name="itemId" value={String(item.id)} />
-            <input type="hidden" name="redirectTo" value={redirectTo} />
-            <button
-              type="submit"
-              className="btn btn--ghost btn--compact"
-            >
-              Unmap
-            </button>
-          </form>
-        )}
+        {item.hasOverride && <UnmapForm itemId={item.id} onToast={onToast} />}
       </div>
     </div>
   );
@@ -477,10 +528,12 @@ function IncidentActions({
   incident,
   redirectTo,
   onCorrect,
+  onToast,
 }: {
   incident: TriageItemIncident;
   redirectTo: string;
   onCorrect: (payload: CorrectModalPayload) => void;
+  onToast: (msg: string) => void;
 }) {
   return (
     <div style={{ display: "flex", gap: 4 }}>
@@ -502,28 +555,8 @@ function IncidentActions({
           Correct
         </button>
       )}
-      <form action={resolveReviewIncidentAction} style={{ display: "inline" }}>
-        <input type="hidden" name="incidentId" value={String(incident.id)} />
-        <input type="hidden" name="resolution" value="kept" />
-        <input type="hidden" name="redirectTo" value={redirectTo} />
-        <button
-          type="submit"
-          className="btn btn--ghost btn--compact"
-        >
-          Keep
-        </button>
-      </form>
-      <form action={resolveReviewIncidentAction} style={{ display: "inline" }}>
-        <input type="hidden" name="incidentId" value={String(incident.id)} />
-        <input type="hidden" name="resolution" value="excluded" />
-        <input type="hidden" name="redirectTo" value={redirectTo} />
-        <button
-          type="submit"
-          className="btn btn--ghost btn--compact"
-        >
-          Exclude
-        </button>
-      </form>
+      <ResolveForm incidentId={incident.id} resolution="kept" onToast={onToast} />
+      <ResolveForm incidentId={incident.id} resolution="excluded" onToast={onToast} />
     </div>
   );
 }
@@ -542,15 +575,21 @@ export default function TriageView({
   const searchParams = useSearchParams();
   const [modal, setModal] = useState<CorrectModalPayload | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Slot selected in the toggle; falls back to the first slot whenever the
+  // campus/date changes and the remembered planTimeId no longer exists.
+  const [selectedPlanTimeId, setSelectedPlanTimeId] = useState<number | null>(null);
 
   const closeModal = useCallback(() => setModal(null), []);
   const dismissToast = useCallback(() => setToast(null), []);
+  const showToast = useCallback((msg: string) => setToast(msg), []);
 
   useEffect(() => {
     const msg = searchParams.get("toast");
     if (!msg) return;
     const id = setTimeout(() => setToast(msg), 0);
-    router.replace(`/instrument/triage?campus=${campus}&date=${data.serviceDate}`);
+    router.replace(`/instrument/triage?campus=${campus}&date=${data.serviceDate}`, {
+      scroll: false,
+    });
     return () => clearTimeout(id);
   }, [searchParams, router, campus, data.serviceDate]);
 
@@ -572,6 +611,15 @@ export default function TriageView({
   const goodCount = data.slots
     .flatMap((s) => s.sections.flatMap((sec) => sec.items))
     .filter((i) => i.status === "good").length;
+
+  const activeSlot =
+    data.slots.find((s) => s.planTimeId === selectedPlanTimeId) ?? data.slots[0] ?? null;
+
+  const slotAttentionCount = (slot: TriageSlot) =>
+    slot.slotIncidents.length +
+    slot.sections
+      .flatMap((sec) => sec.items)
+      .filter((i) => i.status === "unmapped" || i.status === "incident").length;
 
   return (
     <main className="instrument-page">
@@ -655,6 +703,30 @@ export default function TriageView({
           </div>
         )}
 
+        {data.slots.length > 1 && (
+          <div className="slot-picker">
+            {data.slots.map((slot) => {
+              const attention = slotAttentionCount(slot);
+              const active = slot.planTimeId === activeSlot?.planTimeId;
+              return (
+                <button
+                  key={slot.planTimeId}
+                  type="button"
+                  onClick={() => setSelectedPlanTimeId(slot.planTimeId)}
+                  className={
+                    active
+                      ? "slot-picker__option slot-picker__option--active"
+                      : "slot-picker__option"
+                  }
+                >
+                  {slot.slotLabel}
+                  {attention > 0 ? ` · ${attention}` : ""}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <span style={{ fontSize: 11, color: "var(--ink-35, var(--ink-disabled))" }}>
           {data.planTitle}
         </span>
@@ -722,30 +794,32 @@ export default function TriageView({
           </div>
         )}
 
-        {data.slots.map((slot) => {
-          const cumulatives = buildCumulativeMap(slot.sections);
-          return (
-            <div key={slot.planTimeId}>
-              <SlotHeaderRow slot={slot} redirectTo={redirectTo} />
-              {slot.sections.map((section) => (
-                <div key={section.sectionKey}>
-                  <SectionHeaderRow section={section} />
-                  {section.items.map((item) => (
-                    <ItemRow
-                      key={`${slot.planTimeId}:${item.id}`}
-                      item={item}
-                      cumulative={cumulatives.get(item.id) ?? 0}
-                      redirectTo={redirectTo}
-                      onCorrect={setModal}
-                      availableElements={data.availableElements}
-                      elementName={elementName}
-                    />
-                  ))}
-                </div>
-              ))}
-            </div>
-          );
-        })}
+        {activeSlot &&
+          (() => {
+            const cumulatives = buildCumulativeMap(activeSlot.sections);
+            return (
+              <div key={activeSlot.planTimeId}>
+                <SlotHeaderRow slot={activeSlot} redirectTo={redirectTo} />
+                {activeSlot.sections.map((section) => (
+                  <div key={section.sectionKey}>
+                    <SectionHeaderRow section={section} />
+                    {section.items.map((item) => (
+                      <ItemRow
+                        key={`${activeSlot.planTimeId}:${item.id}`}
+                        item={item}
+                        cumulative={cumulatives.get(item.id) ?? 0}
+                        redirectTo={redirectTo}
+                        onCorrect={setModal}
+                        onToast={showToast}
+                        availableElements={data.availableElements}
+                        elementName={elementName}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
       </div>
 
       <CorrectModal payload={modal} onClose={closeModal} />

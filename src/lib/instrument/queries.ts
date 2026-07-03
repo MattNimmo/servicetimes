@@ -440,6 +440,7 @@ export type TriageSlot = {
 export type AvailableElement = {
   key: string;
   sectionKey: string;
+  sectionLabel: string;
   displayName: string;
 };
 
@@ -995,11 +996,11 @@ export async function getTriageData(
       select: "id,sequence,raw_title,item_type,service_position,section_key,element_key,planned_seconds,is_rollup_child",
       order: "sequence.asc",
     }),
-    readRows<{ key: string; section_key: string; display_name: string }>("elements", {
+    readRows<{ key: string; section_key: string; display_name: string; sort_order: number }>("elements", {
       is_tracked: "eq.true",
       retired_at: "is.null",
-      select: "key,section_key,display_name",
-      order: "section_key.asc,sort_order.asc",
+      select: "key,section_key,display_name,sort_order",
+      order: "sort_order.asc",
     }),
   ]);
 
@@ -1212,11 +1213,25 @@ export async function getTriageData(
     };
   });
 
-  const availableElements: AvailableElement[] = rawElements.map((e) => ({
-    key: e.key,
-    sectionKey: e.section_key,
-    displayName: e.display_name,
-  }));
+  // Order the mapping dropdown by the flow of service: sections in service
+  // order, elements by their sort order within each section.
+  const sectionRank = (key: string) => {
+    const idx = SECTION_ORDER.indexOf(key);
+    return idx === -1 ? SECTION_ORDER.length : idx;
+  };
+  const availableElements: AvailableElement[] = rawElements
+    .slice()
+    .sort(
+      (a, b) =>
+        sectionRank(a.section_key) - sectionRank(b.section_key) ||
+        a.sort_order - b.sort_order,
+    )
+    .map((e) => ({
+      key: e.key,
+      sectionKey: e.section_key,
+      sectionLabel: SECTION_LABELS[e.section_key] ?? e.section_key.replace(/_/g, " ").toUpperCase(),
+      displayName: e.display_name,
+    }));
 
   return {
     campus: { code: campus.code, name: campus.name },
