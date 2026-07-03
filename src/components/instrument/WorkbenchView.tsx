@@ -658,6 +658,9 @@ export default function WorkbenchView({
             60000,
         )
       : null;
+  const broadcastCaption = slotSummary.broadcastIsMessageBlock
+    ? "BUMPER END → MESSAGE END · the on-air message block"
+    : "LIVE → END · full live block (message timers unavailable)";
 
   const midPhase = phases.mid_service;
   const midDelta =
@@ -881,7 +884,7 @@ export default function WorkbenchView({
             })}
           </div>
           <p style={{ margin: "6px 0 0", fontSize: "var(--type-caption)", color: "var(--ink-70)", letterSpacing: "0.08em" }}>
-            LIVE → END · the message block, after mid &amp; before local
+            {broadcastCaption}
           </p>
         </div>
 

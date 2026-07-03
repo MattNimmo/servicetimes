@@ -14,6 +14,8 @@ import type {
 } from "@/lib/pco/types";
 
 const campus = PCO_CAMPUSES.find(({ code }) => code === "LV")!;
+const slpCampus = PCO_CAMPUSES.find(({ code }) => code === "SLP")!;
+const elkCampus = PCO_CAMPUSES.find(({ code }) => code === "ELK")!;
 
 const plan: PcoPlan = {
   type: "Plan",
@@ -360,6 +362,82 @@ describe("buildIngestionPlan", () => {
     expect(
       result.incidents.some(({ kind }) => kind === "bundle_overlap"),
     ).toBe(false);
+    expect(
+      result.items.filter(({ isRollupChild }) => isRollupChild).map(({ pcoItemId }) => pcoItemId),
+    ).toEqual(["song-1", "song-2"]);
+  });
+
+  it("keeps post-communion SLP worship songs out of the bundle rollup", () => {
+    const result = buildIngestionPlan(
+      slpCampus,
+      {
+        plan,
+        planTimes: [planTime("slp-time", "2026-06-21T14:00:00Z")],
+        items: [
+          pcoItem("header-worship", 1, "Praise & Worship", "header", 0),
+          pcoItem("worship-bundle", 2, "Worship Bundle", "item", 600),
+          pcoItem("song-1", 3, "Song One", "song", 0),
+          pcoItem("song-2", 4, "Song Two", "song", 0),
+          pcoItem("communion", 5, "Communion", "item", 180),
+          pcoItem("holy-forever", 6, "Holy Forever", "song", 360),
+        ],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(result.items.find(({ pcoItemId }) => pcoItemId === "song-1")).toMatchObject({
+      isRollupChild: true,
+    });
+    expect(result.items.find(({ pcoItemId }) => pcoItemId === "song-2")).toMatchObject({
+      isRollupChild: true,
+    });
+    expect(result.items.find(({ pcoItemId }) => pcoItemId === "holy-forever")).toMatchObject({
+      sectionKey: "worship_open",
+      elementKey: "worship.open",
+      isRollupChild: false,
+    });
+  });
+
+  it("continues rolling up post-communion worship songs for non-broadcast campuses", () => {
+    const result = buildIngestionPlan(
+      elkCampus,
+      {
+        plan,
+        planTimes: [planTime("elk-time", "2026-06-21T14:00:00Z")],
+        items: [
+          pcoItem("header-worship", 1, "Praise & Worship", "header", 0),
+          pcoItem("worship-bundle", 2, "Worship Bundle", "item", 600),
+          pcoItem("communion", 3, "Communion", "item", 180),
+          pcoItem("holy-forever", 4, "Holy Forever", "song", 360),
+        ],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(result.items.find(({ pcoItemId }) => pcoItemId === "holy-forever")).toMatchObject({
+      isRollupChild: true,
+    });
+  });
+
+  it("continues rolling up all worship-bundle songs when communion is absent", () => {
+    const result = buildIngestionPlan(
+      slpCampus,
+      {
+        plan,
+        planTimes: [planTime("slp-time", "2026-06-21T14:00:00Z")],
+        items: [
+          pcoItem("header-worship", 1, "Praise & Worship", "header", 0),
+          pcoItem("worship-bundle", 2, "Worship Bundle", "item", 600),
+          pcoItem("song-1", 3, "Song One", "song", 300),
+          pcoItem("song-2", 4, "Song Two", "song", 360),
+        ],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+
     expect(
       result.items.filter(({ isRollupChild }) => isRollupChild).map(({ pcoItemId }) => pcoItemId),
     ).toEqual(["song-1", "song-2"]);

@@ -61,6 +61,14 @@ const elementAliases: ElementAlias[] = [
   {
     campusCode: null,
     sectionKey: "worship_open",
+    rawTitleNormalized: "communion",
+    matchType: "exact",
+    priority: 10,
+    elementKey: "worship.communion",
+  },
+  {
+    campusCode: null,
+    sectionKey: "worship_open",
     rawTitleNormalized: "worship bundle",
     matchType: "exact",
     priority: 10,
@@ -176,12 +184,13 @@ describe("normalizePlanItems golden taxonomy", () => {
         item(2, "Countdown Video", "media"),
         item(3, "Praise & Worship", "header"),
         item(4, "Worship Bundle"),
-        item(5, "Mid-Service", "header"),
-        item(6, "Meet & Greet"),
-        item(7, "Live Time", "header"),
-        item(8, "Bumper Video", "media"),
-        item(9, "Local Response", "header"),
-        item(10, "Worship Response Song", "song"),
+        item(5, "Communion"),
+        item(6, "Mid-Service", "header"),
+        item(7, "Meet & Greet"),
+        item(8, "Live Time", "header"),
+        item(9, "Bumper Video", "media"),
+        item(10, "Local Response", "header"),
+        item(11, "Worship Response Song", "song"),
       ],
       "ELK",
       { sectionAliases, elementAliases },
@@ -204,6 +213,11 @@ describe("normalizePlanItems golden taxonomy", () => {
       {
         sectionKey: "worship_open",
         elementKey: "worship.open",
+        resolutionSource: "alias",
+      },
+      {
+        sectionKey: "worship_open",
+        elementKey: "worship.communion",
         resolutionSource: "alias",
       },
       {
@@ -252,5 +266,33 @@ describe("normalizePlanItems golden taxonomy", () => {
 
     expect(normalized.map(({ sequence }) => sequence)).toEqual([1, 2]);
     expect(normalized[1].elementKey).toBe("live.bumper");
+  });
+
+  it("maps communion under a worship header to the worship communion element", () => {
+    const normalized = normalizePlanItems(
+      [item(1, "Praise & Worship", "header"), item(2, "Communion")],
+      "SLP",
+      { sectionAliases, elementAliases },
+    );
+
+    expect(normalized[1]).toMatchObject({
+      sectionKey: "worship_open",
+      elementKey: "worship.communion",
+      resolutionSource: "alias",
+    });
+  });
+
+  it("does not map communion without the worship section context", () => {
+    const normalized = normalizePlanItems(
+      [item(1, "Communion")],
+      "SLP",
+      { sectionAliases, elementAliases },
+    );
+
+    expect(normalized[0]).toMatchObject({
+      sectionKey: null,
+      elementKey: null,
+      resolutionSource: "unmapped",
+    });
   });
 });

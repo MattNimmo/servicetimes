@@ -24,6 +24,7 @@ export const PCO_TAXONOMY = {
     ["pre_service", "countdown video", "pre.countdown"],
     ["worship_open", "worship bundle", "worship.open"],
     ["worship_open", "musical worship bundle", "worship.open"],
+    ["worship_open", "communion", "worship.communion"],
     ["mid_service", "close worship", "mid.close_worship"],
     ["mid_service", "greet and seat", "mid.greet"],
     ["mid_service", "meet & greet", "mid.greet"],

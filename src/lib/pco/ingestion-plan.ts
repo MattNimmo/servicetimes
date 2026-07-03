@@ -215,11 +215,13 @@ function analyzeTimedBundles(
   items: PcoItem[],
   normalizedById: Map<string, { elementKey: string | null }>,
   assignments: Map<string, string>,
+  campus: PcoCampus,
 ) {
   const ordered = [...items].sort(
     (left, right) => left.attributes.sequence - right.attributes.sequence,
   );
   const rollupChildIds = new Set<string>();
+  const detachedWorshipSongIds = new Set<string>();
   const incidents: IngestionIncident[] = [];
 
   for (const [index, parent] of ordered.entries()) {
@@ -231,17 +233,32 @@ function analyzeTimedBundles(
       continue;
     }
 
+    const isWorshipBundle = normalizedById.get(parent.id)?.elementKey === "worship.open";
     const children: PcoItem[] = [];
+    let sawCommunion = false;
     for (let childIndex = index + 1; childIndex < ordered.length; childIndex += 1) {
       const child = ordered[childIndex];
       if (child.attributes.item_type === "header") break;
-      if (child.attributes.item_type === "song" && child.attributes.length > 0) {
-        children.push(child);
+      const childElementKey = normalizedById.get(child.id)?.elementKey;
+      if (
+        childElementKey === "worship.communion" ||
+        /communion/i.test(child.attributes.title)
+      ) {
+        sawCommunion = true;
+      }
+      if (child.attributes.item_type === "song") {
+        if (campus.isBroadcastOrigin && sawCommunion) {
+          detachedWorshipSongIds.add(child.id);
+          continue;
+        }
+        if (isWorshipBundle || child.attributes.length > 0) {
+          children.push(child);
+        }
       }
     }
     if (children.length === 0) continue;
 
-    if (normalizedById.get(parent.id)?.elementKey === "worship.open") {
+    if (isWorshipBundle) {
       for (const child of children) {
         rollupChildIds.add(child.id);
       }
@@ -271,7 +288,7 @@ function analyzeTimedBundles(
     );
   }
 
-  return { rollupChildIds, incidents };
+  return { rollupChildIds, detachedWorshipSongIds, incidents };
 }
 
 function buildTaxonomyReview(
@@ -418,10 +435,15 @@ export function buildIngestionPlan(
     taxonomy,
   );
   const normalizedById = new Map(normalizedItems.map((item) => [item.id, item]));
-  const { rollupChildIds, incidents: bundleIncidents } = analyzeTimedBundles(
+  const {
+    rollupChildIds,
+    detachedWorshipSongIds,
+    incidents: bundleIncidents,
+  } = analyzeTimedBundles(
     bundle.items,
     normalizedById,
     assignments,
+    campus,
   );
   incidents.push(...bundleIncidents);
 
@@ -480,6 +502,8 @@ export function buildIngestionPlan(
       const normalized = normalizedById.get(id);
       if (!normalized) throw new Error(`Normalized item ${id} was not found`);
 
+      const isDetachedWorshipSong = detachedWorshipSongIds.has(id);
+
       return {
         pcoItemId: id,
         pcoPlanId: bundle.plan.id,
@@ -488,11 +512,13 @@ export function buildIngestionPlan(
         rawTitleNormalized: normalized.rawTitleNormalized,
         itemType: attributes.item_type,
         servicePosition: attributes.service_position,
-        sectionKey: normalized.sectionKey,
-        elementKey: normalized.elementKey,
+        sectionKey: isDetachedWorshipSong ? "worship_open" : normalized.sectionKey,
+        elementKey: isDetachedWorshipSong ? "worship.open" : normalized.elementKey,
         plannedSeconds: attributes.length,
-        isRollupChild: rollupChildIds.has(id),
-        resolutionSource: normalized.resolutionSource,
+        isRollupChild: !isDetachedWorshipSong && rollupChildIds.has(id),
+        resolutionSource: isDetachedWorshipSong
+          ? ("alias" as const)
+          : normalized.resolutionSource,
       };
     })
     .sort((left, right) => left.sequence - right.sequence);

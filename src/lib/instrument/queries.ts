@@ -19,6 +19,7 @@ export type ServiceSlotSummary = {
   actualSeconds: number | null;
   broadcastStartsAt: string | null;
   broadcastEndsAt: string | null;
+  broadcastIsMessageBlock: boolean;
   isBlocked: boolean;
   phases: PhaseBreakdown;
 };
@@ -236,6 +237,7 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
           planTime.actual_service_seconds,
         broadcastStartsAt: planTime.live_starts_at,
         broadcastEndsAt: planTime.live_ends_at,
+        broadcastIsMessageBlock: false,
         isBlocked: isSlotBlocked(incidents, planTime.id, slot.id),
         phases: buildPhaseBreakdown(elementsBySlot.get(slot.id) ?? []),
         expectedLocalStart: slot.expected_local_start,
@@ -254,6 +256,7 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
       actualSeconds: summary.actualSeconds,
       broadcastStartsAt: summary.broadcastStartsAt,
       broadcastEndsAt: summary.broadcastEndsAt,
+      broadcastIsMessageBlock: summary.broadcastIsMessageBlock,
       isBlocked: summary.isBlocked,
       phases: summary.phases,
     }));
@@ -703,11 +706,11 @@ export async function getWorkbenchData(
     openIncidents(latestPlan.id, allIds.map(({ id }) => id)),
     activePlanTimeCorrections(planTimesForSlot.map(({ id }) => id)),
     latestPlanTime
-      ? readRows<{ id: number; item_id: number }>("item_times", {
+      ? readRows<{ id: number; item_id: number; live_start_at: string | null; live_end_at: string | null }>("item_times", {
           plan_time_id: `eq.${latestPlanTime.id}`,
-          select: "id,item_id",
+          select: "id,item_id,live_start_at,live_end_at",
         })
-      : Promise.resolve([] as Array<{ id: number; item_id: number }>),
+      : Promise.resolve([] as Array<{ id: number; item_id: number; live_start_at: string | null; live_end_at: string | null }>),
   ]);
 
   // Which items in this slot have an active item-time correction (→ ADJ chip)
@@ -729,6 +732,24 @@ export async function getWorkbenchData(
     ? (correctionMap.get(latestPlanTime.id)?.corrected_actual_seconds ??
         latestPlanTime.actual_service_seconds)
     : null;
+  const itemTimesByItemId = new Map(slotItemTimes.map((itemTime) => [itemTime.item_id, itemTime]));
+  const elementItemIds = (elementKey: string) =>
+    elements.find((element) => element.element_key === elementKey)?.item_ids ?? [];
+  // The window boundary is when the element block finishes, so take the
+  // latest recorded live end across the element's items (item_ids are in
+  // sequence order; usually a single item).
+  const lastElementItemEnd = (elementKey: string) => {
+    let lastEnd: string | null = null;
+    for (const itemId of elementItemIds(elementKey)) {
+      const liveEndAt = itemTimesByItemId.get(itemId)?.live_end_at;
+      if (liveEndAt && (lastEnd === null || liveEndAt > lastEnd)) {
+        lastEnd = liveEndAt;
+      }
+    }
+    return lastEnd;
+  };
+  const bumperEndAt = lastElementItemEnd("live.bumper");
+  const messageEndAt = lastElementItemEnd("live.message");
 
   const slotSummary: ServiceSlotSummary = {
     slotId: slot.id,
@@ -736,8 +757,9 @@ export async function getWorkbenchData(
     planTimeId: latestPlanTime?.id ?? 0,
     plannedSeconds: latestPlanTime?.planned_target_seconds ?? null,
     actualSeconds: actualSecondsForSlot,
-    broadcastStartsAt: latestPlanTime?.live_starts_at ?? null,
-    broadcastEndsAt: latestPlanTime?.live_ends_at ?? null,
+    broadcastStartsAt: bumperEndAt ?? latestPlanTime?.live_starts_at ?? null,
+    broadcastEndsAt: messageEndAt ?? latestPlanTime?.live_ends_at ?? null,
+    broadcastIsMessageBlock: bumperEndAt !== null && messageEndAt !== null,
     isBlocked: latestPlanTime
       ? isSlotBlocked(incidents, latestPlanTime.id, slot.id)
       : false,

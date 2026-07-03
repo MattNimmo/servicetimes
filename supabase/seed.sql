@@ -45,6 +45,7 @@ insert into public.elements
 values
   ('pre.countdown', 'pre_service', 'Countdown Video', true, false, null, 10),
   ('worship.open', 'worship_open', 'Praise & Worship', true, true, null, 10),
+  ('worship.communion', 'worship_open', 'Communion (in Worship)', true, true, null, 30),
   ('mid.close_worship', 'mid_service', 'Close Worship', true, true, null, 10),
   ('mid.connect_card', 'mid_service', 'Connect Card', true, true, null, 20),
   ('mid.greet', 'mid_service', 'Greet & Seat', true, true, null, 30),
@@ -100,6 +101,7 @@ values
   ('pre_service', 'countdown video', 'exact', 10, 'pre.countdown'),
   ('worship_open', 'worship bundle', 'exact', 10, 'worship.open'),
   ('worship_open', 'musical worship bundle', 'exact', 10, 'worship.open'),
+  ('worship_open', 'communion', 'exact', 10, 'worship.communion'),
   ('mid_service', 'close worship', 'exact', 10, 'mid.close_worship'),
   ('mid_service', 'greet and seat', 'exact', 10, 'mid.greet'),
   ('mid_service', 'meet & greet', 'exact', 10, 'mid.greet'),

@@ -302,10 +302,12 @@ function MapActions({
   item,
   redirectTo,
   availableElements,
+  variant = "map",
 }: {
   item: TriageItem;
   redirectTo: string;
   availableElements: AvailableElement[];
+  variant?: "map" | "remap";
 }) {
   // Group elements by section for <optgroup>
   const groups = new Map<string, AvailableElement[]>();
@@ -341,9 +343,9 @@ function MapActions({
       </select>
       <button
         type="submit"
-        className="btn btn--primary btn--compact"
+        className={variant === "remap" ? "btn btn--ghost btn--compact" : "btn btn--primary btn--compact"}
       >
-        Map
+        {variant === "remap" ? "Re-map" : "Map"}
       </button>
     </form>
   );
@@ -443,11 +445,14 @@ function ItemRow({
           </form>
         )}
 
-        {item.status === "unmapped" && (
+        {(item.status === "unmapped" ||
+          item.status === "good" ||
+          item.status === "rolled_up") && (
           <MapActions
             item={item}
             redirectTo={redirectTo}
             availableElements={availableElements}
+            variant={item.status === "unmapped" ? "map" : "remap"}
           />
         )}
 
