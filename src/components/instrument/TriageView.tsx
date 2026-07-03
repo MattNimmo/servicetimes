@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useActionState, useCallback, useEffect, useState } from "react";
 
 import {
+  bulkResolveIncidentsAction,
   correctPlanTimeIncidentAction,
   mapItemToElementAction,
   reopenReviewIncidentAction,
@@ -476,6 +477,56 @@ function ReopenForm({ incidentId, onToast }: { incidentId: number; onToast: (msg
   );
 }
 
+// Bulk accept-as-is for historical incident noise (backfill Phase 4): nobody
+// corrects a timer from months ago one service at a time.
+const BULK_KINDS = [
+  { value: "zero_allotment", label: "Zero allotment" },
+  { value: "timer_bleed", label: "Timer bleed" },
+  { value: "missing_item_end", label: "Missing item end" },
+  { value: "bundle_overlap", label: "Bundle overlap" },
+] as const;
+
+function BulkKeepControl({ onToast }: { onToast: (msg: string) => void }) {
+  const [state, formAction, pending] = useActionState(bulkResolveIncidentsAction, null);
+  useInlineToast(state, onToast);
+
+  return (
+    <form
+      action={formAction}
+      style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}
+    >
+      <span
+        style={{
+          fontSize: "var(--type-micro)",
+          fontWeight: 700,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: "var(--ink-70)",
+        }}
+      >
+        Bulk keep
+      </span>
+      <select name="kind" defaultValue="zero_allotment" className="glass-select glass-select--compact">
+        {BULK_KINDS.map((k) => (
+          <option key={k.value} value={k.value}>
+            {k.label}
+          </option>
+        ))}
+      </select>
+      <select name="olderThanWeeks" defaultValue="8" className="glass-select glass-select--compact">
+        {[4, 8, 12, 26, 52].map((w) => (
+          <option key={w} value={w}>
+            older than {w} wk
+          </option>
+        ))}
+      </select>
+      <button type="submit" disabled={pending} className="btn btn--ghost btn--compact">
+        Keep all
+      </button>
+    </form>
+  );
+}
+
 function ResolveForm({
   incidentId,
   resolution,
@@ -849,12 +900,31 @@ export default function TriageView({
         <span style={{ fontSize: 11, color: "var(--ink-35, var(--ink-disabled))" }}>
           {data.planTitle}
         </span>
+
+        {/* Worst outstanding Sunday — exception-queue entry point */}
+        {(() => {
+          const worst = availableDates
+            .filter((d) => d.attentionCount > 0 && d.serviceDate !== data.serviceDate)
+            .sort((a, b) => b.attentionCount - a.attentionCount)[0];
+          if (!worst) return null;
+          return (
+            <button
+              type="button"
+              onClick={() => navigateDate(worst.serviceDate)}
+              className="btn btn--ghost btn--compact"
+              title="Jump to the Sunday with the most open work"
+            >
+              Worst outstanding: {formatServiceDate(worst.serviceDate)} · {worst.attentionCount} →
+            </button>
+          );
+        })()}
       </div>
 
-      {/* Legend */}
+      {/* Legend + bulk tools */}
       <div
         style={{
           display: "flex",
+          alignItems: "center",
           gap: 16,
           flexWrap: "wrap",
           marginBottom: 20,
@@ -874,6 +944,7 @@ export default function TriageView({
             {l.label}
           </span>
         ))}
+        <BulkKeepControl onToast={showToast} />
       </div>
 
       {/* Service-order panel */}

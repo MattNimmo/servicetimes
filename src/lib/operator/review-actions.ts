@@ -213,6 +213,49 @@ export async function unmapItemAction(
   return { message: "Unmapped", ts: Date.now() };
 }
 
+const BULK_RESOLVABLE_KINDS = new Set([
+  "zero_allotment",
+  "timer_bleed",
+  "missing_item_end",
+  "bundle_overlap",
+]);
+
+export async function bulkResolveIncidentsAction(
+  _prev: InlineActionState,
+  formData: FormData,
+): Promise<InlineActionState> {
+  const session = await requireRole("operator");
+  const kind = formData.get("kind");
+  const olderThanWeeks = Number(formData.get("olderThanWeeks"));
+
+  if (typeof kind !== "string" || !BULK_RESOLVABLE_KINDS.has(kind)) {
+    throw new Error("This incident kind cannot be bulk-resolved.");
+  }
+  if (!Number.isInteger(olderThanWeeks) || olderThanWeeks < 1 || olderThanWeeks > 104) {
+    throw new Error("Cutoff must be between 1 and 104 weeks.");
+  }
+
+  const beforeDate = new Date(Date.now() - olderThanWeeks * 7 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+
+  const result = await postRpc<{ ok: boolean; resolved_count: number }>(
+    "bulk_resolve_review_incidents",
+    {
+      p_kind: kind,
+      p_before_date: beforeDate,
+      p_actor: session.role,
+    },
+  );
+
+  revalidatePath("/instrument");
+  revalidatePath("/variance");
+  return {
+    message: `Kept ${result.resolved_count} ${kind.replace(/_/g, " ")} incident${result.resolved_count === 1 ? "" : "s"} older than ${olderThanWeeks} wk`,
+    ts: Date.now(),
+  };
+}
+
 export async function correctItemTimeIncidentAction(formData: FormData) {
   const session = await requireRole("operator");
   const incidentId = Number(formData.get("incidentId"));

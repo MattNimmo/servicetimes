@@ -44,7 +44,7 @@ export type TaxonomyReviewReason =
   | "missing_section"
   | "missing_alias";
 
-type PlanBundle = {
+export type PlanBundle = {
   plan: PcoPlan;
   planTimes: PcoPlanTime[];
   items: PcoItem[];

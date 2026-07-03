@@ -67,7 +67,7 @@ export async function pcoGet<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-function normalizeNextPath(next: string) {
+export function normalizeNextPath(next: string) {
   const url = new URL(next, PCO_BASE_URL);
 
   if (url.origin !== PCO_BASE_URL || !url.pathname.startsWith("/services/v2/")) {
