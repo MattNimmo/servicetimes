@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 
 import type {
   BroadcastTrendPoint,
@@ -36,6 +36,39 @@ function formatClock(iso: string): string {
   return `${hour}:${minute}${period.toLowerCase().startsWith("p") ? "p" : "a"}`;
 }
 
+/** Wall-clock minutes since midnight (campus-local) for an ISO timestamp. */
+function wallClockMinutes(iso: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: CAMPUS_TIME_ZONE,
+  }).formatToParts(new Date(iso));
+  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+  return hour * 60 + minute;
+}
+
+function minutesToClock(totalMinutes: number): string {
+  const rounded = Math.round(totalMinutes);
+  const hour24 = Math.floor(rounded / 60) % 24;
+  const minute = rounded % 60;
+  const suffix = hour24 >= 12 ? "p" : "a";
+  const hour = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${hour}:${String(minute).padStart(2, "0")}${suffix}`;
+}
+
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
+function mean(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
 const SLOT_COLORS = ["var(--accent)", "var(--phase-mid)", "var(--elk)", "var(--lv)"];
 
 // Round the y-axis to a friendly tick step so the scale reads at a glance.
@@ -52,7 +85,7 @@ function niceTicks(min: number, max: number): number[] {
 // so it lives outside the per-campus cards.
 function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
   const [horizon, setHorizon] = useState<BroadcastWindowHorizon>("6wk");
-  const { tip, setTip, clear } = useChartTip();
+  const { wrapperRef, tip, showTip, clear } = useChartTip();
   if (points.length === 0) return null;
 
   const sundays = BROADCAST_HORIZONS.find((h) => h.value === horizon)?.sundays ?? 6;
@@ -116,7 +149,7 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
         </div>
       </div>
 
-      <div style={{ position: "relative" }} onPointerLeave={clear}>
+      <div ref={wrapperRef} style={{ position: "relative" }} onPointerLeave={clear}>
         <svg
           viewBox={`0 0 ${W} ${H}`}
           style={{ width: "100%", height: 150, marginTop: 4 }}
@@ -185,9 +218,7 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
                   cy={cy}
                   r={Math.max(9, dotR + 6)}
                   fill="transparent"
-                  onPointerEnter={() =>
-                    setTip({ xPct: (cx / W) * 100, yPct: (cy / H) * 100, lines: tipLines })
-                  }
+                  onPointerEnter={(event) => showTip(event, tipLines)}
                 />
                 <circle cx={cx} cy={cy} r={dotR} fill={slotColor.get(p.slotLabel)} pointerEvents="none" />
               </g>
@@ -197,13 +228,70 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
         <ChartTipBox tip={tip} />
       </div>
 
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
-        {slotLabels.map((label) => (
-          <span key={label} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 999, background: slotColor.get(label) }} />
+      {/* Per-slot start/end stats over the selected window */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "auto repeat(5, minmax(0, 1fr))",
+          columnGap: 18,
+          rowGap: 6,
+          alignItems: "baseline",
+          marginTop: 10,
+          maxWidth: 620,
+        }}
+      >
+        <span />
+        {["Median start", "Avg start", "Median end", "Avg end", "Median live"].map((label) => (
+          <span
+            key={label}
+            style={{
+              fontSize: "var(--type-micro)",
+              fontWeight: 700,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: "var(--ink-70)",
+            }}
+          >
             {label}
           </span>
         ))}
+        {slotLabels.map((label) => {
+          const slotPoints = visible.filter((p) => p.slotLabel === label);
+          const startMed = median(slotPoints.map((p) => wallClockMinutes(p.startsAt)));
+          const startAvg = mean(slotPoints.map((p) => wallClockMinutes(p.startsAt)));
+          const endMed = median(slotPoints.map((p) => wallClockMinutes(p.endsAt)));
+          const endAvg = mean(slotPoints.map((p) => wallClockMinutes(p.endsAt)));
+          const liveMed = median(slotPoints.map((p) => p.windowSeconds));
+          const stats = [
+            startMed !== null ? minutesToClock(startMed) : "—",
+            startAvg !== null ? minutesToClock(startAvg) : "—",
+            endMed !== null ? minutesToClock(endMed) : "—",
+            endAvg !== null ? minutesToClock(endAvg) : "—",
+            liveMed !== null ? formatDuration(liveMed) : "—",
+          ];
+          return (
+            <Fragment key={label}>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "var(--ink)",
+                }}
+              >
+                <span style={{ width: 8, height: 8, borderRadius: 999, background: slotColor.get(label) }} />
+                {label}
+              </span>
+              {stats.map((value, i) => (
+                <span key={i} className="tabular" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+                  {value}
+                </span>
+              ))}
+            </Fragment>
+          );
+        })}
       </div>
     </section>
   );

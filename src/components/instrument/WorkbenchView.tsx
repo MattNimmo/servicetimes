@@ -75,7 +75,7 @@ function TrendChart({
   trend: TrendPoint[];
   metric: WbMetric;
 }) {
-  const { tip, setTip, clear } = useChartTip();
+  const { wrapperRef, tip, showTip, clear } = useChartTip();
   if (trend.length === 0) {
     return (
       <div
@@ -138,7 +138,7 @@ function TrendChart({
   const summary = `${metricLabel(metric)} trend, ${dateRange}. Minimum ${formatDelta(minDelta)}, median ${formatDelta(medianDelta)}, maximum ${formatDelta(maxDelta)}.`;
 
   return (
-    <div style={{ position: "relative" }} onPointerLeave={clear}>
+    <div ref={wrapperRef} style={{ position: "relative" }} onPointerLeave={clear}>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         style={{ width: "100%", height: 150 }}
@@ -228,9 +228,7 @@ function TrendChart({
               cy={pt.y}
               r={Math.max(9, dotR + 6)}
               fill="transparent"
-              onPointerEnter={() =>
-                setTip({ xPct: (pt.x / W) * 100, yPct: ((pt.y ?? 0) / H) * 100, lines: tipLines })
-              }
+              onPointerEnter={(event) => showTip(event, tipLines)}
             />
             <circle cx={pt.x} cy={pt.y} r={dotR} fill={color} pointerEvents="none" />
           </g>
