@@ -64,11 +64,6 @@ function median(values: number[]): number | null {
   return sorted[Math.floor(sorted.length / 2)];
 }
 
-function mean(values: number[]): number | null {
-  if (values.length === 0) return null;
-  return values.reduce((total, value) => total + value, 0) / values.length;
-}
-
 const SLOT_COLORS = ["var(--accent)", "var(--phase-mid)", "var(--elk)", "var(--lv)"];
 
 // Round the y-axis to a friendly tick step so the scale reads at a glance.
@@ -232,16 +227,16 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "auto repeat(5, minmax(0, 1fr))",
+          gridTemplateColumns: "auto repeat(3, minmax(0, 1fr))",
           columnGap: 18,
           rowGap: 6,
           alignItems: "baseline",
           marginTop: 10,
-          maxWidth: 620,
+          maxWidth: 460,
         }}
       >
         <span />
-        {["Median start", "Avg start", "Median end", "Avg end", "Median live"].map((label) => (
+        {["Median start", "Median end", "Median live"].map((label) => (
           <span
             key={label}
             style={{
@@ -258,15 +253,11 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
         {slotLabels.map((label) => {
           const slotPoints = visible.filter((p) => p.slotLabel === label);
           const startMed = median(slotPoints.map((p) => wallClockMinutes(p.startsAt)));
-          const startAvg = mean(slotPoints.map((p) => wallClockMinutes(p.startsAt)));
           const endMed = median(slotPoints.map((p) => wallClockMinutes(p.endsAt)));
-          const endAvg = mean(slotPoints.map((p) => wallClockMinutes(p.endsAt)));
           const liveMed = median(slotPoints.map((p) => p.windowSeconds));
           const stats = [
             startMed !== null ? minutesToClock(startMed) : "—",
-            startAvg !== null ? minutesToClock(startAvg) : "—",
             endMed !== null ? minutesToClock(endMed) : "—",
-            endAvg !== null ? minutesToClock(endAvg) : "—",
             liveMed !== null ? formatDuration(liveMed) : "—",
           ];
           return (
