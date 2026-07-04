@@ -11,6 +11,7 @@ import type {
   ServiceSlotSummary,
 } from "@/lib/instrument/queries";
 import { formatDelta, formatDuration, formatServiceDate } from "@/lib/variance/format";
+import { ChartTipBox, useChartTip } from "./ChartTooltip";
 
 const CAMPUS_TIME_ZONE = "America/Chicago";
 
@@ -37,10 +38,21 @@ function formatClock(iso: string): string {
 
 const SLOT_COLORS = ["var(--accent)", "var(--phase-mid)", "var(--elk)", "var(--lv)"];
 
+// Round the y-axis to a friendly tick step so the scale reads at a glance.
+function niceTicks(min: number, max: number): number[] {
+  const span = Math.max(1, max - min);
+  const step = [1, 2, 5, 10, 15, 20, 30, 60].find((s) => span / s <= 5) ?? 60;
+  const first = Math.ceil(min / step) * step;
+  const ticks: number[] = [];
+  for (let v = first; v <= max; v += step) ticks.push(v);
+  return ticks;
+}
+
 // Broadcast-window trend for the broadcast-origin campus. Location-agnostic,
-// so it sits above the per-campus cards.
+// so it lives outside the per-campus cards.
 function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
   const [horizon, setHorizon] = useState<BroadcastWindowHorizon>("6wk");
+  const { tip, setTip, clear } = useChartTip();
   if (points.length === 0) return null;
 
   const sundays = BROADCAST_HORIZONS.find((h) => h.value === horizon)?.sundays ?? 6;
@@ -54,13 +66,16 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
   const minutes = visible.map((p) => p.windowSeconds / 60);
   const minMin = Math.floor(Math.min(...minutes) - 2);
   const maxMin = Math.ceil(Math.max(...minutes) + 2);
-  const median = [...minutes].sort((a, b) => a - b)[Math.floor(minutes.length / 2)] ?? null;
+  const medianSeconds =
+    [...visible.map((p) => p.windowSeconds)].sort((a, b) => a - b)[
+      Math.floor(visible.length / 2)
+    ] ?? null;
 
   const W = 560;
   const H = 150;
-  const padX = 34;
-  const padY = 16;
-  const chartW = W - padX - 12;
+  const padX = 40;
+  const padY = 18;
+  const chartW = W - padX - 14;
   const chartH = H - 2 * padY;
   const dates = [...windowDates].sort();
   const xFor = (serviceDate: string) => {
@@ -69,18 +84,22 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
   };
   const yFor = (windowSeconds: number) =>
     padY + chartH - ((windowSeconds / 60 - minMin) / Math.max(1, maxMin - minMin)) * chartH;
-  const medianY = median !== null ? padY + chartH - ((median - minMin) / Math.max(1, maxMin - minMin)) * chartH : null;
-
-  const dotR = dates.length > 30 ? 2.6 : 3.4;
+  const medianY = medianSeconds !== null ? yFor(medianSeconds) : null;
+  const ticks = niceTicks(minMin, maxMin);
+  const dotR = dates.length > 30 ? 2.6 : dates.length > 10 ? 3.2 : 4;
 
   return (
-    <section className="glass-card" style={{ borderRadius: "var(--r-glance)", padding: "1.1rem 1.25rem", marginBottom: "1.1rem" }}>
+    <section
+      className="glass-card"
+      style={{ borderRadius: "var(--r-glance)", padding: "1.1rem 1.25rem", marginTop: "1.1rem" }}
+    >
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div>
-          <p className="instrument-eyebrow" style={{ margin: 0 }}>Broadcast window</p>
+          <p className="instrument-eyebrow" style={{ margin: 0, fontSize: "var(--type-micro)" }}>
+            Broadcast window · {BROADCAST_HORIZONS.find((h) => h.value === horizon)?.label}
+          </p>
           <p style={{ margin: "4px 0 0", fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
-            Bumper end → message end at the broadcast origin · median{" "}
-            {median !== null ? formatDuration(Math.round(median * 60)) : "—"} live
+            Bumper end → message end at the broadcast origin
           </p>
         </div>
         <div className="segment-control__options">
@@ -97,47 +116,86 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
         </div>
       </div>
 
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 150, marginTop: 8 }} role="img" aria-label={`Broadcast window trend over ${horizon}`}>
-        <text x={2} y={padY + 4} fill="var(--ink-70)" fontSize="10" fontWeight={700}>
-          {maxMin}m
-        </text>
-        <text x={2} y={H - padY} fill="var(--ink-70)" fontSize="10" fontWeight={700}>
-          {minMin}m
-        </text>
-        <line x1={padX} y1={padY + chartH} x2={W - 12} y2={padY + chartH} stroke="var(--ink-line-medium)" strokeWidth={1} />
-        {medianY !== null && (
-          <line x1={padX} y1={medianY} x2={W - 12} y2={medianY} stroke="var(--accent)" strokeWidth={1} strokeDasharray="3 3" opacity={0.7} />
-        )}
-        {dates.length > 1 && (
-          <>
-            <text x={padX} y={H - 2} fill="var(--ink-70)" fontSize="10">
-              {formatServiceDate(dates[0])}
-            </text>
-            <text x={W - 12} y={H - 2} textAnchor="end" fill="var(--ink-70)" fontSize="10">
-              {formatServiceDate(dates[dates.length - 1])}
-            </text>
-          </>
-        )}
-        {visible.map((p, i) => {
-          const label = `${formatServiceDate(p.serviceDate)} · ${p.slotLabel}: ${formatClock(p.startsAt)} → ${formatClock(p.endsAt)} · ${formatDuration(p.windowSeconds)} live${p.isMessageBlock ? "" : " (full live block — message timers unavailable)"}`;
-          return (
-            <g key={`${p.serviceDate}-${p.slotLabel}-${i}`}>
-              {/* generous invisible hit target so hover tooltips are easy */}
-              <circle cx={xFor(p.serviceDate)} cy={yFor(p.windowSeconds)} r={10} fill="transparent">
-                <title>{label}</title>
-              </circle>
-              <circle
-                cx={xFor(p.serviceDate)}
-                cy={yFor(p.windowSeconds)}
-                r={dotR}
-                fill={slotColor.get(p.slotLabel)}
-                opacity={p.isMessageBlock ? 1 : 0.45}
-                pointerEvents="none"
+      <div style={{ position: "relative" }} onPointerLeave={clear}>
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          style={{ width: "100%", height: 150, marginTop: 4 }}
+          role="img"
+          aria-label={`Broadcast window trend over ${horizon}`}
+        >
+          {/* y-axis scale: faint gridline + minute label per tick */}
+          {ticks.map((tick) => {
+            const y = yFor(tick * 60);
+            return (
+              <g key={tick}>
+                <line x1={padX} y1={y} x2={W - 14} y2={y} stroke="var(--ink-fill-chart)" strokeWidth={1} />
+                <text x={2} y={y + 3} fill="var(--ink-70)" fontSize="10" fontWeight={700}>
+                  {tick}m
+                </text>
+              </g>
+            );
+          })}
+          {medianY !== null && (
+            <>
+              <line
+                x1={padX}
+                y1={medianY}
+                x2={W - 14}
+                y2={medianY}
+                stroke="var(--accent)"
+                strokeWidth={1}
+                strokeDasharray="3 3"
+                opacity={0.7}
               />
-            </g>
-          );
-        })}
-      </svg>
+              <text
+                x={W - 14}
+                y={Math.max(11, medianY - 5)}
+                textAnchor="end"
+                fill="var(--accent)"
+                fontSize="10"
+                fontWeight={700}
+              >
+                Median {formatDuration(medianSeconds)}
+              </text>
+            </>
+          )}
+          {dates.length > 1 && (
+            <>
+              <text x={padX} y={H - 2} fill="var(--ink-70)" fontSize="10">
+                {formatServiceDate(dates[0])}
+              </text>
+              <text x={W - 14} y={H - 2} textAnchor="end" fill="var(--ink-70)" fontSize="10">
+                {formatServiceDate(dates[dates.length - 1])}
+              </text>
+            </>
+          )}
+          {visible.map((p, i) => {
+            const cx = xFor(p.serviceDate);
+            const cy = yFor(p.windowSeconds);
+            const tipLines = [
+              `${formatServiceDate(p.serviceDate)} · ${p.slotLabel}`,
+              `${formatClock(p.startsAt)} → ${formatClock(p.endsAt)} · ${formatDuration(p.windowSeconds)} live`,
+              ...(p.isMessageBlock ? [] : ["full live block — no message timers"]),
+            ];
+            return (
+              <g key={`${p.serviceDate}-${p.slotLabel}-${i}`}>
+                {/* generous invisible hit target so hover tooltips are easy */}
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={Math.max(9, dotR + 6)}
+                  fill="transparent"
+                  onPointerEnter={() =>
+                    setTip({ xPct: (cx / W) * 100, yPct: (cy / H) * 100, lines: tipLines })
+                  }
+                />
+                <circle cx={cx} cy={cy} r={dotR} fill={slotColor.get(p.slotLabel)} pointerEvents="none" />
+              </g>
+            );
+          })}
+        </svg>
+        <ChartTipBox tip={tip} />
+      </div>
 
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
         {slotLabels.map((label) => (
@@ -146,8 +204,6 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
             {label}
           </span>
         ))}
-        <span>· faded = raw live block (no message timers)</span>
-        <span>· dashed = median</span>
       </div>
     </section>
   );
@@ -543,8 +599,6 @@ export default function GlanceView({
         </div>
       </section>
 
-      <BroadcastWindowTrend points={broadcastTrend} />
-
       <div className="glance-grid">
         {campusCards.map(({ campus, selectedSlot, phases, totalPlanned, expanded: isExpanded, recs, midDelta }) => {
           const selectedActual =
@@ -760,6 +814,8 @@ export default function GlanceView({
           );
         })}
       </div>
+
+      <BroadcastWindowTrend points={broadcastTrend} />
     </main>
   );
 }

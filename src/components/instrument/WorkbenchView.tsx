@@ -13,6 +13,7 @@ import type {
   WorkbenchHorizon,
 } from "@/lib/instrument/queries";
 import { formatDelta, formatDuration, formatServiceDate } from "@/lib/variance/format";
+import { ChartTipBox, useChartTip } from "./ChartTooltip";
 import Toast from "./Toast";
 
 const CAMPUS_CODES = ["SLP", "MG", "ELK", "LV"] as const;
@@ -74,6 +75,7 @@ function TrendChart({
   trend: TrendPoint[];
   metric: WbMetric;
 }) {
+  const { tip, setTip, clear } = useChartTip();
   if (trend.length === 0) {
     return (
       <div
@@ -112,7 +114,7 @@ function TrendChart({
       (trend.length === 1 ? chartW / 2 : (i / (trend.length - 1)) * chartW);
     const delta = deltas[i];
     const y = delta !== null ? centerY - (delta / maxAbs) * (chartH / 2) : null;
-    return { x, y, delta, isMoment: pt.isMoment };
+    return { x, y, delta };
   });
 
   let pathD = "";
@@ -136,18 +138,14 @@ function TrendChart({
   const summary = `${metricLabel(metric)} trend, ${dateRange}. Minimum ${formatDelta(minDelta)}, median ${formatDelta(medianDelta)}, maximum ${formatDelta(maxDelta)}.`;
 
   return (
-    <>
+    <div style={{ position: "relative" }} onPointerLeave={clear}>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         style={{ width: "100%", height: 150 }}
         role="img"
         aria-label={summary}
       >
-      {/* No chart-level <title>: it would swallow the per-point tooltips. */}
-      <desc>
-        Each point shows actual time compared with planned time. Hollow points
-        mark moment services.
-      </desc>
+      <desc>Each point shows actual time compared with planned time.</desc>
       <text x={2} y={padY + 4} fill="var(--ink-70)" fontSize="10" fontWeight={700}>
         {formatDelta(maxAbs)}
       </text>
@@ -210,45 +208,38 @@ function TrendChart({
         />
       )}
       {pts.map((pt, i) => {
+        // Weeks with no usable actual (including incident-blocked Sundays)
+        // are simply absent — no gray placeholder markers.
+        if (pt.y === null || pt.delta === null) return null;
         const source = trend[i];
         const { actual, planned } = metricSeconds(source, metric);
-        const pointLabel =
-          pt.delta === null
-            ? `${formatServiceDate(source.serviceDate)}: no ${metricLabel(metric)} actual available`
-            : `${formatServiceDate(source.serviceDate)} · ${metricLabel(metric)}: actual ${formatDuration(actual)} vs plan ${formatDuration(planned)} → ${formatDelta(pt.delta)}${pt.isMoment ? " · moment service" : ""}`;
-        const cy = pt.y ?? centerY;
         const color =
-          pt.delta === null || pt.delta === 0
-            ? "var(--ink-70)"
-            : pt.delta > 0
-              ? "var(--over)"
-              : "var(--under)";
-        const hollow = pt.isMoment || pt.y === null;
+          pt.delta === 0 ? "var(--ink-70)" : pt.delta > 0 ? "var(--over)" : "var(--under)";
+        const tipLines = [
+          formatServiceDate(source.serviceDate),
+          `${metricLabel(metric)} · actual ${formatDuration(actual)} vs plan ${formatDuration(planned)}`,
+          `variance ${formatDelta(pt.delta)}`,
+        ];
         return (
           <g key={i}>
             {/* generous invisible hit target so every point is hoverable */}
-            <circle cx={pt.x} cy={cy} r={Math.max(8, dotR + 5)} fill="transparent">
-              <title>{pointLabel}</title>
-            </circle>
-            {hollow ? (
-              <circle
-                cx={pt.x}
-                cy={cy}
-                r={dotR + 0.5}
-                fill="none"
-                stroke={color}
-                strokeWidth={1.5}
-                pointerEvents="none"
-              />
-            ) : (
-              <circle cx={pt.x} cy={cy} r={dotR} fill={color} pointerEvents="none" />
-            )}
+            <circle
+              cx={pt.x}
+              cy={pt.y}
+              r={Math.max(9, dotR + 6)}
+              fill="transparent"
+              onPointerEnter={() =>
+                setTip({ xPct: (pt.x / W) * 100, yPct: ((pt.y ?? 0) / H) * 100, lines: tipLines })
+              }
+            />
+            <circle cx={pt.x} cy={pt.y} r={dotR} fill={color} pointerEvents="none" />
           </g>
         );
       })}
       </svg>
+      <ChartTipBox tip={tip} />
       <p className="sr-only">{summary}</p>
-    </>
+    </div>
   );
 }
 
@@ -827,9 +818,6 @@ export default function WorkbenchView({
           >
             {formatDelta(midDelta)}
           </p>
-          <p style={{ margin: "8px 0 0", fontSize: "var(--type-caption)", color: "var(--phase-mid)", letterSpacing: "0.08em" }}>
-            THE PART YOU ACTUALLY CONTROL
-          </p>
         </div>
 
         {/* Cross tile */}
@@ -860,21 +848,6 @@ export default function WorkbenchView({
             </div>
           </div>
           <TrendChart trend={trend} metric={wbMetric} />
-          <p style={{ margin: "4px 0 0", fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
-            ○ moment · — median{" "}
-            {wbMetric === "total" && (
-              <span className="tabular">
-                {(() => {
-                  const vals = trend
-                    .filter((pt) => pt.actualSeconds !== null && pt.plannedSeconds !== null)
-                    .map((pt) => pt.actualSeconds! - pt.plannedSeconds!);
-                  const sorted = [...vals].sort((a, b) => a - b);
-                  const med = sorted.length > 0 ? sorted[Math.floor(sorted.length / 2)] : null;
-                  return med !== null ? formatDelta(med) : "—";
-                })()}
-              </span>
-            )}
-          </p>
         </div>
       </div>
 
