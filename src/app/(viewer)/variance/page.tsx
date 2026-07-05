@@ -28,12 +28,15 @@ export default async function VarianceIndexPage() {
             href={`/variance/${campus.code}`}
             className="glass-tile group transition hover:-translate-y-0.5 hover:bg-white/70"
           >
-            <span className="table-label flex items-center gap-2">
+            {/* Flex lives on a bare wrapper: .table-label is unlayered
+                display:block and would override a layered flex utility,
+                collapsing the gap and jamming the dot against the code. */}
+            <span className="flex items-center gap-2">
               <span
                 aria-hidden
                 className={`campus-dot campus-dot--${campus.code.toLowerCase()}`}
               />
-              {campus.code}
+              <span className="table-label">{campus.code}</span>
             </span>
             <h2 className="mt-3 text-xl font-semibold group-hover:text-[var(--accent)]">
               {campus.name}

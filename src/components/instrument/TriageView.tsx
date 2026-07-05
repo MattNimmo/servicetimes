@@ -1038,7 +1038,7 @@ export default function TriageView({
       </div>
 
       {/* Service-order panel */}
-      <div className="glass-card" style={{ borderRadius: 14, overflow: "hidden" }}>
+      <div className="glass-card" style={{ borderRadius: "var(--r-card)", overflow: "hidden" }}>
         {/* Column header */}
         <div
           className="triage-row"

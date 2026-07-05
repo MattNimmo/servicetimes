@@ -63,7 +63,7 @@ function ModalPanel({
         WebkitBackdropFilter: "var(--glass-filter)",
         border: "1px solid var(--glass-border)",
         boxShadow: "var(--glass-shadow)",
-        borderRadius: 18,
+        borderRadius: "var(--r-glance)",
         padding: "24px 24px 20px",
         width: "100%",
         maxWidth: 420,

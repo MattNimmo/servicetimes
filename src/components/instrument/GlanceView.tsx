@@ -154,10 +154,13 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
         </div>
       </div>
 
-      <div ref={wrapperRef} style={{ position: "relative" }} onPointerLeave={clear}>
+      {/* Chart and per-slot medians sit side by side on wide cards so the
+          full width is used; they stack on narrow screens. */}
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", gap: 24, marginTop: 4 }}>
+      <div ref={wrapperRef} style={{ position: "relative", flex: "1 1 420px", minWidth: 0 }} onPointerLeave={clear}>
         <svg
           viewBox={`0 0 ${W} ${H}`}
-          style={{ display: "block", width: "100%", maxWidth: 720, height: "auto", marginTop: 4 }}
+          style={{ display: "block", width: "100%", height: "auto" }}
           role="img"
           aria-label={`Broadcast window trend over ${horizon}`}
         >
@@ -185,11 +188,13 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
                 strokeDasharray="3 3"
                 opacity={0.7}
               />
+              {/* Anchored left, clear of the rightmost data dot it used to
+                  collide with. */}
               <text
-                x={W - 14}
+                x={padX + 4}
                 y={Math.max(11, medianY - 5)}
-                textAnchor="end"
-                fill="var(--accent)"
+                textAnchor="start"
+                fill="var(--accent-text)"
                 fontSize="10"
                 fontWeight={700}
               >
@@ -241,8 +246,8 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
           columnGap: 18,
           rowGap: 6,
           alignItems: "baseline",
-          marginTop: 10,
-          maxWidth: 460,
+          flex: "1 1 380px",
+          minWidth: 0,
         }}
       >
         <span />
@@ -291,6 +296,7 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
             </Fragment>
           );
         })}
+      </div>
       </div>
     </section>
   );
@@ -585,7 +591,7 @@ function RecommendationsPanel({
                 justifyContent: "space-between",
                 gap: 10,
                 padding: "8px 10px",
-                borderRadius: 10,
+                borderRadius: "var(--r-sm)",
                 background: "var(--ink-fill-soft)",
               }}
             >
@@ -900,7 +906,7 @@ export default function GlanceView({
                         style={{
                           marginTop: 12,
                           padding: "10px 14px",
-                          borderRadius: 10,
+                          borderRadius: "var(--r-sm)",
                           background: "rgba(221,138,32,0.08)",
                           border: "1px solid rgba(221,138,32,0.14)",
                         }}

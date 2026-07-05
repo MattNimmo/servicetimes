@@ -3,7 +3,7 @@ export default function ViewerLoading() {
     <main className="app-page app-page--center">
       <section className="glass-card p-8">
         <p className="instrument-eyebrow">ECC Service Times</p>
-        <h1 className="instrument-title">Loading...</h1>
+        <h1 className="instrument-title">Loading…</h1>
         <p className="instrument-subtitle">
           Gathering service history.
         </p>

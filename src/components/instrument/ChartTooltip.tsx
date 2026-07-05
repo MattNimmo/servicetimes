@@ -56,7 +56,7 @@ export function ChartTipBox({ tip }: { tip: ChartTip }) {
         transform: flipBelow ? "translate(-50%, 14px)" : "translate(-50%, calc(-100% - 12px))",
         background: "var(--ink)",
         color: "rgba(255,255,255,0.94)",
-        borderRadius: 10,
+        borderRadius: "var(--r-sm)",
         padding: "7px 10px",
         fontSize: 11,
         lineHeight: 1.45,

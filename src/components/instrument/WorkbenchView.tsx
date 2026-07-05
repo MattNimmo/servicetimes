@@ -176,11 +176,12 @@ function TrendChart({
         />
       )}
       {medianY !== null && (
+        // Anchored left, clear of the rightmost data dot it used to overlap.
         <text
-          x={W - 14}
+          x={padX + 4}
           y={Math.max(11, medianY - 5)}
-          textAnchor="end"
-          fill="var(--accent)"
+          textAnchor="start"
+          fill="var(--accent-text)"
           fontSize="10"
           fontWeight={700}
         >
