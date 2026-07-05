@@ -81,30 +81,32 @@ export default async function ServiceVariancePage({
               <h2 className="text-2xl font-semibold">{slot.slotLabel}</h2>
               {slot.variance.status === "needs_review" && <ReviewPill />}
             </div>
-            <dl className="mt-6 grid grid-cols-2 gap-4">
+            {/* The delta is the story; planned/actual are its supporting
+                evidence, one visual level down. */}
+            <div className="mt-5">
+              <p className="table-label">vs plan</p>
+              <p className="mt-1 text-4xl font-bold tabular-nums tracking-tight">
+                {formatDelta(slot.variance.deltaSeconds)}
+              </p>
+            </div>
+            <dl className="mt-5 flex flex-wrap gap-x-6 gap-y-2">
               <div>
                 <dt className="table-label">Planned</dt>
-                <dd className="mt-1 text-xl">
+                <dd className="mt-1 text-base tabular-nums">
                   {formatDuration(slot.variance.plannedSeconds)}
                 </dd>
               </div>
               <div>
                 <dt className="table-label">Actual</dt>
-                <dd className="mt-1 text-xl">
+                <dd className="mt-1 text-base tabular-nums">
                   {slot.variance.status === "complete"
                     ? formatDuration(slot.variance.actualSeconds)
                     : "—"}
                 </dd>
               </div>
               <div>
-                <dt className="table-label">Delta</dt>
-                <dd className="muted mt-1 text-lg">
-                  {formatDelta(slot.variance.deltaSeconds)}
-                </dd>
-              </div>
-              <div>
                 <dt className="table-label">Percent</dt>
-                <dd className="muted mt-1 text-lg">
+                <dd className="muted mt-1 text-base tabular-nums">
                   {formatPercent(slot.variance.deltaPercent)}
                 </dd>
               </div>

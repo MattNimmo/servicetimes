@@ -64,6 +64,15 @@ function median(values: number[]): number | null {
   return sorted[Math.floor(sorted.length / 2)];
 }
 
+/** Short "Jun 28" form for card eyebrows when campus dates diverge. */
+function formatShortDate(value: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${value}T12:00:00Z`));
+}
+
 const SLOT_COLORS = ["var(--accent)", "var(--phase-mid)", "var(--elk)", "var(--lv)"];
 
 // Round the y-axis to a friendly tick step so the scale reads at a glance.
@@ -385,7 +394,7 @@ function buildPatternRecommendations(
   recWindow: 6 | 12,
   workbenchHref: string,
 ): GlanceRecommendation[] {
-  return campus.elementPatterns
+  const entries = campus.elementPatterns
     .map((pattern) => ({
       pattern,
       stats: recWindow === 6 ? pattern.window6 : pattern.window12,
@@ -396,21 +405,37 @@ function buildPatternRecommendations(
       const confirmed = stats.weeksWithData >= 4 && ratio >= 0.6;
       const emerging = !confirmed && stats.weeksOver >= 2 && ratio >= 0.4;
       if (!confirmed && !emerging) return null;
-      return {
-        rec: {
-          urgency: confirmed ? ("medium" as const) : ("low" as const),
-          label: `${confirmed ? "Confirmed" : "Emerging"} trend: ${pattern.elementName} avg ${formatDelta(stats.avgDeltaSeconds)} (${recWindow} wk)`,
-          detail: `Ran 30s+ over plan in ${stats.weeksOver} of ${stats.weeksWithData} tracked weeks. The plan may be wrong, not the execution — consider updating the planned time.`,
-          actionLabel: "Open Workbench →",
-          actionHref: workbenchHref,
-        },
-        avgDelta: stats.avgDeltaSeconds ?? 0,
-      };
+      return { pattern, stats, confirmed, avgDelta: stats.avgDeltaSeconds ?? 0 };
     })
     .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
     .sort((a, b) => b.avgDelta - a.avgDelta)
-    .slice(0, 3)
-    .map(({ rec }) => rec);
+    .slice(0, 3);
+
+  if (entries.length <= 1) {
+    return entries.map(({ pattern, stats, confirmed }) => ({
+      urgency: confirmed ? ("medium" as const) : ("low" as const),
+      label: `${confirmed ? "Confirmed" : "Emerging"} trend: ${pattern.elementName} avg ${formatDelta(stats.avgDeltaSeconds)} (${recWindow} wk)`,
+      detail: `Ran 30s+ over plan in ${stats.weeksOver} of ${stats.weeksWithData} tracked weeks. The plan may be wrong, not the execution — consider updating the planned time.`,
+      actionLabel: "Open Workbench →",
+      actionHref: workbenchHref,
+    }));
+  }
+
+  // Several trending elements collapse into one grouped recommendation so a
+  // card never repeats the same sentence and CTA three times.
+  const confirmedCount = entries.filter(({ confirmed }) => confirmed).length;
+  const summary = entries
+    .map(({ pattern, stats }) => `${pattern.elementName} avg ${formatDelta(stats.avgDeltaSeconds)}`)
+    .join(" · ");
+  return [
+    {
+      urgency: confirmedCount > 0 ? ("medium" as const) : ("low" as const),
+      label: `${entries.length} elements trending over plan (${recWindow} wk)`,
+      detail: `${summary}. The plan may be wrong, not the execution — consider updating planned times.`,
+      actionLabel: "Open Workbench →",
+      actionHref: workbenchHref,
+    },
+  ];
 }
 
 function buildRecommendations(
@@ -502,6 +527,10 @@ function buildRecommendations(
   });
 }
 
+// Working-memory cap: a card shows at most this many recommendations up
+// front; the rest sit behind an explicit "+N more" toggle.
+const VISIBLE_RECS = 3;
+
 function RecommendationsPanel({
   recs,
   recWindow,
@@ -509,6 +538,10 @@ function RecommendationsPanel({
   recs: GlanceRecommendation[];
   recWindow: 6 | 12;
 }) {
+  const [showAll, setShowAll] = useState(false);
+  const visibleRecs = showAll ? recs : recs.slice(0, VISIBLE_RECS);
+  const hiddenCount = recs.length - visibleRecs.length;
+
   return (
     <div style={{ marginTop: 14 }}>
       <p
@@ -542,7 +575,7 @@ function RecommendationsPanel({
         </p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {recs.map((rec, i) => (
+          {visibleRecs.map((rec, i) => (
             <div
               key={i}
               style={{
@@ -600,6 +633,26 @@ function RecommendationsPanel({
               </a>
             </div>
           ))}
+          {(hiddenCount > 0 || showAll) && (
+            <button
+              type="button"
+              onClick={() => setShowAll(!showAll)}
+              aria-expanded={showAll}
+              style={{
+                alignSelf: "flex-start",
+                background: "none",
+                border: 0,
+                padding: "2px 0",
+                fontSize: "var(--type-micro)",
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                color: "var(--ink-70)",
+                cursor: "pointer",
+              }}
+            >
+              {showAll ? "Show fewer" : `+${hiddenCount} more`}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -652,11 +705,22 @@ export default function GlanceView({
     [campuses, expanded, glanceSvc, mode, recWindow, isOperator],
   );
 
+  // When every campus is reporting the same Sunday (the normal case), say the
+  // date once in the hero and let each card lead with its campus. Cards only
+  // carry their own date when campuses diverge.
+  const sharedServiceDate =
+    new Set(campuses.map((campus) => campus.serviceDate)).size === 1
+      ? campuses[0]?.serviceDate ?? null
+      : null;
+
   return (
     <main className="instrument-page">
       <section className="instrument-hero">
         <div>
-          <p className="instrument-eyebrow">The Monday Glance</p>
+          <p className="instrument-eyebrow">
+            The Monday Glance
+            {sharedServiceDate ? ` · ${formatServiceDate(sharedServiceDate)}` : ""}
+          </p>
           <h1 className="instrument-title">Where did each campus land?</h1>
           <p className="instrument-subtitle">
             Every campus against plan from the latest Sunday — and what deserves
@@ -735,13 +799,15 @@ export default function GlanceView({
                 <div>
                   <div className="glance-card__eyebrow">
                     <span className={`campus-dot campus-dot--${campus.code.toLowerCase()}`} />
-                    <span>{campus.name}</span>
-                    <span>·</span>
+                    {sharedServiceDate === null && (
+                      <>
+                        <span>{formatShortDate(campus.serviceDate)}</span>
+                        <span>·</span>
+                      </>
+                    )}
                     <span>{slotOptions(campus).join(" · ")}</span>
                   </div>
-                  <h2 className="glance-card__title">
-                    {formatServiceDate(campus.serviceDate)}
-                  </h2>
+                  <h2 className="glance-card__title">{campus.name}</h2>
                 </div>
                 <div className="glance-card__header-meta">
                   <span className={`status-pill status-pill--${statusTone(campus, selectedSlot, mode)}`}>
