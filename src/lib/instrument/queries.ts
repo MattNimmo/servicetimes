@@ -659,6 +659,7 @@ export type TriageData = {
 export type ServiceDateOption = {
   serviceDate: string;
   title: string | null;
+  slotCount: number;
   attentionCount: number;
 };
 
@@ -668,6 +669,7 @@ export async function listInstrumentServiceDates(code: string): Promise<ServiceD
   return result.dates.map((d) => ({
     serviceDate: d.service_date,
     title: d.title ?? null,
+    slotCount: d.slotCount,
     attentionCount: d.openIncidentCount + d.unmappedCount,
   }));
 }

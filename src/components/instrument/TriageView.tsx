@@ -495,16 +495,13 @@ function BulkKeepControl({ onToast }: { onToast: (msg: string) => void }) {
   const [olderThanWeeks, setOlderThanWeeks] = useState(8);
   useInlineToast(state, onToast);
 
-  useEffect(() => {
-    if (state) setArmed(false);
-  }, [state]);
-
   const kindLabel =
     BULK_KINDS.find((k) => k.value === kind)?.label.toLowerCase() ?? kind;
 
   return (
     <form
       action={formAction}
+      onSubmit={() => setArmed(false)}
       style={{
         display: "flex",
         alignItems: "center",
@@ -857,6 +854,9 @@ export default function TriageView({
     slot.sections
       .flatMap((sec) => sec.items)
       .filter((i) => i.status === "unmapped" || i.status === "incident").length;
+  const productionAttentionDates = availableDates.filter(
+    (d) => d.slotCount > 0 && d.attentionCount > 0,
+  );
 
   return (
     <main className="instrument-page">
@@ -937,7 +937,9 @@ export default function TriageView({
               {availableDates.map((opt) => (
                 <option key={opt.serviceDate} value={opt.serviceDate}>
                   {formatServiceDate(opt.serviceDate)}
-                  {opt.attentionCount > 0 ? ` · ${opt.attentionCount}` : ""}
+                  {opt.slotCount > 0 && opt.attentionCount > 0
+                    ? ` · ${opt.attentionCount}`
+                    : ""}
                 </option>
               ))}
             </select>
@@ -984,8 +986,8 @@ export default function TriageView({
 
         {/* Worst outstanding Sunday — exception-queue entry point */}
         {(() => {
-          const worst = availableDates
-            .filter((d) => d.attentionCount > 0 && d.serviceDate !== data.serviceDate)
+          const worst = productionAttentionDates
+            .filter((d) => d.serviceDate !== data.serviceDate)
             .sort((a, b) => b.attentionCount - a.attentionCount)[0];
           if (!worst) return null;
           return (
@@ -1064,10 +1066,8 @@ export default function TriageView({
               (d) => d.serviceDate === data.serviceDate,
             );
             const flagged = current?.attentionCount ?? 0;
-            const nextUp = availableDates
-              .filter(
-                (d) => d.attentionCount > 0 && d.serviceDate !== data.serviceDate,
-              )
+            const nextUp = productionAttentionDates
+              .filter((d) => d.serviceDate !== data.serviceDate)
               .sort((a, b) => b.attentionCount - a.attentionCount)[0];
             return (
               <div
