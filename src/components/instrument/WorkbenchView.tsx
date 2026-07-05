@@ -497,11 +497,13 @@ export default function WorkbenchView({
   campus,
   slot,
   horizon,
+  isOperator,
 }: {
   data: WorkbenchData;
   campus: string;
   slot: string;
   horizon: WorkbenchHorizon;
+  isOperator: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -540,13 +542,19 @@ export default function WorkbenchView({
     referenceTargetSeconds,
     isReferenceTargetApproved,
   } = data;
-  const targetLabel = isReferenceTargetApproved ? "APPROVED TARGET" : "WORKING TARGET";
+  const targetLabel = isReferenceTargetApproved ? "approved target" : "working target";
   const totalPlanned = Object.values(phases).reduce(
     (t, p) => t + p.plannedSeconds,
     0,
   );
 
+  // The public comparison is vs plan; the reference target is an operator
+  // calibration line shown separately below.
   const delta =
+    slotSummary.actualSeconds !== null && totalPlanned > 0
+      ? slotSummary.actualSeconds - totalPlanned
+      : null;
+  const targetDelta =
     slotSummary.actualSeconds !== null
       ? slotSummary.actualSeconds - referenceTargetSeconds
       : null;
@@ -690,8 +698,14 @@ export default function WorkbenchView({
             </p>
           </div>
           <p style={{ margin: "4px 0 12px", fontSize: "var(--type-caption)", color: "var(--ink-70)", letterSpacing: "0.1em" }}>
-            VS {targetLabel} · {trend.length} SUNDAY{trend.length === 1 ? "" : "S"}
+            VS PLAN · {trend.length} SUNDAY{trend.length === 1 ? "" : "S"}
           </p>
+          {isOperator && (
+            <p style={{ margin: "-6px 0 12px", fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
+              {targetLabel}: {formatDuration(referenceTargetSeconds)}
+              {targetDelta !== null ? ` · ${formatDelta(targetDelta)} against it` : ""}
+            </p>
+          )}
 
           {/* Phase bar */}
           <div

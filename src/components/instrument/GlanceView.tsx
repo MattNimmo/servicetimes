@@ -320,31 +320,39 @@ function slotOptions(campus: GlanceCampus) {
   return campus.slots.map((slot) => slot.slotLabel);
 }
 
-function targetLabel(campus: GlanceCampus) {
-  return campus.isReferenceTargetApproved ? "approved target" : "working target";
+/**
+ * The public number is vs plan (ECC's own planned/actual vocabulary).
+ * Reference targets are an operator-side calibration concept and live in
+ * Workbench; Glance never mentions them.
+ */
+function slotPlanDelta(selectedSlot: ServiceSlotSummary | undefined): number | null {
+  if (!selectedSlot) return null;
+  if (selectedSlot.actualSeconds === null || selectedSlot.plannedSeconds === null) {
+    return null;
+  }
+  return selectedSlot.actualSeconds - selectedSlot.plannedSeconds;
 }
 
 function statusLabel(
-  campus: GlanceCampus,
   selectedSlot: ServiceSlotSummary | undefined,
   mode: "actuals" | "awaiting",
 ) {
   if (mode === "awaiting") return "Awaiting Sunday";
   if (!selectedSlot || selectedSlot.actualSeconds === null) return "Needs review";
   if (selectedSlot.isBlocked) return "Needs review";
-  if (selectedSlot.actualSeconds > campus.referenceTargetSeconds) return "Over target";
-  return "On target";
+  const delta = slotPlanDelta(selectedSlot);
+  if (delta !== null && delta > 60) return "Over plan";
+  return "On plan";
 }
 
 function statusTone(
-  campus: GlanceCampus,
   selectedSlot: ServiceSlotSummary | undefined,
   mode: "actuals" | "awaiting",
 ) {
-  const label = statusLabel(campus, selectedSlot, mode);
+  const label = statusLabel(selectedSlot, mode);
   if (label === "Needs review") return "review";
-  if (label === "Over target") return "over";
-  if (label === "On target") return "under";
+  if (label === "Over plan") return "over";
+  if (label === "On plan") return "under";
   return "neutral";
 }
 
@@ -353,14 +361,16 @@ function verdictLabel(campus: GlanceCampus, selectedSlot: ServiceSlotSummary | u
   if (selectedSlot.isBlocked) return "The Tech Team is still verifying this service's numbers.";
   if (selectedSlot.actualSeconds === null) return "Sunday's timing hasn't fully landed yet.";
 
-  const delta = selectedSlot.actualSeconds - campus.referenceTargetSeconds;
-  if (delta <= 0) return `Cleared the ${targetLabel(campus)}.`;
-  if (delta <= 60) return "Slightly over target — within the normal range.";
+  const delta = slotPlanDelta(selectedSlot);
+  if (delta === null) return "Sunday's timing hasn't fully landed yet.";
+  if (delta < 0) return `Landed ${formatDuration(-delta)} under plan.`;
+  if (delta === 0) return "Right on plan.";
+  if (delta <= 60) return "Slightly over plan — within the normal range.";
   if (campus.openIncidentCount > 0) {
     const n = campus.openIncidentCount;
-    return `Over target, and ${n} item${n === 1 ? " is" : "s are"} still being verified.`;
+    return `Over plan, and ${n} item${n === 1 ? " is" : "s are"} still being verified.`;
   }
-  return "Over target — open Workbench to see which part of the service carried it.";
+  return "Over plan — open Workbench to see which part of the service carried it.";
 }
 
 function totalPlannedSeconds(phases: PhaseBreakdown) {
@@ -493,18 +503,15 @@ function buildRecommendations(
       }
     }
 
-    const actual = selectedSlot?.actualSeconds ?? null;
-    if (actual !== null) {
-      const totalDelta = actual - campus.referenceTargetSeconds;
-      if (totalDelta > 120) {
-        recs.push({
-          urgency: "medium",
-          label: `Service ran ${formatDelta(totalDelta)} over the ${targetLabel(campus)}`,
-          detail: "Open Workbench to see which part of the service carried the most variance before next week.",
-          actionLabel: "Open Workbench →",
-          actionHref: workbenchHref,
-        });
-      }
+    const totalDelta = slotPlanDelta(selectedSlot);
+    if (totalDelta !== null && totalDelta > 120) {
+      recs.push({
+        urgency: "medium",
+        label: `Service ran ${formatDelta(totalDelta)} over plan`,
+        detail: "Open Workbench to see which part of the service carried the most variance before next week.",
+        actionLabel: "Open Workbench →",
+        actionHref: workbenchHref,
+      });
     }
   }
 
@@ -778,10 +785,8 @@ export default function GlanceView({
         {campusCards.map(({ campus, selectedSlot, phases, totalPlanned, expanded: isExpanded, recs, midDelta }) => {
           const selectedActual =
             mode === "awaiting" ? selectedSlot?.plannedSeconds ?? null : selectedSlot?.actualSeconds ?? null;
-          const delta =
-            selectedActual === null
-              ? null
-              : selectedActual - campus.referenceTargetSeconds;
+          // In plan-preview mode there is nothing to compare against yet.
+          const delta = mode === "awaiting" ? null : slotPlanDelta(selectedSlot);
 
           return (
             <article key={campus.code} className="glass-card glance-card">
@@ -810,8 +815,8 @@ export default function GlanceView({
                   <h2 className="glance-card__title">{campus.name}</h2>
                 </div>
                 <div className="glance-card__header-meta">
-                  <span className={`status-pill status-pill--${statusTone(campus, selectedSlot, mode)}`}>
-                    {statusLabel(campus, selectedSlot, mode)}
+                  <span className={`status-pill status-pill--${statusTone(selectedSlot, mode)}`}>
+                    {statusLabel(selectedSlot, mode)}
                   </span>
                   <span className="glance-card__chevron">{isExpanded ? "▾" : "▸"}</span>
                 </div>
@@ -821,7 +826,8 @@ export default function GlanceView({
                 <div className="glance-card__total-row">
                   <div>
                     <p className="glance-card__label">
-                      {selectedSlot?.slotLabel ?? "No slot"} · total · {targetLabel(campus)}
+                      {selectedSlot?.slotLabel ?? "No slot"} ·{" "}
+                      {mode === "awaiting" ? "planned total" : "total · vs plan"}
                     </p>
                     <p className="glance-card__total tabular">
                       {formatDuration(selectedActual)}
