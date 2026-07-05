@@ -4,49 +4,64 @@ import { useCallback, useEffect, useState } from "react";
 
 const STORAGE_KEY = "service-times.dashboard-guide.open";
 
-const GUIDE_SECTIONS = [
+type GuideSection = {
+  title: string;
+  operatorOnly?: boolean;
+  items: readonly string[];
+};
+
+const GUIDE_SECTIONS: readonly GuideSection[] = [
   {
-    title: "Daily scan",
+    title: "Glance",
     items: [
-      "Start in Glance to compare campuses, slots, and the mid-service lever.",
-      "Open campus cards with attention states before reading healthy campuses.",
-      "Use recommendation rows as prompts, not automatic truth; they point to timing patterns worth reviewing.",
-    ],
-  },
-  {
-    title: "Triage",
-    items: [
-      "Use Triage when a slot, item, or mapping needs a decision before the numbers should be trusted.",
-      "Correct raw timing only through the correction forms; the original Planning Center evidence stays intact.",
-      "Resolve or reopen incidents from the row where the evidence appears, so the audit trail keeps its context.",
+      "Start here Monday. Each card answers one question: did that campus land on plan?",
+      "Open the cards with attention states first; healthy campuses can wait.",
+      "Recommendations are prompts, not verdicts — they point at timing worth a look.",
     ],
   },
   {
     title: "Workbench",
     items: [
-      "Use Workbench for one campus and slot at a time when you need trend context and element-level detail.",
-      "Compare planned time, actual time, and phase deltas before applying a recommendation.",
-      "Generate, apply, or dismiss recommendations from the review panel; applied and dismissed rows are audited.",
+      "One campus, one service. Use it when you need trend context and element-level detail.",
+      "Compare planned, actual, and the phase breakdown before changing anything in Planning Center.",
+      "A confirmed trend usually means the plan is wrong, not the execution — update the planned time.",
     ],
   },
   {
-    title: "Operating rhythm",
+    title: "Triage",
+    operatorOnly: true,
     items: [
-      "After ingestion, scan Glance, clear Triage blockers, then use Workbench to review recurring timing levers.",
-      "Treat provisional targets as context only; planned item times are the recommendation target for each service/location.",
-      "If something looks off, prefer reopening or dismissing with context over editing around the evidence.",
+      "Use Triage when an item needs a decision before the numbers can be trusted.",
+      "Correct raw timing only through the correction forms; the original Planning Center evidence stays intact.",
+      "Resolve or reopen from the row where the evidence appears, so the audit trail keeps its context.",
+    ],
+  },
+  {
+    title: "Weekly rhythm",
+    operatorOnly: true,
+    items: [
+      "After Sunday's ingest: scan Glance, clear Triage, then review recurring levers in Workbench.",
+      "Working targets are context, not law; planned item times are what you actually calibrate.",
+      "If something looks off, reopen or dismiss with context — don't edit around the evidence.",
     ],
   },
 ] as const;
 
-export default function DashboardGuide() {
+export default function DashboardGuide({ isOperator }: { isOperator: boolean }) {
   const [isReady, setIsReady] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
 
   useEffect(() => {
     const id = setTimeout(() => {
       const stored = window.localStorage.getItem(STORAGE_KEY);
-      setIsOpen(stored === null ? true : stored === "true");
+      if (stored === null) {
+        // True first run: show the guide once, then collapse on every later
+        // visit unless the user reopens it. The verdict owns the first paint.
+        setIsOpen(true);
+        window.localStorage.setItem(STORAGE_KEY, "false");
+      } else {
+        setIsOpen(stored === "true");
+      }
       setIsReady(true);
     }, 0);
     return () => clearTimeout(id);
@@ -68,10 +83,9 @@ export default function DashboardGuide() {
         <div className="dashboard-guide__header">
           <div>
             <p className="instrument-eyebrow">Guide</p>
-            <h2 className="dashboard-guide__title">Operate the dashboard</h2>
+            <h2 className="dashboard-guide__title">How to read this</h2>
             <p className="dashboard-guide__summary">
-              A quick field guide for reading the service timing flow, resolving review states,
-              and applying recommendations with context.
+              A one-minute field guide to the views and what to do with what they show.
             </p>
           </div>
           <button
@@ -88,7 +102,9 @@ export default function DashboardGuide() {
         {isOpen && (
           <div id="dashboard-guide-content" className="dashboard-guide__content">
             <div className="dashboard-guide__grid">
-              {GUIDE_SECTIONS.map((section) => (
+              {GUIDE_SECTIONS.filter(
+                (section) => !section.operatorOnly || isOperator,
+              ).map((section) => (
                 <article key={section.title} className="dashboard-guide__section">
                   <h3>{section.title}</h3>
                   <ul>
@@ -100,8 +116,7 @@ export default function DashboardGuide() {
               ))}
             </div>
             <p className="dashboard-guide__memory">
-              This guide opens the first time by default. Hide or show it and the dashboard
-              will remember that choice on this browser.
+              This guide stays tucked away after your first visit — reopen it here anytime.
             </p>
           </div>
         )}

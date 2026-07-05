@@ -127,7 +127,7 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
             Broadcast window · {BROADCAST_HORIZONS.find((h) => h.value === horizon)?.label}
           </p>
           <p style={{ margin: "4px 0 0", fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
-            Bumper end → message end at the broadcast origin
+            Bumper end → message end at the broadcast campus
           </p>
         </div>
         <div className="segment-control__options">
@@ -136,6 +136,7 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
               key={h.value}
               type="button"
               className={horizon === h.value ? "segment-option segment-option--active" : "segment-option"}
+              aria-pressed={horizon === h.value}
               onClick={() => setHorizon(h.value)}
             >
               {h.label}
@@ -147,7 +148,7 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
       <div ref={wrapperRef} style={{ position: "relative" }} onPointerLeave={clear}>
         <svg
           viewBox={`0 0 ${W} ${H}`}
-          style={{ width: "100%", height: 150, marginTop: 4 }}
+          style={{ display: "block", width: "100%", maxWidth: 720, height: "auto", marginTop: 4 }}
           role="img"
           aria-label={`Broadcast window trend over ${horizon}`}
         >
@@ -311,7 +312,7 @@ function slotOptions(campus: GlanceCampus) {
 }
 
 function targetLabel(campus: GlanceCampus) {
-  return campus.isReferenceTargetApproved ? "reference target" : "provisional target";
+  return campus.isReferenceTargetApproved ? "approved target" : "working target";
 }
 
 function statusLabel(
@@ -339,17 +340,18 @@ function statusTone(
 }
 
 function verdictLabel(campus: GlanceCampus, selectedSlot: ServiceSlotSummary | undefined) {
-  if (!selectedSlot) return "No production slot is mapped yet.";
-  if (selectedSlot.isBlocked) return "Operator review is still blocking this slot.";
-  if (selectedSlot.actualSeconds === null) return "Broadcast actual has not fully landed yet.";
+  if (!selectedSlot) return "No tracked service for this date yet.";
+  if (selectedSlot.isBlocked) return "The Tech Team is still verifying this service's numbers.";
+  if (selectedSlot.actualSeconds === null) return "Sunday's timing hasn't fully landed yet.";
 
   const delta = selectedSlot.actualSeconds - campus.referenceTargetSeconds;
   if (delta <= 0) return `Cleared the ${targetLabel(campus)}.`;
-  if (delta <= 60) return "Within normal range and only slightly over target.";
+  if (delta <= 60) return "Slightly over target — within the normal range.";
   if (campus.openIncidentCount > 0) {
-    return `${campus.openIncidentCount} review item${campus.openIncidentCount === 1 ? "" : "s"} should be checked next.`;
+    const n = campus.openIncidentCount;
+    return `Over target, and ${n} item${n === 1 ? " is" : "s are"} still being verified.`;
   }
-  return "Above target — use Workbench to inspect the service flow.";
+  return "Over target — open Workbench to see which part of the service carried it.";
 }
 
 function totalPlannedSeconds(phases: PhaseBreakdown) {
@@ -373,9 +375,11 @@ const URGENCY_COLOR: Record<GlanceRecommendation["urgency"], string> = {
   low: "var(--ink-70)",
 };
 
-// Windowed element patterns (the "Pattern window" toggle): an element that
+// Windowed element trends (the "Trend window" toggle): an element that
 // keeps running ≥30s over plan across the selected window becomes a
-// Confirmed/Emerging pattern recommendation, à la the legacy ecc-times report.
+// Confirmed/Emerging trend recommendation, à la the legacy ecc-times report.
+// Vocabulary note: ECC distinguishes a "trend" (persists 3+ weeks) from a
+// "moment" (one-week content spike), so these use "trend", not "pattern".
 function buildPatternRecommendations(
   campus: GlanceCampus,
   recWindow: 6 | 12,
@@ -395,8 +399,8 @@ function buildPatternRecommendations(
       return {
         rec: {
           urgency: confirmed ? ("medium" as const) : ("low" as const),
-          label: `${confirmed ? "Confirmed" : "Emerging"} pattern: ${pattern.elementName} avg ${formatDelta(stats.avgDeltaSeconds)} (${recWindow} wk)`,
-          detail: `Ran 30s+ over plan in ${stats.weeksOver} of ${stats.weeksWithData} tracked weeks. Consider a planned-item target change.`,
+          label: `${confirmed ? "Confirmed" : "Emerging"} trend: ${pattern.elementName} avg ${formatDelta(stats.avgDeltaSeconds)} (${recWindow} wk)`,
+          detail: `Ran 30s+ over plan in ${stats.weeksOver} of ${stats.weeksWithData} tracked weeks. The plan may be wrong, not the execution — consider updating the planned time.`,
           actionLabel: "Open Workbench →",
           actionHref: workbenchHref,
         },
@@ -414,6 +418,7 @@ function buildRecommendations(
   selectedSlot: ServiceSlotSummary | undefined,
   mode: "actuals" | "awaiting",
   recWindow: 6 | 12,
+  isOperator: boolean,
 ): GlanceRecommendation[] {
   if (mode === "awaiting") return [];
 
@@ -422,22 +427,25 @@ function buildRecommendations(
   const workbenchHref = `/instrument/workbench?campus=${campus.code}&slot=${selectedSlot?.slotLabel ?? ""}`;
   const isBlocked = selectedSlot?.isBlocked ?? false;
 
-  if (isBlocked) {
+  // Triage is operator-only, so triage-routed housekeeping recommendations
+  // only render for operators. Viewers still see the blocked/verifying state
+  // through the status pill and verdict line.
+  if (isOperator && isBlocked) {
     recs.push({
       urgency: "high",
-      label: "This slot is blocked — operator action required",
-      detail: "A review incident is preventing reliable data for this service. Open Triage to resolve it.",
+      label: "This service is blocked — Triage decision needed",
+      detail: "A data question is holding back reliable numbers for this service. Open Triage to settle it.",
       actionLabel: "Open Triage →",
       actionHref: triageHref,
     });
   }
 
-  if (campus.openIncidentCount > 0) {
+  if (isOperator && campus.openIncidentCount > 0) {
     const n = campus.openIncidentCount;
     recs.push({
       urgency: isBlocked ? "high" : "medium",
-      label: `${n} open incident${n === 1 ? "" : "s"} need resolution`,
-      detail: "Review incidents reduce the accuracy of element-level data across Workbench and variance reports.",
+      label: `${n} item${n === 1 ? "" : "s"} waiting on a Triage decision`,
+      detail: "Unresolved items reduce the accuracy of element-level numbers across Workbench and service history.",
       actionLabel: "Open Triage →",
       actionHref: triageHref,
     });
@@ -467,7 +475,7 @@ function buildRecommendations(
         recs.push({
           urgency: "medium",
           label: `Service ran ${formatDelta(totalDelta)} over the ${targetLabel(campus)}`,
-          detail: "Use Workbench to identify which phase is carrying the most variance before next week.",
+          detail: "Open Workbench to see which part of the service carried the most variance before next week.",
           actionLabel: "Open Workbench →",
           actionHref: workbenchHref,
         });
@@ -475,12 +483,12 @@ function buildRecommendations(
     }
   }
 
-  if (campus.unmappedCount > 0) {
+  if (isOperator && campus.unmappedCount > 0) {
     const n = campus.unmappedCount;
     recs.push({
       urgency: "low",
-      label: `${n} item${n === 1 ? "" : "s"} need taxonomy mapping`,
-      detail: "Unmapped items create gaps in element-level variance tracking. Map them in Triage.",
+      label: `${n} item${n === 1 ? "" : "s"} not matched to a tracked element`,
+      detail: "Unmatched items leave gaps in element-level tracking. Match them in Triage.",
       actionLabel: "Open Triage →",
       actionHref: triageHref,
     });
@@ -545,11 +553,30 @@ function RecommendationsPanel({
                 padding: "8px 10px",
                 borderRadius: 10,
                 background: "var(--ink-fill-soft)",
-                borderLeft: `3px solid ${URGENCY_COLOR[rec.urgency]}`,
               }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 700, color: "var(--ink)" }}>
+                <p
+                  style={{
+                    margin: "0 0 2px",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "var(--ink)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: 999,
+                      background: URGENCY_COLOR[rec.urgency],
+                      flexShrink: 0,
+                    }}
+                  />
                   {rec.label}
                 </p>
                 <p style={{ margin: 0, fontSize: "var(--type-caption)", color: "var(--ink-70)", lineHeight: 1.4 }}>
@@ -582,9 +609,11 @@ function RecommendationsPanel({
 export default function GlanceView({
   campuses,
   broadcastTrend,
+  isOperator,
 }: {
   campuses: GlanceCampus[];
   broadcastTrend: BroadcastTrendPoint[];
+  isOperator: boolean;
 }) {
   const [mode, setMode] = useState<"actuals" | "awaiting">("actuals");
   const [recWindow, setRecWindow] = useState<6 | 12>(6);
@@ -605,7 +634,7 @@ export default function GlanceView({
           campus.slots.find((slot) => slot.slotLabel === selectedLabel) ?? campus.slots[0];
         const phases = selectedSlot?.phases ?? EMPTY_PHASES;
         const totalPlanned = totalPlannedSeconds(phases);
-        const recs = buildRecommendations(campus, selectedSlot, mode, recWindow);
+        const recs = buildRecommendations(campus, selectedSlot, mode, recWindow, isOperator);
 
         return {
           campus,
@@ -620,7 +649,7 @@ export default function GlanceView({
               : null,
         };
       }),
-    [campuses, expanded, glanceSvc, mode, recWindow],
+    [campuses, expanded, glanceSvc, mode, recWindow, isOperator],
   );
 
   return (
@@ -630,8 +659,8 @@ export default function GlanceView({
           <p className="instrument-eyebrow">The Monday Glance</p>
           <h1 className="instrument-title">Where did each campus land?</h1>
           <p className="instrument-subtitle">
-            Live service summaries across the latest campus dates, with review
-            pressure called out before we go deeper into Workbench or Triage.
+            Every campus against plan from the latest Sunday — and what deserves
+            a look before next week.
           </p>
         </div>
 
@@ -642,22 +671,24 @@ export default function GlanceView({
               <button
                 type="button"
                 className={mode === "actuals" ? "segment-option segment-option--active" : "segment-option"}
+                aria-pressed={mode === "actuals"}
                 onClick={() => setMode("actuals")}
               >
-                Sun actuals
+                Sunday actuals
               </button>
               <button
                 type="button"
                 className={mode === "awaiting" ? "segment-option segment-option--active" : "segment-option"}
+                aria-pressed={mode === "awaiting"}
                 onClick={() => setMode("awaiting")}
               >
-                Thu plan
+                This week&apos;s plan
               </button>
             </div>
           </div>
 
           <div className="segment-control">
-            <span className="segment-control__label">Pattern window</span>
+            <span className="segment-control__label">Trend window</span>
             <div className="segment-control__options">
               {[6, 12].map((value) => (
                 <button
@@ -668,6 +699,7 @@ export default function GlanceView({
                       ? "segment-option segment-option--active"
                       : "segment-option"
                   }
+                  aria-pressed={recWindow === value}
                   onClick={() => setRecWindow(value as 6 | 12)}
                 >
                   {value} wk
@@ -692,6 +724,7 @@ export default function GlanceView({
               <button
                 type="button"
                 className="glance-card__header"
+                aria-expanded={isExpanded}
                 onClick={() =>
                   setExpanded((current) => ({
                     ...current,
@@ -746,6 +779,7 @@ export default function GlanceView({
                             ? "slot-picker__option slot-picker__option--active"
                             : "slot-picker__option"
                         }
+                        aria-pressed={glanceSvc[campus.code] === slot.slotLabel}
                         onClick={() =>
                           setGlanceSvc((current) => ({
                             ...current,
@@ -812,7 +846,7 @@ export default function GlanceView({
                             fontWeight: 700,
                             letterSpacing: "0.2em",
                             textTransform: "uppercase",
-                            color: "var(--phase-mid)",
+                            color: "var(--phase-mid-text)",
                           }}
                         >
                           Mid-service · the lever
@@ -821,7 +855,7 @@ export default function GlanceView({
                           style={{
                             margin: "0 0 6px",
                             fontSize: "var(--type-micro)",
-                            color: "var(--phase-mid)",
+                            color: "var(--phase-mid-text)",
                           }}
                         >
                           the part you actually control
@@ -854,18 +888,22 @@ export default function GlanceView({
                     <RecommendationsPanel recs={recs} recWindow={recWindow} />
 
                     <div className="glance-card__footer">
-                      <div className="glance-metric">
-                        <span>Open review</span>
-                        <strong className="tabular" style={{ color: "var(--review)" }}>
-                          {campus.openIncidentCount}
-                        </strong>
-                      </div>
-                      <div className="glance-metric">
-                        <span>Unmapped</span>
-                        <strong className="tabular" style={{ color: "var(--unmapped)" }}>
-                          {campus.unmappedCount}
-                        </strong>
-                      </div>
+                      {isOperator && (
+                        <>
+                          <div className="glance-metric">
+                            <span>In Triage</span>
+                            <strong className="tabular" style={{ color: "var(--review)" }}>
+                              {campus.openIncidentCount}
+                            </strong>
+                          </div>
+                          <div className="glance-metric">
+                            <span>Unmatched</span>
+                            <strong className="tabular" style={{ color: "var(--unmapped)" }}>
+                              {campus.unmappedCount}
+                            </strong>
+                          </div>
+                        </>
+                      )}
                       <div className="glance-metric">
                         <span>Window</span>
                         <strong>{recWindow} weeks</strong>
@@ -879,12 +917,14 @@ export default function GlanceView({
                       >
                         Open workbench →
                       </Link>
-                      <Link
-                        href={`/instrument/triage?campus=${campus.code}&date=${campus.serviceDate}`}
-                        className="glance-link"
-                      >
-                        Open triage →
-                      </Link>
+                      {isOperator && (
+                        <Link
+                          href={`/instrument/triage?campus=${campus.code}&date=${campus.serviceDate}`}
+                          className="glance-link"
+                        >
+                          Open triage →
+                        </Link>
+                      )}
                     </div>
                   </>
                 ) : null}

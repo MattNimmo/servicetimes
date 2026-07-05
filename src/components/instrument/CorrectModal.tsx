@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   correctItemTimeIncidentAction,
@@ -33,14 +33,13 @@ function ModalPanel({
   onClose: () => void;
 }) {
   const [value, setValue] = useState(() => secondsToInput(payload.rawActualSeconds));
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
+  // Native <dialog> provides the modal semantics: focus trap, Esc-to-cancel,
+  // top layer, and aria-modal behavior for screen readers.
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    dialogRef.current?.showModal();
+  }, []);
 
   const isItemTime = payload.itemTimeId !== null;
   const action = isItemTime
@@ -48,21 +47,31 @@ function ModalPanel({
     : correctPlanTimeIncidentAction;
 
   return (
-    <div
+    <dialog
+      ref={dialogRef}
+      className="correct-dialog"
+      aria-labelledby="correct-dialog-title"
+      onClose={onClose}
+      onClick={(e) => {
+        // A click on the dialog element itself (not its children) is a
+        // click on the backdrop area.
+        if (e.target === dialogRef.current) onClose();
+      }}
       style={{
         background: "var(--glass-card)",
-        backdropFilter: "blur(var(--glass-blur))",
-        WebkitBackdropFilter: "blur(var(--glass-blur))",
+        backdropFilter: "var(--glass-filter)",
+        WebkitBackdropFilter: "var(--glass-filter)",
         border: "1px solid var(--glass-border)",
         boxShadow: "var(--glass-shadow)",
         borderRadius: 18,
         padding: "24px 24px 20px",
         width: "100%",
         maxWidth: 420,
+        color: "var(--ink)",
       }}
-      onClick={(e) => e.stopPropagation()}
     >
       <p
+        id="correct-dialog-title"
         style={{
           margin: "0 0 16px",
           fontSize: "var(--type-micro)",
@@ -153,6 +162,7 @@ function ModalPanel({
         )}
 
         <label
+          htmlFor="corrected-actual-input"
           style={{
             display: "block",
             fontSize: 11,
@@ -166,6 +176,7 @@ function ModalPanel({
           Corrected M:SS
         </label>
         <input
+          id="corrected-actual-input"
           type="text"
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -188,42 +199,15 @@ function ModalPanel({
             justifyContent: "flex-end",
           }}
         >
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              padding: "9px 18px",
-              borderRadius: 999,
-              border: "1px solid var(--ink-line-strong)",
-              background: "transparent",
-              fontSize: 11,
-              fontWeight: 700,
-              cursor: "pointer",
-              color: "var(--ink-70)",
-            }}
-          >
+          <button type="button" onClick={onClose} className="btn btn--ghost">
             Cancel
           </button>
-          <button
-            type="submit"
-            style={{
-              padding: "9px 18px",
-              borderRadius: 999,
-              border: "none",
-              background: "var(--accent)",
-              color: "white",
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              cursor: "pointer",
-            }}
-          >
+          <button type="submit" className="btn btn--primary">
             Save · human-adjusted
           </button>
         </div>
       </form>
-    </div>
+    </dialog>
   );
 }
 
@@ -236,24 +220,6 @@ export default function CorrectModal({
 }) {
   if (!payload) return null;
 
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(40,42,80,0.32)",
-        backdropFilter: "blur(5px)",
-        WebkitBackdropFilter: "blur(5px)",
-        zIndex: 100,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 16,
-      }}
-      onClick={onClose}
-    >
-      {/* key forces remount (fresh input state) when incident changes */}
-      <ModalPanel key={payload.incidentId} payload={payload} onClose={onClose} />
-    </div>
-  );
+  // key forces remount (fresh input state + showModal) when incident changes
+  return <ModalPanel key={payload.incidentId} payload={payload} onClose={onClose} />;
 }

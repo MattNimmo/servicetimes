@@ -32,6 +32,21 @@ export function formatServiceDate(value: string) {
   }).format(new Date(`${value}T12:00:00Z`));
 }
 
+/**
+ * Human-facing plan title. Planning Center plan titles are often internal
+ * codes ("#4", "#2 - PDarin") that mean nothing to leadership; prefer the
+ * series title and fall back to a generic label rather than surface those.
+ */
+export function displayPlanTitle(
+  title: string | null,
+  seriesTitle: string | null,
+) {
+  const looksInternal = (value: string) => /^#|^\d+$/.test(value.trim());
+  if (seriesTitle && !looksInternal(seriesTitle)) return seriesTitle;
+  if (title && !looksInternal(title)) return title;
+  return "Weekend service";
+}
+
 export function parseDurationInput(value: string) {
   const normalized = value.trim();
   if (!normalized) return null;

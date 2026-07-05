@@ -29,7 +29,7 @@ export default async function InstrumentLayout({
           isOperator={session?.role === "operator"}
           triageBadge={triageBadge}
         />
-        <DashboardGuide />
+        <DashboardGuide isOperator={session?.role === "operator"} />
         {children}
       </div>
     </div>

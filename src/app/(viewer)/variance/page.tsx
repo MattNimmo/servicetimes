@@ -2,17 +2,23 @@ import Link from "next/link";
 
 import { listCampuses } from "@/lib/variance/queries";
 
+// ECC's standard campus order: SLP (broadcast), ELK, LV, MG — matches the
+// instrument views so campuses never shuffle between screens.
+const CAMPUS_ORDER = ["SLP", "ELK", "LV", "MG"];
+
 export default async function VarianceIndexPage() {
-  const campuses = await listCampuses();
+  const campuses = (await listCampuses()).sort(
+    (a, b) => CAMPUS_ORDER.indexOf(a.code) - CAMPUS_ORDER.indexOf(b.code),
+  );
 
   return (
     <main className="app-page">
       <p className="instrument-eyebrow">
         Plan vs actual
       </p>
-      <h1 className="instrument-title">Campus variance</h1>
+      <h1 className="instrument-title">Service history</h1>
       <p className="instrument-subtitle">
-        Choose a campus to review completed service dates and timing quality.
+        Pick a campus to see how each Sunday ran against plan.
       </p>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -22,7 +28,11 @@ export default async function VarianceIndexPage() {
             href={`/variance/${campus.code}`}
             className="glass-tile group transition hover:-translate-y-0.5 hover:bg-white/70"
           >
-            <span className="table-label">
+            <span className="table-label flex items-center gap-2">
+              <span
+                aria-hidden
+                className={`campus-dot campus-dot--${campus.code.toLowerCase()}`}
+              />
               {campus.code}
             </span>
             <h2 className="mt-3 text-xl font-semibold group-hover:text-[var(--accent)]">

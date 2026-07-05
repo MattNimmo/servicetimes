@@ -16,7 +16,7 @@ import { formatDelta, formatDuration, formatServiceDate } from "@/lib/variance/f
 import { ChartTipBox, useChartTip } from "./ChartTooltip";
 import Toast from "./Toast";
 
-const CAMPUS_CODES = ["SLP", "MG", "ELK", "LV"] as const;
+const CAMPUS_CODES = ["SLP", "ELK", "LV", "MG"] as const;
 
 const PHASE_META: Array<{ key: PhaseKey; label: string; color: string }> = [
   { key: "worship_open", label: "Worship", color: "var(--phase-worship)" },
@@ -86,7 +86,7 @@ function TrendChart({
           justifyContent: "center",
         }}
       >
-        <p style={{ color: "var(--ink-70)", fontSize: 11, margin: 0 }}>No data</p>
+        <p style={{ color: "var(--ink-70)", fontSize: 11, margin: 0 }}>No Sundays in this window yet</p>
       </div>
     );
   }
@@ -361,11 +361,13 @@ function CrossMedianBars({ medians }: { medians: CrossCampusMedian[] }) {
               <div
                 style={{
                   height: "100%",
-                  width: `${pct}%`,
+                  width: "100%",
+                  transform: `scaleX(${pct / 100})`,
+                  transformOrigin: "left",
                   background: m.isActive ? color : "var(--phase-worship)",
                   borderRadius: 999,
                   opacity: m.isActive ? 1 : 0.45,
-                  transition: "width 300ms ease",
+                  transition: "transform 300ms ease",
                 }}
               />
             </div>
@@ -392,7 +394,7 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
   if (elements.length === 0) {
     return (
       <div style={{ padding: "24px", textAlign: "center", color: "var(--ink-70)", fontSize: 13 }}>
-        No element data for this slot.
+        No tracked elements for this service yet.
       </div>
     );
   }
@@ -412,9 +414,9 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
         <thead>
           <tr>
             <th>Element</th>
-            <th className="wb-element-table__allot">Allot</th>
+            <th className="wb-element-table__allot">Planned</th>
             <th className="wb-element-table__bar">Variance</th>
-            <th className="wb-element-table__actual">Actual · Δ</th>
+            <th className="wb-element-table__actual">Actual · vs plan</th>
           </tr>
         </thead>
         {sections.map((section) => {
@@ -538,7 +540,7 @@ export default function WorkbenchView({
     referenceTargetSeconds,
     isReferenceTargetApproved,
   } = data;
-  const targetLabel = isReferenceTargetApproved ? "REF. TARGET" : "PROV. TARGET";
+  const targetLabel = isReferenceTargetApproved ? "APPROVED TARGET" : "WORKING TARGET";
   const totalPlanned = Object.values(phases).reduce(
     (t, p) => t + p.plannedSeconds,
     0,
@@ -560,8 +562,8 @@ export default function WorkbenchView({
         )
       : null;
   const broadcastCaption = slotSummary.broadcastIsMessageBlock
-    ? "BUMPER END → MESSAGE END · the on-air message block"
-    : "LIVE → END · full live block (message timers unavailable)";
+    ? "Bumper end → message end · the on-air message block"
+    : "Live → end · full live block (message timers unavailable)";
 
   const midPhase = phases.mid_service;
   const midDelta =
@@ -579,14 +581,14 @@ export default function WorkbenchView({
             {data.campus.name} · {formatServiceDate(data.serviceDate)}
           </h1>
           <p className="instrument-subtitle" style={{ marginTop: "0.5rem" }}>
-            Slot-level service flow with trend context and element drill-in.
+            One campus, one service — trend context and element-level detail.
           </p>
         </div>
 
         {/* Horizon toggle */}
         <div className="instrument-controls">
           <div className="segment-control">
-            <span className="segment-control__label">Horizon</span>
+            <span className="segment-control__label">Window</span>
             <div className="segment-control__options">
               {HORIZON_OPTIONS.map((opt) => (
                 <button
@@ -597,6 +599,7 @@ export default function WorkbenchView({
                       ? "segment-option segment-option--active"
                       : "segment-option"
                   }
+                  aria-pressed={horizon === opt.value}
                   onClick={() => navigate({ horizon: opt.value })}
                 >
                   {opt.label}
@@ -618,6 +621,7 @@ export default function WorkbenchView({
               type="button"
               onClick={() => navigate({ campus: code })}
               className={active ? "campus-switch campus-switch--active" : "campus-switch"}
+              aria-pressed={active}
               style={{ "--campus-color": color } as CSSProperties}
             >
               <span className="campus-switch__dot" />
@@ -650,6 +654,7 @@ export default function WorkbenchView({
                   ? "slot-picker__option slot-picker__option--active"
                   : "slot-picker__option"
               }
+              aria-pressed={slot === s.label}
               onClick={() => navigate({ slot: s.label })}
             >
               {s.label}
@@ -685,7 +690,7 @@ export default function WorkbenchView({
             </p>
           </div>
           <p style={{ margin: "4px 0 12px", fontSize: "var(--type-caption)", color: "var(--ink-70)", letterSpacing: "0.1em" }}>
-            VS {targetLabel} · n={trend.length}
+            VS {targetLabel} · {trend.length} SUNDAY{trend.length === 1 ? "" : "S"}
           </p>
 
           {/* Phase bar */}
@@ -722,7 +727,7 @@ export default function WorkbenchView({
                   style={{
                     fontSize: 12,
                     fontWeight: 700,
-                    color: ph.key === "mid_service" ? "var(--phase-mid)" : "var(--ink)",
+                    color: ph.key === "mid_service" ? "var(--phase-mid-text)" : "var(--ink)",
                   }}
                 >
                   {formatDuration(phases[ph.key].actualSeconds)}
@@ -796,12 +801,12 @@ export default function WorkbenchView({
             background: "rgba(221,138,32,0.08)",
           }}
         >
-          <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", color: "var(--phase-mid)" }}>
+          <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", color: "var(--phase-mid-text)" }}>
             Mid · the lever
           </p>
           <p
             className="tabular"
-            style={{ margin: "8px 0 0", fontSize: "clamp(1.6rem,2.8vw,2.2rem)", fontWeight: 700, letterSpacing: "-0.05em", color: "var(--phase-mid)" }}
+            style={{ margin: "8px 0 0", fontSize: "clamp(1.6rem,2.8vw,2.2rem)", fontWeight: 700, letterSpacing: "-0.05em", color: "var(--phase-mid-text)" }}
           >
             {formatDuration(midPhase.actualSeconds)}
           </p>
@@ -821,7 +826,7 @@ export default function WorkbenchView({
         {/* Cross tile */}
         <div className="glass-card wb-tile">
           <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)" }}>
-            Cross · close worship
+            Close worship · all campuses
           </p>
           <CrossMedianBars medians={allCampusMedians} />
         </div>
@@ -839,8 +844,9 @@ export default function WorkbenchView({
                   type="button"
                   onClick={() => setWbMetric(m)}
                   className={wbMetric === m ? "metric-toggle metric-toggle--active" : "metric-toggle"}
+                  aria-pressed={wbMetric === m}
                 >
-                  {m === "message" ? "MSG" : m === "worship" ? "WOR" : m.toUpperCase()}
+                  {m === "message" ? "MESSAGE" : m === "worship" ? "WORSHIP" : m.toUpperCase()}
                 </button>
               ))}
             </div>

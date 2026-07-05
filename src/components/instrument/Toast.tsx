@@ -19,6 +19,8 @@ export default function Toast({
 
   return (
     <div
+      role="status"
+      aria-live="polite"
       style={{
         position: "fixed",
         bottom: 24,
@@ -31,8 +33,8 @@ export default function Toast({
         padding: "10px 18px",
         borderRadius: 999,
         background: "rgba(255,255,255,0.82)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
+        backdropFilter: "var(--glass-filter)",
+        WebkitBackdropFilter: "var(--glass-filter)",
         boxShadow: "var(--glass-shadow)",
         border: "1px solid rgba(255,255,255,0.8)",
         whiteSpace: "nowrap",

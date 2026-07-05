@@ -24,13 +24,10 @@ export default async function ViewerLayout({ children }: { children: React.React
           <div className="instrument-nav__spacer" />
           <div className="flex items-center gap-4">
             <span className="pill">
-              {session.role}
+              {session.role === "operator" ? "Operator" : "Viewer"}
             </span>
             <form action={logoutAction}>
-              <button
-                type="submit"
-                className="btn btn--ghost"
-              >
+              <button type="submit" className="instrument-signout">
                 Sign out
               </button>
             </form>

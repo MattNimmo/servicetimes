@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { getSession } from "@/lib/auth/server";
 import {
+  displayPlanTitle,
   formatDelta,
   formatDuration,
   formatPercent,
@@ -23,8 +25,12 @@ export default async function ServiceVariancePage({
   params: Promise<{ campus: string; serviceDate: string }>;
 }) {
   const { campus: code, serviceDate } = await params;
-  const result = await getVarianceDashboard(code, serviceDate);
+  const [result, session] = await Promise.all([
+    getVarianceDashboard(code, serviceDate),
+    getSession(),
+  ]);
   if (!result || !result.plan) notFound();
+  const isOperator = session?.role === "operator";
 
   return (
     <main className="app-page">
@@ -43,27 +49,29 @@ export default async function ServiceVariancePage({
             {formatServiceDate(result.plan.service_date)}
           </h1>
           <p className="muted mt-2">
-            {result.plan.title ?? result.plan.series_title ?? "Weekend service"}
+            {displayPlanTitle(result.plan.title, result.plan.series_title)}
           </p>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <div className="metric-card">
-            <span className="metric-card__label">
-              Open review
-            </span>
-            <strong className="metric-card__value text-[var(--review)]">
-              {result.openIncidentCount}
-            </strong>
+        {isOperator && (
+          <div className="flex flex-wrap gap-3">
+            <div className="metric-card">
+              <span className="metric-card__label">
+                In Triage
+              </span>
+              <strong className="metric-card__value text-[var(--review)]">
+                {result.openIncidentCount}
+              </strong>
+            </div>
+            <div className="metric-card">
+              <span className="metric-card__label">
+                Unmatched
+              </span>
+              <strong className="metric-card__value text-[var(--unmapped)]">
+                {result.unmappedCount}
+              </strong>
+            </div>
           </div>
-          <div className="metric-card">
-            <span className="metric-card__label">
-              Unmapped
-            </span>
-            <strong className="metric-card__value text-[var(--unmapped)]">
-              {result.unmappedCount}
-            </strong>
-          </div>
-        </div>
+        )}
       </div>
 
       <section className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -130,7 +138,7 @@ export default async function ServiceVariancePage({
                       <th>Element</th>
                       <th>Planned</th>
                       <th>Actual</th>
-                      <th>Delta</th>
+                      <th>vs plan</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -158,7 +166,7 @@ export default async function ServiceVariancePage({
                     {rows.length === 0 && (
                       <tr>
                         <td colSpan={5} className="muted py-8 text-center">
-                          No mapped timing elements for this slot.
+                          No tracked elements for this service yet.
                         </td>
                       </tr>
                     )}

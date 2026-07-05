@@ -13,8 +13,8 @@ export default async function LoginPage({
   const { error } = await searchParams;
 
   return (
-    <main className="app-page app-page--center w-full max-w-md">
-      <div className="glass-card p-8">
+    <main className="app-page app-page--login app-page--center w-full">
+      <div className="glass-tile p-8">
         <p className="instrument-eyebrow">
           ECC Service Times
         </p>
@@ -22,7 +22,8 @@ export default async function LoginPage({
           Sign in
         </h1>
         <p className="muted mt-3 text-sm leading-6">
-          Use the shared viewer or operator password provided by Communications.
+          Use the shared password from the Comms team. Operators use the
+          operator password.
         </p>
 
         {error && (

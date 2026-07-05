@@ -1,11 +1,14 @@
 import Link from "next/link";
 
 import { requireRole } from "@/lib/auth/server";
+import { getTriageBadgeCount } from "@/lib/instrument/queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  await requireRole("viewer");
+  const session = await requireRole("viewer");
+  const isOperator = session.role === "operator";
+  const triageCount = isOperator ? await getTriageBadgeCount() : 0;
 
   return (
     <main className="app-page app-page--narrow app-page--center gap-10">
@@ -17,24 +20,38 @@ export default async function Home() {
           See where the service gained or lost time.
         </h1>
         <p className="instrument-subtitle max-w-2xl">
-          Compare planned and actual timing by campus, service, and tracked
-          element—without hiding questionable source data.
+          Planned vs actual timing for all four campuses — every service,
+          every element, and the broadcast window.
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-4">
-        <Link
-          href="/instrument/glance"
-          className="btn btn--primary"
-        >
-          Open instrument
-        </Link>
-        <Link
-          href="/variance"
-          className="btn btn--ghost"
-        >
-          Open variance dashboard
-        </Link>
+      <div className="space-y-6">
+        <div className="flex flex-wrap gap-4">
+          <Link
+            href="/instrument/glance"
+            className="btn btn--primary"
+          >
+            This weekend at a glance
+          </Link>
+          <Link
+            href="/variance"
+            className="btn btn--ghost"
+          >
+            Service history by campus
+          </Link>
+          {isOperator && (
+            <Link
+              href="/instrument/triage"
+              className="btn btn--ghost"
+            >
+              Triage
+              {triageCount > 0 ? ` · ${triageCount} waiting` : ""}
+            </Link>
+          )}
+        </div>
+        <p className="muted text-sm">
+          Fresh numbers land Sunday evening, after the weekly ingest.
+        </p>
       </div>
     </main>
   );

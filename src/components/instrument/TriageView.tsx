@@ -27,41 +27,35 @@ import { formatDuration, formatServiceDate } from "@/lib/variance/format";
 import CorrectModal, { type CorrectModalPayload } from "./CorrectModal";
 import Toast from "./Toast";
 
-const CAMPUS_CODES = ["SLP", "MG", "ELK", "LV"] as const;
+const CAMPUS_CODES = ["SLP", "ELK", "LV", "MG"] as const;
 
 const STATUS_CONFIG = {
   good: {
-    borderColor: "transparent",
     bg: "transparent",
     pillClass: "pill--under",
     label: "✓ MAPPED",
   },
   not_tracked: {
-    borderColor: "transparent",
     bg: "transparent",
     pillClass: "pill--muted",
     label: "NOT TRACKED",
   },
   rolled_up: {
-    borderColor: "transparent",
     bg: "transparent",
     pillClass: "pill--muted",
     label: "↳ ROLLED UP",
   },
   unmapped: {
-    borderColor: "var(--unmapped)",
     bg: "var(--unmapped-fill)",
     pillClass: "pill--unmapped",
     label: "UNMAPPED",
   },
   incident: {
-    borderColor: "var(--over)",
     bg: "rgba(207,82,44,0.04)",
     pillClass: "pill--over",
     label: "INCIDENT",
   },
   resolved: {
-    borderColor: "transparent",
     bg: "transparent",
     pillClass: "pill--under",
     label: "✓ RESOLVED",
@@ -196,12 +190,11 @@ function SlotHeaderRow({
   redirectTo: string;
 }) {
   const hasIssues = slot.slotIncidents.length > 0;
-  const borderColor = hasIssues ? "var(--over)" : "var(--under)";
+  const statusColor = hasIssues ? "var(--over)" : "var(--under)";
 
   return (
     <div
       style={{
-        borderLeft: `3px solid ${borderColor}`,
         background: "var(--ink-fill-subtle)",
         padding: "10px 16px",
         display: "flex",
@@ -211,7 +204,17 @@ function SlotHeaderRow({
         flexWrap: "wrap",
       }}
     >
-      <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span
+          aria-hidden
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: 999,
+            background: statusColor,
+            flexShrink: 0,
+          }}
+        />
         <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ink)" }}>
           {slot.slotLabel}
         </span>
@@ -488,12 +491,28 @@ const BULK_KINDS = [
 
 function BulkKeepControl({ onToast }: { onToast: (msg: string) => void }) {
   const [state, formAction, pending] = useActionState(bulkResolveIncidentsAction, null);
+  const [armed, setArmed] = useState(false);
+  const [kind, setKind] = useState<(typeof BULK_KINDS)[number]["value"]>("zero_allotment");
+  const [olderThanWeeks, setOlderThanWeeks] = useState(8);
   useInlineToast(state, onToast);
+
+  useEffect(() => {
+    if (state) setArmed(false);
+  }, [state]);
+
+  const kindLabel =
+    BULK_KINDS.find((k) => k.value === kind)?.label.toLowerCase() ?? kind;
 
   return (
     <form
       action={formAction}
-      style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        marginLeft: "auto",
+        flexWrap: "wrap",
+      }}
     >
       <span
         style={{
@@ -506,23 +525,72 @@ function BulkKeepControl({ onToast }: { onToast: (msg: string) => void }) {
       >
         Bulk keep
       </span>
-      <select name="kind" defaultValue="zero_allotment" className="glass-select glass-select--compact">
+      <select
+        name="kind"
+        value={kind}
+        onChange={(e) => {
+          setKind(e.target.value as typeof kind);
+          setArmed(false);
+        }}
+        className="glass-select glass-select--compact"
+      >
         {BULK_KINDS.map((k) => (
           <option key={k.value} value={k.value}>
             {k.label}
           </option>
         ))}
       </select>
-      <select name="olderThanWeeks" defaultValue="8" className="glass-select glass-select--compact">
+      <select
+        name="olderThanWeeks"
+        value={olderThanWeeks}
+        onChange={(e) => {
+          setOlderThanWeeks(Number(e.target.value));
+          setArmed(false);
+        }}
+        className="glass-select glass-select--compact"
+      >
         {[4, 8, 12, 26, 52].map((w) => (
           <option key={w} value={w}>
             older than {w} wk
           </option>
         ))}
       </select>
-      <button type="submit" disabled={pending} className="btn btn--ghost btn--compact">
-        Keep all
-      </button>
+      {!armed ? (
+        <button
+          type="button"
+          onClick={() => setArmed(true)}
+          className="btn btn--ghost btn--compact"
+        >
+          Keep all…
+        </button>
+      ) : (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span
+            style={{
+              fontSize: "var(--type-caption)",
+              color: "var(--ink-70)",
+              letterSpacing: 0,
+              textTransform: "none",
+              fontWeight: 600,
+              maxWidth: "24rem",
+            }}
+          >
+            Accepts every open {kindLabel} incident older than {olderThanWeeks} wk,
+            across all campuses. No bulk undo — items can only be reopened one
+            at a time.
+          </span>
+          <button type="submit" disabled={pending} className="btn btn--primary btn--compact">
+            {pending ? "Keeping…" : "Keep them"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setArmed(false)}
+            className="btn btn--ghost btn--compact"
+          >
+            Cancel
+          </button>
+        </span>
+      )}
     </form>
   );
 }
@@ -583,7 +651,6 @@ function ItemRow({
       style={{
         padding: "9px 16px",
         borderBottom: "1px solid var(--ink-fill-subtle)",
-        borderLeft: `3px solid ${cfg.borderColor}`,
         background: cfg.bg,
       }}
     >
@@ -800,9 +867,21 @@ export default function TriageView({
           Resolve in the flow of the service.
         </h1>
         <p className="instrument-subtitle" style={{ marginTop: 0 }}>
-          {data.totalAttentionCount > 0
-            ? `${data.totalAttentionCount} item${data.totalAttentionCount === 1 ? "" : "s"} need attention, surfaced inline in service order below.`
-            : "All items are clear."}{" "}
+          {(() => {
+            // Keep the headline consistent with the date picker's per-date
+            // counts: a non-production date can carry flagged items even
+            // though there is no service order to render below.
+            const dateFlagged =
+              availableDates.find((d) => d.serviceDate === data.serviceDate)
+                ?.attentionCount ?? 0;
+            if (data.slots.length === 0 && dateFlagged > 0) {
+              return `${dateFlagged} flagged item${dateFlagged === 1 ? "" : "s"} on this date sit on a non-production plan — nothing to clear in service order.`;
+            }
+            if (data.totalAttentionCount > 0) {
+              return `${data.totalAttentionCount} item${data.totalAttentionCount === 1 ? "" : "s"} need attention, surfaced inline in service order below.`;
+            }
+            return "All items are clear.";
+          })()}{" "}
           {goodCount > 0 && `${goodCount} good to go.`}
         </p>
       </section>
@@ -830,6 +909,7 @@ export default function TriageView({
                     ? "slot-picker__option slot-picker__option--active"
                     : "slot-picker__option"
                 }
+                aria-pressed={active}
               >
                 {code}
               </button>
@@ -888,6 +968,7 @@ export default function TriageView({
                       ? "slot-picker__option slot-picker__option--active"
                       : "slot-picker__option"
                   }
+                  aria-pressed={active}
                 >
                   {slot.slotLabel}
                   {attention > 0 ? ` · ${attention}` : ""}
@@ -897,7 +978,7 @@ export default function TriageView({
           </div>
         )}
 
-        <span style={{ fontSize: 11, color: "var(--ink-35, var(--ink-disabled))" }}>
+        <span style={{ fontSize: 11, color: "var(--ink-70)" }}>
           {data.planTitle}
         </span>
 
@@ -980,18 +1061,48 @@ export default function TriageView({
           ))}
         </div>
 
-        {data.slots.length === 0 && (
-          <div
-            style={{
-              padding: "32px 16px",
-              textAlign: "center",
-              color: "var(--ink-70)",
-              fontSize: 13,
-            }}
-          >
-            No production service slots found for this date.
-          </div>
-        )}
+        {data.slots.length === 0 &&
+          (() => {
+            const current = availableDates.find(
+              (d) => d.serviceDate === data.serviceDate,
+            );
+            const flagged = current?.attentionCount ?? 0;
+            const nextUp = availableDates
+              .filter(
+                (d) => d.attentionCount > 0 && d.serviceDate !== data.serviceDate,
+              )
+              .sort((a, b) => b.attentionCount - a.attentionCount)[0];
+            return (
+              <div
+                style={{
+                  padding: "32px 16px",
+                  textAlign: "center",
+                  color: "var(--ink-70)",
+                  fontSize: 13,
+                }}
+              >
+                <p style={{ margin: 0, fontWeight: 700, color: "var(--ink)" }}>
+                  No production services for this date.
+                </p>
+                <p style={{ margin: "6px auto 0", maxWidth: "38rem", lineHeight: 1.5 }}>
+                  {flagged > 0
+                    ? `The ${flagged} flagged item${flagged === 1 ? " sits" : "s sit"} on a non-production plan (a rehearsal or special event), so there is no service order to show here.`
+                    : "This plan is a rehearsal or special event — there's nothing to time against."}{" "}
+                  Pick another Sunday above{nextUp ? ", or jump to the most open work:" : "."}
+                </p>
+                {nextUp && (
+                  <button
+                    type="button"
+                    onClick={() => navigateDate(nextUp.serviceDate)}
+                    className="btn btn--ghost btn--compact"
+                    style={{ marginTop: 12 }}
+                  >
+                    {formatServiceDate(nextUp.serviceDate)} · {nextUp.attentionCount} →
+                  </button>
+                )}
+              </div>
+            );
+          })()}
 
         {activeSlot &&
           (() => {

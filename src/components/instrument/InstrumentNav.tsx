@@ -15,7 +15,7 @@ export default function InstrumentNav({
     <header className="instrument-nav">
       <div className="instrument-nav__inner">
         <Link href="/" className="instrument-brand">
-          <span className="instrument-brand__mark">E</span>
+          <span className="instrument-brand__mark">ST</span>
           <span className="instrument-brand__wordmark">Service Times</span>
         </Link>
 

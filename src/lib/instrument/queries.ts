@@ -92,7 +92,9 @@ type ActivePlanTimeCorrection = {
   corrected_actual_seconds: number | null;
 };
 
-const CAMPUS_ORDER: CampusCode[] = ["SLP", "MG", "ELK", "LV"];
+// ECC's standard campus order: Spring Lake Park (broadcast), Elk River,
+// Lakeville, Maple Grove. Keep every campus list in this order.
+const CAMPUS_ORDER: CampusCode[] = ["SLP", "ELK", "LV", "MG"];
 const PHASE_KEYS: PhaseKey[] = ["worship_open", "mid_service", "live", "local"];
 
 function campusSortIndex(code: CampusCode) {
@@ -1231,6 +1233,11 @@ export async function getTriageData(
         plannedSeconds: pt.planned_target_seconds,
         availableSlots: availableSlotsList,
       }));
+
+    // Slot-blocking incidents are real open work surfaced in the table, so
+    // they count toward the headline — otherwise the header can claim "all
+    // clear" while a slot incident is still blocking the service's numbers.
+    totalAttentionCount += slotIncidents.length;
 
     // item-level incidents: non-slot-blocking, keyed by item_id
     const itemIncidentByItemId = new Map<number, TriageIncident>();

@@ -2,29 +2,41 @@
   --glass-bg: linear-gradient(160deg, #eef0f8 0%, #e7e4f2 50%, #efe9f2 100%);
   --glass-card: rgba(255, 255, 255, 0.56);
   --glass-blur: 22px;
+  /* Liquid glass: blur + saturate so whatever sits behind a pane glows
+     through richer instead of just hazier. Use for every glass surface. */
+  --glass-filter: blur(22px) saturate(1.55);
   --glass-border: rgba(255, 255, 255, 0.72);
   --glass-shadow:
     0 10px 30px rgba(50, 52, 90, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.85);
   --ink: #1c2030;
-  --ink-55: rgba(28, 32, 48, 0.55);
-  --ink-35: rgba(28, 32, 48, 0.35);
-  --over: #cf522c;
-  --under: #2e9c6b;
-  --accent: #2c7e8c;
-  --amber-text: var(--review);
-  --amber-fill: var(--review);
+  /* Text-safe status colors: ≥4.5:1 on the glass card surface, including
+     their own 10–14% tinted fills. Bars/dots may use brighter variants. */
+  --over: #ae4525;
+  --under: #237751;
+  --accent: #2a7986;
   --elk: #4f86c6;
   --lv: #f4a261;
   --mg: #2ec4b6;
   --slp: #e76f51;
   --phase-worship: #3c4450;
   --phase-mid: #dd8a20;
+  --phase-mid-text: #965e16;
   --phase-live: #6e7884;
   --phase-local: #99a1ac;
   --r-card: 16px;
   --r-glance: 20px;
   --r-pill: 999px;
+}
+
+.correct-dialog {
+  margin: auto;
+}
+
+.correct-dialog::backdrop {
+  background: rgba(40, 42, 80, 0.32);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 }
 
 .instrument-root {
@@ -83,8 +95,8 @@
   position: sticky;
   top: 0;
   z-index: 30;
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   background: rgba(255, 255, 255, 0.42);
   border-bottom: 1px solid rgba(255, 255, 255, 0.66);
 }
@@ -167,7 +179,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--over);
+  /* Routine workload count, not an error — brand teal, not alarm red. */
+  background: var(--accent);
   color: white;
   font-size: var(--type-micro);
   line-height: 1;
@@ -372,8 +385,8 @@
 
 .glass-card {
   background: var(--glass-card);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
 }
@@ -631,7 +644,7 @@
 
 .phase-chip--mid,
 .phase-chip--mid strong {
-  color: var(--phase-mid);
+  color: var(--phase-mid-text);
 }
 
 .glance-card__verdict {

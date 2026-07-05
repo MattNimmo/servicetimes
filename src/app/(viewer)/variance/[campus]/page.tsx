@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { formatServiceDate } from "@/lib/variance/format";
+import { getSession } from "@/lib/auth/server";
+import { displayPlanTitle, formatServiceDate } from "@/lib/variance/format";
 import { listServiceDates } from "@/lib/variance/queries";
 
 export default async function CampusVariancePage({
@@ -10,8 +11,12 @@ export default async function CampusVariancePage({
   params: Promise<{ campus: string }>;
 }) {
   const { campus: code } = await params;
-  const result = await listServiceDates(code);
+  const [result, session] = await Promise.all([
+    listServiceDates(code),
+    getSession(),
+  ]);
   if (!result) notFound();
+  const isOperator = session?.role === "operator";
 
   return (
     <main className="app-page app-page--narrow">
@@ -25,9 +30,17 @@ export default async function CampusVariancePage({
 
       <div className="mt-10 space-y-4">
         {result.dates.length === 0 && (
-          <p className="glass-tile muted">
-            No ingested service dates yet.
-          </p>
+          <div className="glass-tile">
+            <p className="font-semibold">No Sundays here yet.</p>
+            <p className="muted mt-2 text-sm">
+              {result.campus.name}&apos;s services will appear after the next
+              Sunday-evening ingest. Check back Monday, or{" "}
+              <Link href="/variance" className="app-link">
+                pick another campus
+              </Link>
+              .
+            </p>
+          </div>
         )}
         {result.dates.map((plan) => (
           <Link
@@ -40,19 +53,23 @@ export default async function CampusVariancePage({
                 {formatServiceDate(plan.service_date)}
               </h2>
               <p className="muted mt-1 text-sm">
-                {plan.title ?? plan.series_title ?? "Weekend service"}
+                {displayPlanTitle(plan.title, plan.series_title)}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <span className="pill">
-                {plan.slotCount} slots
+                {plan.slotCount} service{plan.slotCount === 1 ? "" : "s"}
               </span>
-              <span className="pill pill--review">
-                {plan.openIncidentCount} review
-              </span>
-              <span className="pill pill--unmapped">
-                {plan.unmappedCount} unmapped
-              </span>
+              {isOperator && plan.openIncidentCount > 0 && (
+                <span className="pill pill--review">
+                  {plan.openIncidentCount} in Triage
+                </span>
+              )}
+              {isOperator && plan.unmappedCount > 0 && (
+                <span className="pill pill--unmapped">
+                  {plan.unmappedCount} unmatched
+                </span>
+              )}
             </div>
           </Link>
         ))}
