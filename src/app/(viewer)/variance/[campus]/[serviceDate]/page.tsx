@@ -19,6 +19,17 @@ function ReviewPill({ label = "Needs review" }: { label?: string }) {
   );
 }
 
+/**
+ * Semantic tone for a vs-plan delta. Within ±60s reads as on-plan (ink);
+ * beyond that the over/under text-safe tokens carry the story.
+ */
+function deltaToneClass(deltaSeconds: number | null) {
+  if (deltaSeconds === null) return "";
+  if (deltaSeconds > 60) return "text-[var(--over)]";
+  if (deltaSeconds < -60) return "text-[var(--under)]";
+  return "";
+}
+
 export default async function ServiceVariancePage({
   params,
 }: {
@@ -85,7 +96,9 @@ export default async function ServiceVariancePage({
                 evidence, one visual level down. */}
             <div className="mt-5">
               <p className="table-label">vs plan</p>
-              <p className="mt-1 text-4xl font-bold tabular-nums tracking-tight">
+              <p
+                className={`mt-1 text-4xl font-bold tabular-nums tracking-tight ${deltaToneClass(slot.variance.deltaSeconds)}`}
+              >
                 {formatDelta(slot.variance.deltaSeconds)}
               </p>
             </div>
@@ -160,7 +173,9 @@ export default async function ServiceVariancePage({
                             <ReviewPill />
                           )}
                         </td>
-                        <td className="tabular-nums">
+                        <td
+                          className={`tabular-nums ${deltaToneClass(row.variance.deltaSeconds)}`}
+                        >
                           {formatDelta(row.variance.deltaSeconds)}
                         </td>
                       </tr>

@@ -213,24 +213,53 @@ export async function listServiceDates(code: string) {
   const dates = await Promise.all(
     plans.map(async (plan) => {
       const [planTimes, everyPlanTime] = await Promise.all([
-        readRows<{ id: number }>("effective_plan_times", {
+        readRows<{
+          id: number;
+          effective_slot_id: number;
+          planned_target_seconds: number | null;
+          actual_service_seconds: number | null;
+        }>("effective_plan_times", {
           plan_id: `eq.${plan.id}`,
           effective_slot_id: "not.is.null",
           time_type: "eq.service",
           is_manually_excluded: "eq.false",
-          select: "id",
+          select: "id,effective_slot_id,planned_target_seconds,actual_service_seconds",
         }),
         allPlanTimeIds(plan.id),
       ]);
-      const [incidents, unmapped] = await Promise.all([
+      const [incidents, unmapped, corrections] = await Promise.all([
         openIncidents(plan.id, everyPlanTime.map(({ id }) => id)),
         unmappedCount(campus.code, plan.service_date),
+        activePlanTimeCorrections(planTimes.map(({ id }) => id)),
       ]);
+      const correctionByPlanTimeId = new Map(
+        corrections.map((correction) => [correction.plan_time_id, correction]),
+      );
+
+      // Date-level verdict: the most-over service of the day, vs plan, using
+      // the same correction/blocked rules as the detail dashboard.
+      const completeDeltas = planTimes
+        .map((planTime) =>
+          computeVariance(
+            planTime.planned_target_seconds,
+            correctionByPlanTimeId.get(planTime.id)?.corrected_actual_seconds ??
+              planTime.actual_service_seconds,
+            isSlotBlocked(incidents, planTime.id, planTime.effective_slot_id),
+          ),
+        )
+        .filter(
+          (variance): variance is VarianceValue & { deltaSeconds: number } =>
+            variance.status === "complete" && variance.deltaSeconds !== null,
+        )
+        .map(({ deltaSeconds }) => deltaSeconds);
+
       return {
         ...plan,
         slotCount: planTimes.length,
         openIncidentCount: incidents.length,
         unmappedCount: unmapped,
+        worstDeltaSeconds:
+          completeDeltas.length > 0 ? Math.max(...completeDeltas) : null,
       };
     }),
   );

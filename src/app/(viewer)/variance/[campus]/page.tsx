@@ -2,8 +2,35 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getSession } from "@/lib/auth/server";
-import { displayPlanTitle, formatServiceDate } from "@/lib/variance/format";
+import {
+  displayPlanTitle,
+  formatDelta,
+  formatDuration,
+  formatServiceDate,
+} from "@/lib/variance/format";
 import { listServiceDates } from "@/lib/variance/queries";
+
+/** Date-level verdict chip: the day's most-over service, vs plan. */
+function DateVerdict({ worstDeltaSeconds }: { worstDeltaSeconds: number | null }) {
+  if (worstDeltaSeconds === null) {
+    return <span className="pill pill--review">Needs review</span>;
+  }
+  if (worstDeltaSeconds > 60) {
+    return (
+      <span className="pill pill--over">
+        {formatDelta(worstDeltaSeconds)} over plan
+      </span>
+    );
+  }
+  if (worstDeltaSeconds < -60) {
+    return (
+      <span className="pill pill--under">
+        {formatDuration(-worstDeltaSeconds)} under plan
+      </span>
+    );
+  }
+  return <span className="pill pill--under">On plan</span>;
+}
 
 export default async function CampusVariancePage({
   params,
@@ -57,6 +84,7 @@ export default async function CampusVariancePage({
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <DateVerdict worstDeltaSeconds={plan.worstDeltaSeconds} />
               <span className="pill">
                 {plan.slotCount} service{plan.slotCount === 1 ? "" : "s"}
               </span>
