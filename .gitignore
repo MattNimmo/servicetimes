@@ -41,3 +41,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 backfill-journal*.jsonl
+
+# Machine-local Claude/impeccable state
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+.impeccable/hook.cache.json
