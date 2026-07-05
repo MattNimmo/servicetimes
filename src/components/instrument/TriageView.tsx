@@ -493,7 +493,16 @@ function BulkKeepControl({ onToast }: { onToast: (msg: string) => void }) {
   const [armed, setArmed] = useState(false);
   const [kind, setKind] = useState<(typeof BULK_KINDS)[number]["value"]>("zero_allotment");
   const [olderThanWeeks, setOlderThanWeeks] = useState(8);
+  const [lastState, setLastState] = useState(state);
   useInlineToast(state, onToast);
+
+  // Disarm once the action result arrives, via a render-phase reset rather than
+  // an effect: this keeps the confirm button's "Keeping…" pending state visible
+  // while the request is in flight, and satisfies react-hooks lint.
+  if (state !== lastState) {
+    setLastState(state);
+    setArmed(false);
+  }
 
   const kindLabel =
     BULK_KINDS.find((k) => k.value === kind)?.label.toLowerCase() ?? kind;
@@ -501,7 +510,6 @@ function BulkKeepControl({ onToast }: { onToast: (msg: string) => void }) {
   return (
     <form
       action={formAction}
-      onSubmit={() => setArmed(false)}
       style={{
         display: "flex",
         alignItems: "center",

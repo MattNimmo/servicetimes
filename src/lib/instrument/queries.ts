@@ -666,12 +666,25 @@ export type ServiceDateOption = {
 export async function listInstrumentServiceDates(code: string): Promise<ServiceDateOption[]> {
   const result = await listServiceDates(code);
   if (!result) return [];
-  return result.dates.map((d) => ({
-    serviceDate: d.service_date,
-    title: d.title ?? null,
-    slotCount: d.slotCount,
-    attentionCount: d.openIncidentCount + d.unmappedCount,
-  }));
+  // A service date can carry more than one plan (e.g. a rehearsal plan and the
+  // production plan). Triage resolves exactly one plan per date — the latest by
+  // sort_date — so the date picker must key by date too, not by plan, or the
+  // same Sunday appears twice and its counts describe a plan Triage will never
+  // render. listServiceDates is ordered service_date.desc, sort_date.desc, so
+  // the first row per date is the plan Triage will pick; keep only that one.
+  const seen = new Set<string>();
+  return result.dates
+    .filter((d) => {
+      if (seen.has(d.service_date)) return false;
+      seen.add(d.service_date);
+      return true;
+    })
+    .map((d) => ({
+      serviceDate: d.service_date,
+      title: d.title ?? null,
+      slotCount: d.slotCount,
+      attentionCount: d.openIncidentCount + d.unmappedCount,
+    }));
 }
 
 // ─── Private helpers ─────────────────────────────────────────────────────────
