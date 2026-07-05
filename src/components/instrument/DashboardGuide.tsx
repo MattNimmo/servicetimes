@@ -82,7 +82,7 @@ export default function DashboardGuide({ isOperator }: { isOperator: boolean }) 
       <div className="dashboard-guide__shell glass-card">
         <div className="dashboard-guide__header">
           <div>
-            <p className="instrument-eyebrow">Guide</p>
+            <p className="tile-label">Guide</p>
             <h2 className="dashboard-guide__title">How to read this</h2>
             <p className="dashboard-guide__summary">
               A one-minute field guide to the views and what to do with what they show.

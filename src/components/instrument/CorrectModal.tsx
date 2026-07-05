@@ -74,11 +74,9 @@ function ModalPanel({
         id="correct-dialog-title"
         style={{
           margin: "0 0 16px",
-          fontSize: "var(--type-micro)",
-          fontWeight: 700,
-          letterSpacing: "0.2em",
-          textTransform: "uppercase",
-          color: "var(--accent)",
+          fontSize: "var(--type-caption)",
+          fontWeight: 600,
+          color: "var(--accent-text)",
         }}
       >
         Correct actual
@@ -97,10 +95,8 @@ function ModalPanel({
           <p
             style={{
               margin: "0 0 4px",
-              fontSize: "var(--type-micro)",
-              fontWeight: 700,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
+              fontSize: "var(--type-caption)",
+              fontWeight: 600,
               color: "var(--ink-70)",
             }}
           >
@@ -117,10 +113,8 @@ function ModalPanel({
           <p
             style={{
               margin: "0 0 4px",
-              fontSize: "var(--type-micro)",
-              fontWeight: 700,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
+              fontSize: "var(--type-caption)",
+              fontWeight: 600,
               color: "var(--ink-70)",
             }}
           >
@@ -139,13 +133,14 @@ function ModalPanel({
         style={{
           margin: "0 0 16px",
           fontSize: "var(--type-caption)",
-          fontWeight: 700,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
+          fontWeight: 600,
           color: "var(--ink-70)",
         }}
       >
-        {payload.kind.replace(/_/g, " ")}
+        {(() => {
+          const raw = payload.kind.replace(/_/g, " ");
+          return raw.charAt(0).toUpperCase() + raw.slice(1);
+        })()}
       </p>
 
       <form action={action}>
@@ -165,10 +160,8 @@ function ModalPanel({
           htmlFor="corrected-actual-input"
           style={{
             display: "block",
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
+            fontSize: "var(--type-caption)",
+            fontWeight: 600,
             color: "var(--ink-70)",
             marginBottom: 6,
           }}

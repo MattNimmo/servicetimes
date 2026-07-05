@@ -26,10 +26,10 @@ const PHASE_META: Array<{ key: PhaseKey; label: string; color: string }> = [
 ];
 
 const HORIZON_OPTIONS: Array<{ label: string; value: WorkbenchHorizon }> = [
-  { label: "LAST", value: "last" },
-  { label: "6 WK", value: "6wk" },
-  { label: "6 MO", value: "6mo" },
-  { label: "12 MO", value: "12mo" },
+  { label: "Last", value: "last" },
+  { label: "6 wk", value: "6wk" },
+  { label: "6 mo", value: "6mo" },
+  { label: "12 mo", value: "12mo" },
 ];
 
 type WbMetric = "total" | "mid" | "message" | "worship";
@@ -675,7 +675,7 @@ export default function WorkbenchView({
       <div className="wb-bento">
         {/* Total tile – span 2 */}
         <div className="glass-card wb-tile wb-tile--span2">
-          <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)" }}>
+          <p className="tile-label">
             Total service · {HORIZON_OPTIONS.find((o) => o.value === horizon)?.label}
           </p>
           <div style={{ display: "flex", alignItems: "flex-end", gap: 12, marginTop: 8 }}>
@@ -697,8 +697,8 @@ export default function WorkbenchView({
               {formatDelta(delta)}
             </p>
           </div>
-          <p style={{ margin: "4px 0 12px", fontSize: "var(--type-caption)", color: "var(--ink-70)", letterSpacing: "0.1em" }}>
-            VS PLAN · {trend.length} SUNDAY{trend.length === 1 ? "" : "S"}
+          <p style={{ margin: "4px 0 12px", fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
+            vs plan · {trend.length} Sunday{trend.length === 1 ? "" : "s"}
           </p>
           {isOperator && (
             <p style={{ margin: "-6px 0 12px", fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
@@ -733,7 +733,7 @@ export default function WorkbenchView({
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginTop: 10 }}>
             {PHASE_META.map((ph) => (
               <div key={ph.key} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ fontSize: "var(--type-micro)", fontWeight: 700, letterSpacing: "0.12em", color: "var(--ink-70)", textTransform: "uppercase" }}>
+                <span style={{ fontSize: "var(--type-caption)", fontWeight: 600, color: "var(--ink-70)" }}>
                   {ph.label}
                 </span>
                 <span
@@ -753,7 +753,7 @@ export default function WorkbenchView({
 
         {/* Broadcast window tile – span 2 */}
         <div className="glass-card wb-tile wb-tile--span2">
-          <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", color: "var(--accent)" }}>
+          <p className="tile-label" style={{ color: "var(--accent-text)" }}>
             Broadcast window
           </p>
           {broadcastStart && broadcastEnd ? (
@@ -764,8 +764,8 @@ export default function WorkbenchView({
               >
                 {broadcastStart} → {broadcastEnd}
               </p>
-              <p style={{ margin: "4px 0 12px", fontSize: 12, fontWeight: 700, color: "var(--accent)" }}>
-                {broadcastDurationMin !== null ? `${broadcastDurationMin} MIN LIVE` : ""}
+              <p style={{ margin: "4px 0 12px", fontSize: 12, fontWeight: 700, color: "var(--accent-text)" }}>
+                {broadcastDurationMin !== null ? `${broadcastDurationMin} min live` : ""}
               </p>
             </>
           ) : (
@@ -815,7 +815,7 @@ export default function WorkbenchView({
             background: "rgba(221,138,32,0.08)",
           }}
         >
-          <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", color: "var(--phase-mid-text)" }}>
+          <p className="tile-label" style={{ color: "var(--phase-mid-text)" }}>
             Mid · the lever
           </p>
           <p
@@ -839,7 +839,7 @@ export default function WorkbenchView({
 
         {/* Cross tile */}
         <div className="glass-card wb-tile">
-          <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)" }}>
+          <p className="tile-label">
             Close worship · all campuses
           </p>
           <CrossMedianBars medians={allCampusMedians} />
@@ -848,7 +848,7 @@ export default function WorkbenchView({
         {/* Trend tile – span 2 */}
         <div className="glass-card wb-tile wb-tile--span2">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-            <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", margin: 0 }}>
+            <p className="tile-label">
               Variance · {HORIZON_OPTIONS.find((o) => o.value === horizon)?.label}
             </p>
             <div className="metric-toggle-group">
@@ -860,7 +860,7 @@ export default function WorkbenchView({
                   className={wbMetric === m ? "metric-toggle metric-toggle--active" : "metric-toggle"}
                   aria-pressed={wbMetric === m}
                 >
-                  {m === "message" ? "MESSAGE" : m === "worship" ? "WORSHIP" : m.toUpperCase()}
+                  {m === "message" ? "Message" : m === "worship" ? "Worship" : m === "mid" ? "Mid" : "Total"}
                 </button>
               ))}
             </div>
@@ -879,7 +879,7 @@ export default function WorkbenchView({
         }}
       >
         <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--hairline)" }}>
-          <p className="instrument-eyebrow" style={{ fontSize: "var(--type-micro)", margin: 0 }}>
+          <p className="tile-label">
             Element breakdown · {slotSummary.slotLabel}
           </p>
         </div>

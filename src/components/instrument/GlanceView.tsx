@@ -132,7 +132,7 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
     >
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div>
-          <p className="instrument-eyebrow" style={{ margin: 0, fontSize: "var(--type-micro)" }}>
+          <p className="tile-label">
             Broadcast window · {BROADCAST_HORIZONS.find((h) => h.value === horizon)?.label}
           </p>
           <p style={{ margin: "4px 0 0", fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
@@ -250,10 +250,8 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
           <span
             key={label}
             style={{
-              fontSize: "var(--type-micro)",
-              fontWeight: 700,
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
+              fontSize: "var(--type-caption)",
+              fontWeight: 600,
               color: "var(--ink-70)",
             }}
           >
@@ -552,20 +550,16 @@ function RecommendationsPanel({
   return (
     <div style={{ marginTop: 14 }}>
       <p
+        className="tile-label"
         style={{
           margin: "0 0 6px",
-          fontSize: "var(--type-micro)",
-          fontWeight: 700,
-          letterSpacing: "0.2em",
-          textTransform: "uppercase",
-          color: "var(--ink-70)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
         }}
       >
         <span>Recommendations</span>
-        <span style={{ fontWeight: 500, letterSpacing: "0.1em" }}>{recWindow}wk window</span>
+        <span style={{ fontWeight: 500 }}>{recWindow} wk window</span>
       </p>
 
       {recs.length === 0 ? (
@@ -912,12 +906,9 @@ export default function GlanceView({
                         }}
                       >
                         <p
+                          className="tile-label"
                           style={{
                             margin: "0 0 1px",
-                            fontSize: "var(--type-micro)",
-                            fontWeight: 700,
-                            letterSpacing: "0.2em",
-                            textTransform: "uppercase",
                             color: "var(--phase-mid-text)",
                           }}
                         >
@@ -926,7 +917,7 @@ export default function GlanceView({
                         <p
                           style={{
                             margin: "0 0 6px",
-                            fontSize: "var(--type-micro)",
+                            fontSize: "var(--type-caption)",
                             color: "var(--phase-mid-text)",
                           }}
                         >

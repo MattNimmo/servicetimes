@@ -4,13 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS: Array<{
-  label: "GLANCE" | "WORKBENCH" | "TRIAGE";
+  label: "Glance" | "Workbench" | "Triage";
   href: "/instrument/glance" | "/instrument/workbench" | "/instrument/triage";
   operatorOnly?: boolean;
 }> = [
-  { label: "GLANCE", href: "/instrument/glance" },
-  { label: "WORKBENCH", href: "/instrument/workbench" },
-  { label: "TRIAGE", href: "/instrument/triage", operatorOnly: true },
+  { label: "Glance", href: "/instrument/glance" },
+  { label: "Workbench", href: "/instrument/workbench" },
+  { label: "Triage", href: "/instrument/triage", operatorOnly: true },
 ];
 
 export default function InstrumentTabs({
@@ -34,7 +34,7 @@ export default function InstrumentTabs({
             className={`instrument-tab${active ? " instrument-tab--active" : ""}`}
           >
             {tab.label}
-            {tab.label === "TRIAGE" && triageBadge > 0 ? (
+            {tab.label === "Triage" && triageBadge > 0 ? (
               <span className="instrument-tab__badge">{triageBadge}</span>
             ) : null}
           </Link>

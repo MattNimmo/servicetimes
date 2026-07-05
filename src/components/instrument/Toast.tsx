@@ -58,9 +58,7 @@ export default function Toast({
         style={{
           marginLeft: 4,
           fontSize: "var(--type-caption)",
-          fontWeight: 700,
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
+          fontWeight: 600,
           color: "var(--ink-70)",
           background: "transparent",
           border: "none",

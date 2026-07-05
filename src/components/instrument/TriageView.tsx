@@ -33,32 +33,32 @@ const STATUS_CONFIG = {
   good: {
     bg: "transparent",
     pillClass: "pill--under",
-    label: "✓ MAPPED",
+    label: "✓ Mapped",
   },
   not_tracked: {
     bg: "transparent",
     pillClass: "pill--muted",
-    label: "NOT TRACKED",
+    label: "Not tracked",
   },
   rolled_up: {
     bg: "transparent",
     pillClass: "pill--muted",
-    label: "↳ ROLLED UP",
+    label: "↳ Rolled up",
   },
   unmapped: {
     bg: "var(--unmapped-fill)",
     pillClass: "pill--unmapped",
-    label: "UNMAPPED",
+    label: "Unmapped",
   },
   incident: {
     bg: "rgba(207,82,44,0.04)",
     pillClass: "pill--over",
-    label: "INCIDENT",
+    label: "Incident",
   },
   resolved: {
     bg: "transparent",
     pillClass: "pill--under",
-    label: "✓ RESOLVED",
+    label: "✓ Resolved",
   },
 } as const;
 
@@ -254,7 +254,8 @@ function SlotIncidentChip({
   incident: SlotIncident;
   redirectTo: string;
 }) {
-  const label = incident.kind.replace(/_/g, " ").toUpperCase();
+  const raw = incident.kind.replace(/_/g, " ");
+  const label = raw.charAt(0).toUpperCase() + raw.slice(1);
 
   if (incident.canCorrectPlanTimeActual) {
     return (
@@ -367,17 +368,15 @@ function SectionHeaderRow({ section }: { section: TriageSection }) {
       <span className="triage-row__len" />
       <span
         style={{
-          fontSize: "var(--type-micro)",
+          fontSize: "var(--type-caption)",
           fontWeight: 700,
-          letterSpacing: "0.2em",
-          textTransform: "uppercase",
           color: "var(--ink)",
         }}
       >
         {section.sectionLabel}
       </span>
       <span className={hasAttention ? "pill pill--review" : "pill pill--under"}>
-        {hasAttention ? `${attentionItems.length} NEED ATTENTION` : "ALL CLEAR"}
+        {hasAttention ? `${attentionItems.length} need attention` : "All clear"}
       </span>
     </div>
   );
@@ -516,10 +515,8 @@ function BulkKeepControl({ onToast }: { onToast: (msg: string) => void }) {
     >
       <span
         style={{
-          fontSize: "var(--type-micro)",
-          fontWeight: 700,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
+          fontSize: "var(--type-caption)",
+          fontWeight: 600,
           color: "var(--ink-70)",
         }}
       >
@@ -723,7 +720,10 @@ function ItemRow({
       <div className="triage-row__actions">
         <span className={`pill ${cfg.pillClass}`}>
           {item.status === "incident" && item.incident
-            ? item.incident.kind.replace(/_/g, " ").toUpperCase()
+            ? (() => {
+                const raw = item.incident.kind.replace(/_/g, " ");
+                return raw.charAt(0).toUpperCase() + raw.slice(1);
+              })()
             : item.status === "resolved" && item.resolutionLabel
               ? `✓ ${item.resolutionLabel}`
               : item.status === "good" && delta !== null
@@ -1010,16 +1010,15 @@ export default function TriageView({
           flexWrap: "wrap",
           marginBottom: 20,
           fontSize: "var(--type-caption)",
-          fontWeight: 700,
-          letterSpacing: "0.12em",
+          fontWeight: 600,
         }}
       >
         {[
-          { label: "✓ GOOD", color: "var(--under)" },
-          { label: "↳ ROLLED UP", color: "var(--ink-disabled)" },
-          { label: "UNMAPPED", color: "var(--unmapped)" },
-          { label: "INCIDENT", color: "var(--over)" },
-          { label: "NOT TRACKED", color: "var(--ink-disabled)" },
+          { label: "✓ Good", color: "var(--under)" },
+          { label: "↳ Rolled up", color: "var(--ink-disabled)" },
+          { label: "Unmapped", color: "var(--unmapped)" },
+          { label: "Incident", color: "var(--over)" },
+          { label: "Not tracked", color: "var(--ink-disabled)" },
         ].map((l) => (
           <span key={l.label} style={{ color: l.color }}>
             {l.label}
@@ -1037,22 +1036,20 @@ export default function TriageView({
         >
           {(
             [
-              { label: "PLAN", className: "triage-row__time" },
-              { label: "ACTUAL", className: "triage-row__time" },
-              { label: "LEN", className: "triage-row__len" },
-              { label: "ACT", className: "triage-row__len" },
-              { label: "TITLE", className: undefined },
-              { label: "STATUS · ACTION", className: undefined },
+              { label: "Plan", className: "triage-row__time" },
+              { label: "Actual", className: "triage-row__time" },
+              { label: "Len", className: "triage-row__len" },
+              { label: "Act", className: "triage-row__len" },
+              { label: "Title", className: undefined },
+              { label: "Status · action", className: undefined },
             ] as const
           ).map((h) => (
             <span
               key={h.label}
               className={h.className}
               style={{
-                fontSize: "var(--type-micro)",
-                fontWeight: 700,
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
+                fontSize: "var(--type-caption)",
+                fontWeight: 600,
                 color: "var(--ink-70)",
               }}
             >

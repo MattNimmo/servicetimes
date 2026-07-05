@@ -114,10 +114,8 @@ a {
   border-radius: var(--r-pill);
   padding: 0.62rem 1rem;
   border: 1px solid transparent;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: var(--type-body);
+  font-weight: 600;
   text-decoration: none;
   cursor: pointer;
   transition:
@@ -168,8 +166,7 @@ a {
 .btn--compact {
   min-height: 1.75rem;
   padding: 0.28rem 0.62rem;
-  font-size: var(--type-micro);
-  letter-spacing: 0.1em;
+  font-size: var(--type-caption);
 }
 
 .glass-input {
@@ -230,11 +227,9 @@ a {
   background: rgba(255, 255, 255, 0.68);
   color: var(--ink);
   padding: 0.35rem 0.72rem;
-  font-size: var(--type-micro);
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-size: var(--type-caption);
+  font-weight: 600;
   line-height: 1;
-  text-transform: uppercase;
 }
 
 .pill--review {
@@ -280,10 +275,8 @@ a {
 .table-label {
   display: block;
   color: var(--ink-70);
-  font-size: var(--type-micro);
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  font-size: var(--type-caption);
+  font-weight: 600;
 }
 
 .metric-card__value {
@@ -315,10 +308,8 @@ a {
 .data-table thead {
   background: rgba(255, 255, 255, 0.62);
   color: var(--ink-70);
-  font-size: var(--type-micro);
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: var(--type-caption);
+  font-weight: 600;
 }
 
 .data-table th,
@@ -343,10 +334,8 @@ a {
 .data-table__section td {
   background: var(--ink-fill-soft);
   color: var(--ink);
-  font-size: var(--type-micro);
+  font-size: var(--type-caption);
   font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
 }
 
 .data-table__section-summary {
