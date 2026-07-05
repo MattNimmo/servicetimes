@@ -48,7 +48,7 @@ export default async function CampusVariancePage({
   return (
     <main className="app-page app-page--narrow">
       <Link href="/variance" className="app-link text-sm">
-        ← All campuses
+        ← All Locations
       </Link>
       <p className="instrument-eyebrow mt-8">
         {result.campus.code}
@@ -63,7 +63,7 @@ export default async function CampusVariancePage({
               {result.campus.name}&apos;s services will appear after the next
               Sunday-evening ingest. Check back Monday, or{" "}
               <Link href="/variance" className="app-link">
-                pick another campus
+                pick another Location
               </Link>
               .
             </p>

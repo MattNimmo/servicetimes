@@ -578,7 +578,7 @@ function BulkKeepControl({ onToast }: { onToast: (msg: string) => void }) {
             }}
           >
             Accepts every open {kindLabel} incident older than {olderThanWeeks} wk,
-            across all campuses. No bulk undo — items can only be reopened one
+            across all Locations. No bulk undo — items can only be reopened one
             at a time.
           </span>
           <button type="submit" disabled={pending} className="btn btn--primary btn--compact">
@@ -870,7 +870,7 @@ export default function TriageView({
     <main className="instrument-page">
       {/* Header */}
       <section style={{ marginBottom: "1.5rem" }}>
-        <p className="instrument-eyebrow">Triage · service flow</p>
+        <p className="instrument-eyebrow">Verify · service flow</p>
         <h1 className="instrument-title" style={{ fontSize: "clamp(1.8rem,3.5vw,3rem)", marginBottom: "0.5rem" }}>
           Resolve in the flow of the service.
         </h1>

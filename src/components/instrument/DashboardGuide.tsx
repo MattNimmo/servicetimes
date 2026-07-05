@@ -14,24 +14,24 @@ const GUIDE_SECTIONS: readonly GuideSection[] = [
   {
     title: "Glance",
     items: [
-      "Start here Monday. Each card answers one question: did that campus land on plan?",
-      "Open the cards with attention states first; healthy campuses can wait.",
+      "Start here Monday. Each card answers one question: did that Location land on plan?",
+      "Open the cards with attention states first; healthy Locations can wait.",
       "Recommendations are prompts, not verdicts — they point at timing worth a look.",
     ],
   },
   {
     title: "Workbench",
     items: [
-      "One campus, one service. Use it when you need trend context and element-level detail.",
+      "One Location, one service. Use it when you need trend context and element-level detail.",
       "Compare planned, actual, and the phase breakdown before changing anything in Planning Center.",
       "A confirmed trend usually means the plan is wrong, not the execution — update the planned time.",
     ],
   },
   {
-    title: "Triage",
+    title: "Verify",
     operatorOnly: true,
     items: [
-      "Use Triage when an item needs a decision before the numbers can be trusted.",
+      "Use Verify when an item needs a decision before the numbers can be trusted.",
       "Correct raw timing only through the correction forms; the original Planning Center evidence stays intact.",
       "Resolve or reopen from the row where the evidence appears, so the audit trail keeps its context.",
     ],
@@ -40,7 +40,7 @@ const GUIDE_SECTIONS: readonly GuideSection[] = [
     title: "Weekly rhythm",
     operatorOnly: true,
     items: [
-      "After Sunday's ingest: scan Glance, clear Triage, then review recurring levers in Workbench.",
+      "After Sunday's ingest: scan Glance, clear Verify, then review recurring levers in Workbench.",
       "Working targets are context, not law; planned item times are what you actually calibrate.",
       "If something looks off, reopen or dismiss with context — don't edit around the evidence.",
     ],

@@ -18,7 +18,7 @@ export default async function VarianceIndexPage() {
       </p>
       <h1 className="instrument-title">Service history</h1>
       <p className="instrument-subtitle">
-        Pick a campus to see how each Sunday ran against plan.
+        Pick a Location to see how each Sunday ran against plan.
       </p>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

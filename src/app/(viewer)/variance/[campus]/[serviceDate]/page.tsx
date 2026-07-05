@@ -67,7 +67,7 @@ export default async function ServiceVariancePage({
           <div className="flex flex-wrap gap-3">
             <div className="metric-card">
               <span className="metric-card__label">
-                In Triage
+                In Verify
               </span>
               <strong className="metric-card__value text-[var(--review)]">
                 {result.openIncidentCount}

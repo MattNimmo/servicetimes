@@ -20,7 +20,7 @@ export default async function Home() {
           See where the service gained or lost time.
         </h1>
         <p className="instrument-subtitle max-w-2xl">
-          Planned vs actual timing for all four campuses — every service,
+          Planned vs actual timing for all four Locations — every service,
           every element, and the broadcast window.
         </p>
       </div>
@@ -37,14 +37,14 @@ export default async function Home() {
             href="/variance"
             className="btn btn--ghost"
           >
-            Service history by campus
+            Service history by Location
           </Link>
           {isOperator && (
             <Link
               href="/instrument/triage"
               className="btn btn--ghost"
             >
-              Triage
+              Verify
               {triageCount > 0 ? ` · ${triageCount} waiting` : ""}
             </Link>
           )}

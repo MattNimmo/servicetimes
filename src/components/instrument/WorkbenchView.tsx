@@ -841,7 +841,7 @@ export default function WorkbenchView({
         {/* Cross tile */}
         <div className="glass-card wb-tile">
           <p className="tile-label">
-            Close worship · all campuses
+            Close worship · all Locations
           </p>
           <CrossMedianBars medians={allCampusMedians} />
         </div>

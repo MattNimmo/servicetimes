@@ -136,7 +136,7 @@ function BroadcastWindowTrend({ points }: { points: BroadcastTrendPoint[] }) {
             Broadcast window · {BROADCAST_HORIZONS.find((h) => h.value === horizon)?.label}
           </p>
           <p style={{ margin: "4px 0 0", fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
-            Bumper end → message end at the broadcast campus
+            Bumper end → message end at the broadcast Location
           </p>
         </div>
         <div className="segment-control__options">
@@ -337,27 +337,11 @@ function slotPlanDelta(selectedSlot: ServiceSlotSummary | undefined): number | n
   return selectedSlot.actualSeconds - selectedSlot.plannedSeconds;
 }
 
-function statusLabel(
-  selectedSlot: ServiceSlotSummary | undefined,
-  mode: "actuals" | "awaiting",
-) {
-  if (mode === "awaiting") return "Awaiting Sunday";
-  if (!selectedSlot || selectedSlot.actualSeconds === null) return "Needs review";
-  if (selectedSlot.isBlocked) return "Needs review";
-  const delta = slotPlanDelta(selectedSlot);
-  if (delta !== null && delta > 60) return "Over plan";
-  return "On plan";
-}
-
-function statusTone(
-  selectedSlot: ServiceSlotSummary | undefined,
-  mode: "actuals" | "awaiting",
-) {
-  const label = statusLabel(selectedSlot, mode);
-  if (label === "Needs review") return "review";
-  if (label === "Over plan") return "over";
-  if (label === "On plan") return "under";
-  return "neutral";
+// Services are essentially always over plan, so an "over/on plan" pill just
+// echoes the delta. The only status worth a pill is the exception: numbers
+// the Tech Team hasn't finished verifying.
+function needsReview(selectedSlot: ServiceSlotSummary | undefined) {
+  return !selectedSlot || selectedSlot.actualSeconds === null || selectedSlot.isBlocked;
 }
 
 function verdictLabel(campus: GlanceCampus, selectedSlot: ServiceSlotSummary | undefined) {
@@ -455,27 +439,24 @@ function buildPatternRecommendations(
 function buildRecommendations(
   campus: GlanceCampus,
   selectedSlot: ServiceSlotSummary | undefined,
-  mode: "actuals" | "awaiting",
   recWindow: 6 | 12,
   isOperator: boolean,
 ): GlanceRecommendation[] {
-  if (mode === "awaiting") return [];
-
   const recs: GlanceRecommendation[] = [];
-  const triageHref = `/instrument/triage?campus=${campus.code}&date=${campus.serviceDate}`;
+  const verifyHref = `/instrument/triage?campus=${campus.code}&date=${campus.serviceDate}`;
   const workbenchHref = `/instrument/workbench?campus=${campus.code}&slot=${selectedSlot?.slotLabel ?? ""}`;
   const isBlocked = selectedSlot?.isBlocked ?? false;
 
-  // Triage is operator-only, so triage-routed housekeeping recommendations
+  // Verify is operator-only, so Verify-routed housekeeping recommendations
   // only render for operators. Viewers still see the blocked/verifying state
-  // through the status pill and verdict line.
+  // through the verdict line.
   if (isOperator && isBlocked) {
     recs.push({
       urgency: "high",
-      label: "This service is blocked — Triage decision needed",
-      detail: "A data question is holding back reliable numbers for this service. Open Triage to settle it.",
-      actionLabel: "Open Triage →",
-      actionHref: triageHref,
+      label: "This service is blocked — a Verify decision is needed",
+      detail: "A data question is holding back reliable numbers for this service. Open Verify to settle it.",
+      actionLabel: "Open Verify →",
+      actionHref: verifyHref,
     });
   }
 
@@ -483,10 +464,10 @@ function buildRecommendations(
     const n = campus.openIncidentCount;
     recs.push({
       urgency: isBlocked ? "high" : "medium",
-      label: `${n} item${n === 1 ? "" : "s"} waiting on a Triage decision`,
+      label: `${n} item${n === 1 ? "" : "s"} waiting on a Verify decision`,
       detail: "Unresolved items reduce the accuracy of element-level numbers across Workbench and service history.",
-      actionLabel: "Open Triage →",
-      actionHref: triageHref,
+      actionLabel: "Open Verify →",
+      actionHref: verifyHref,
     });
   }
 
@@ -524,9 +505,9 @@ function buildRecommendations(
     recs.push({
       urgency: "low",
       label: `${n} item${n === 1 ? "" : "s"} not matched to a tracked element`,
-      detail: "Unmatched items leave gaps in element-level tracking. Match them in Triage.",
-      actionLabel: "Open Triage →",
-      actionHref: triageHref,
+      detail: "Unmatched items leave gaps in element-level tracking. Match them in Verify.",
+      actionLabel: "Open Verify →",
+      actionHref: verifyHref,
     });
   }
 
@@ -675,7 +656,6 @@ export default function GlanceView({
   broadcastTrend: BroadcastTrendPoint[];
   isOperator: boolean;
 }) {
-  const [mode, setMode] = useState<"actuals" | "awaiting">("actuals");
   const [recWindow, setRecWindow] = useState<6 | 12>(6);
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(campuses.map((campus) => [campus.code, false])),
@@ -694,7 +674,7 @@ export default function GlanceView({
           campus.slots.find((slot) => slot.slotLabel === selectedLabel) ?? campus.slots[0];
         const phases = selectedSlot?.phases ?? EMPTY_PHASES;
         const totalPlanned = totalPlannedSeconds(phases);
-        const recs = buildRecommendations(campus, selectedSlot, mode, recWindow, isOperator);
+        const recs = buildRecommendations(campus, selectedSlot, recWindow, isOperator);
 
         return {
           campus,
@@ -709,12 +689,12 @@ export default function GlanceView({
               : null,
         };
       }),
-    [campuses, expanded, glanceSvc, mode, recWindow, isOperator],
+    [campuses, expanded, glanceSvc, recWindow, isOperator],
   );
 
-  // When every campus is reporting the same Sunday (the normal case), say the
-  // date once in the hero and let each card lead with its campus. Cards only
-  // carry their own date when campuses diverge.
+  // When every Location is reporting the same Sunday (the normal case), say the
+  // date once in the hero and let each card lead with its Location. Cards only
+  // carry their own date when Locations diverge.
   const sharedServiceDate =
     new Set(campuses.map((campus) => campus.serviceDate)).size === 1
       ? campuses[0]?.serviceDate ?? null
@@ -728,36 +708,14 @@ export default function GlanceView({
             The Monday Glance
             {sharedServiceDate ? ` · ${formatServiceDate(sharedServiceDate)}` : ""}
           </p>
-          <h1 className="instrument-title">Where did each campus land?</h1>
+          <h1 className="instrument-title">Where did each Location land?</h1>
           <p className="instrument-subtitle">
-            Every campus against plan from the latest Sunday — and what deserves
-            a look before next week.
+            Every Location against plan from the latest Sunday — and what
+            deserves a look before next week.
           </p>
         </div>
 
         <div className="instrument-controls">
-          <div className="segment-control">
-            <span className="segment-control__label">View</span>
-            <div className="segment-control__options">
-              <button
-                type="button"
-                className={mode === "actuals" ? "segment-option segment-option--active" : "segment-option"}
-                aria-pressed={mode === "actuals"}
-                onClick={() => setMode("actuals")}
-              >
-                Sunday actuals
-              </button>
-              <button
-                type="button"
-                className={mode === "awaiting" ? "segment-option segment-option--active" : "segment-option"}
-                aria-pressed={mode === "awaiting"}
-                onClick={() => setMode("awaiting")}
-              >
-                This week&apos;s plan
-              </button>
-            </div>
-          </div>
-
           <div className="segment-control">
             <span className="segment-control__label">Trend window</span>
             <div className="segment-control__options">
@@ -783,10 +741,8 @@ export default function GlanceView({
 
       <div className="glance-grid">
         {campusCards.map(({ campus, selectedSlot, phases, totalPlanned, expanded: isExpanded, recs, midDelta }) => {
-          const selectedActual =
-            mode === "awaiting" ? selectedSlot?.plannedSeconds ?? null : selectedSlot?.actualSeconds ?? null;
-          // In plan-preview mode there is nothing to compare against yet.
-          const delta = mode === "awaiting" ? null : slotPlanDelta(selectedSlot);
+          const selectedActual = selectedSlot?.actualSeconds ?? null;
+          const delta = slotPlanDelta(selectedSlot);
 
           return (
             <article key={campus.code} className="glass-card glance-card">
@@ -815,9 +771,11 @@ export default function GlanceView({
                   <h2 className="glance-card__title">{campus.name}</h2>
                 </div>
                 <div className="glance-card__header-meta">
-                  <span className={`status-pill status-pill--${statusTone(selectedSlot, mode)}`}>
-                    {statusLabel(selectedSlot, mode)}
-                  </span>
+                  {needsReview(selectedSlot) && (
+                    <span className="status-pill status-pill--review">
+                      Needs review
+                    </span>
+                  )}
                   <span className="glance-card__chevron">{isExpanded ? "▾" : "▸"}</span>
                 </div>
               </button>
@@ -826,8 +784,7 @@ export default function GlanceView({
                 <div className="glance-card__total-row">
                   <div>
                     <p className="glance-card__label">
-                      {selectedSlot?.slotLabel ?? "No slot"} ·{" "}
-                      {mode === "awaiting" ? "planned total" : "total · vs plan"}
+                      {selectedSlot?.slotLabel ?? "No slot"} · total · vs plan
                     </p>
                     <p className="glance-card__total tabular">
                       {formatDuration(selectedActual)}
@@ -901,16 +858,15 @@ export default function GlanceView({
                     </div>
 
                     {/* Mid-service lever */}
-                    {mode === "actuals" && (
-                      <div
-                        style={{
-                          marginTop: 12,
-                          padding: "10px 14px",
-                          borderRadius: "var(--r-sm)",
-                          background: "rgba(221,138,32,0.08)",
-                          border: "1px solid rgba(221,138,32,0.14)",
-                        }}
-                      >
+                    <div
+                      style={{
+                        marginTop: 12,
+                        padding: "10px 14px",
+                        borderRadius: "var(--r-sm)",
+                        background: "rgba(221,138,32,0.08)",
+                        border: "1px solid rgba(221,138,32,0.14)",
+                      }}
+                    >
                         <p
                           className="tile-label"
                           style={{
@@ -950,7 +906,6 @@ export default function GlanceView({
                           )}
                         </div>
                       </div>
-                    )}
 
                     <p className="glance-card__verdict">{verdictLabel(campus, selectedSlot)}</p>
 
@@ -960,7 +915,7 @@ export default function GlanceView({
                       {isOperator && (
                         <>
                           <div className="glance-metric">
-                            <span>In Triage</span>
+                            <span>In Verify</span>
                             <strong className="tabular" style={{ color: "var(--review)" }}>
                               {campus.openIncidentCount}
                             </strong>
@@ -991,7 +946,7 @@ export default function GlanceView({
                           href={`/instrument/triage?campus=${campus.code}&date=${campus.serviceDate}`}
                           className="glance-link"
                         >
-                          Open triage →
+                          Open verify →
                         </Link>
                       )}
                     </div>
