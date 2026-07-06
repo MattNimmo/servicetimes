@@ -40,7 +40,7 @@ const GUIDE_SECTIONS: readonly GuideSection[] = [
     title: "Weekly rhythm",
     operatorOnly: true,
     items: [
-      "After Sunday's ingest: scan Glance, clear Verify, then review recurring levers in Workbench.",
+      "After Sunday's ingest: scan Glance, clear Verify, then review recurring patterns in Workbench.",
       "Working targets are context, not law; planned item times are what you actually calibrate.",
       "If something looks off, reopen or dismiss with context — don't edit around the evidence.",
     ],

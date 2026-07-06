@@ -857,7 +857,7 @@ export default function GlanceView({
                       ))}
                     </div>
 
-                    {/* Mid-service lever */}
+                    {/* Mid-service summary */}
                     <div
                       style={{
                         marginTop: 12,
@@ -874,16 +874,7 @@ export default function GlanceView({
                             color: "var(--phase-mid-text)",
                           }}
                         >
-                          Mid-service · the lever
-                        </p>
-                        <p
-                          style={{
-                            margin: "0 0 6px",
-                            fontSize: "var(--type-caption)",
-                            color: "var(--phase-mid-text)",
-                          }}
-                        >
-                          the part you actually control
+                          Mid-service
                         </p>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
                           <span

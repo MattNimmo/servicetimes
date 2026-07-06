@@ -809,7 +809,7 @@ export default function WorkbenchView({
           </p>
         </div>
 
-        {/* Mid lever tile */}
+        {/* Mid phase tile */}
         <div
           className="glass-card wb-tile"
           style={{
@@ -817,7 +817,7 @@ export default function WorkbenchView({
           }}
         >
           <p className="tile-label" style={{ color: "var(--phase-mid-text)" }}>
-            Mid · the lever
+            Mid
           </p>
           <p
             className="tabular"
