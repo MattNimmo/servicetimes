@@ -18,43 +18,71 @@ function durationSeconds(start: string | null, end: string | null) {
   return Number.isFinite(duration) ? duration : null;
 }
 
-export async function fetchLatestCompletedPlan(serviceTypeId: string) {
-  const plans = await pcoGet<PcoCollection<PcoPlan>>(
-    `/services/v2/service_types/${serviceTypeId}/plans?filter=past&order=-sort_date&per_page=10`,
+async function fetchCompletedPlanBundle(
+  serviceTypeId: string,
+  plan: PcoPlan,
+  knownPlanTimes?: PcoCollection<PcoPlanTime>,
+): Promise<PlanBundle | null> {
+  const planTimes =
+    knownPlanTimes ??
+    (await pcoGetAll<PcoPlanTime>(
+      `/services/v2/service_types/${serviceTypeId}/plans/${plan.id}/plan_times?per_page=100`,
+    ));
+  const hasCompletedService = planTimes.data.some(({ attributes }) => {
+    return (
+      attributes.time_type === "service" &&
+      !isNonProductionName(attributes.name) &&
+      attributes.recorded &&
+      durationSeconds(attributes.live_starts_at, attributes.live_ends_at) !== null
+    );
+  });
+
+  if (!hasCompletedService) return null;
+
+  const items = await pcoGetAll<PcoItem, PcoItemTime>(
+    `/services/v2/service_types/${serviceTypeId}/plans/${plan.id}/items?include=item_times&per_page=100`,
   );
 
-  for (const plan of plans.data) {
-    const planTimes = await pcoGetAll<PcoPlanTime>(
-      `/services/v2/service_types/${serviceTypeId}/plans/${plan.id}/plan_times?per_page=100`,
-    );
-    const hasCompletedService = planTimes.data.some(({ attributes }) => {
-      return (
-        attributes.time_type === "service" &&
-        !isNonProductionName(attributes.name) &&
-        attributes.recorded &&
-        durationSeconds(attributes.live_starts_at, attributes.live_ends_at) !==
-          null
-      );
-    });
+  return {
+    plan,
+    planTimes: planTimes.data,
+    items: items.data,
+    itemTimes: (items.included ?? []).filter(
+      (resource): resource is PcoItemTime => resource.type === "ItemTime",
+    ),
+  };
+}
 
-    if (!hasCompletedService) continue;
+export async function fetchLatestCompletedPlan(serviceTypeId: string) {
+  const [pastPlans, futurePlans] = await Promise.all([
+    pcoGet<PcoCollection<PcoPlan>>(
+      `/services/v2/service_types/${serviceTypeId}/plans?filter=past&order=-sort_date&per_page=5`,
+    ),
+    pcoGet<PcoCollection<PcoPlan>>(
+      `/services/v2/service_types/${serviceTypeId}/plans?filter=future&order=sort_date&per_page=5`,
+    ),
+  ]);
 
-    const items = await pcoGetAll<PcoItem, PcoItemTime>(
-      `/services/v2/service_types/${serviceTypeId}/plans/${plan.id}/items?include=item_times&per_page=100`,
-    );
+  const now = Date.now();
+  const planById = new Map<string, PcoPlan>();
+  for (const plan of [...pastPlans.data, ...futurePlans.data]) {
+    const sortTime = Date.parse(plan.attributes.sort_date);
+    if (!Number.isFinite(sortTime) || sortTime > now) continue;
+    planById.set(plan.id, plan);
+  }
 
-    return {
-      plan,
-      planTimes: planTimes.data,
-      items: items.data,
-      itemTimes: (items.included ?? []).filter(
-        (resource): resource is PcoItemTime => resource.type === "ItemTime",
-      ),
-    };
+  const candidates = [...planById.values()].sort(
+    (left, right) =>
+      Date.parse(right.attributes.sort_date) - Date.parse(left.attributes.sort_date),
+  );
+
+  for (const plan of candidates) {
+    const bundle = await fetchCompletedPlanBundle(serviceTypeId, plan);
+    if (bundle) return bundle;
   }
 
   throw new Error(
-    `No completed service was found in the latest ${plans.data.length} plans`,
+    `No completed service was found in the latest ${candidates.length} arrived plans`,
   );
 }
 
@@ -133,19 +161,8 @@ export async function fetchPlanBundleIfCompleted(
     };
   }
 
-  const items = await pcoGetAll<PcoItem, PcoItemTime>(
-    `/services/v2/service_types/${serviceTypeId}/plans/${plan.id}/items?include=item_times&per_page=100`,
-  );
-
   return {
     status: "ok",
-    bundle: {
-      plan,
-      planTimes: planTimes.data,
-      items: items.data,
-      itemTimes: (items.included ?? []).filter(
-        (resource): resource is PcoItemTime => resource.type === "ItemTime",
-      ),
-    },
+    bundle: (await fetchCompletedPlanBundle(serviceTypeId, plan, planTimes))!,
   };
 }

@@ -3,10 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/pco/recurring-ingestion", () => ({
   runRecurringPcoIngestion: vi.fn(),
+  runRepairPcoIngestion: vi.fn(),
 }));
 
 import { GET, POST } from "@/app/api/pco/ingest/route";
-import { runRecurringPcoIngestion } from "@/lib/pco/recurring-ingestion";
+import { GET as BACKFILL_GET } from "@/app/api/pco/ingest/backfill/route";
+import {
+  runRecurringPcoIngestion,
+  runRepairPcoIngestion,
+} from "@/lib/pco/recurring-ingestion";
 
 const secret = "test-cron-secret-123";
 
@@ -25,6 +30,12 @@ describe("recurring ingestion route", () => {
       ok: true,
       generatedAt: "2026-06-24T00:00:00.000Z",
       writesPerformed: 4,
+      campuses: [],
+    });
+    vi.mocked(runRepairPcoIngestion).mockResolvedValue({
+      ok: true,
+      generatedAt: "2026-06-24T00:00:00.000Z",
+      writesPerformed: 0,
       campuses: [],
     });
   });
@@ -71,5 +82,12 @@ describe("recurring ingestion route", () => {
     const response = await GET(request());
 
     expect(response.status).toBe(502);
+  });
+
+  it("uses the same auth gates for the Monday repair route", async () => {
+    const response = await BACKFILL_GET(request());
+
+    expect(response.status).toBe(200);
+    expect(runRepairPcoIngestion).toHaveBeenCalledTimes(1);
   });
 });
