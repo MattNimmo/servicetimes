@@ -1062,25 +1062,43 @@ export async function getWorkbenchData(
     })
     .reverse(); // chronological (oldest first)
 
-  // Cross-campus medians for mid.close_worship over the last 6 service dates
+  // Cross-campus medians for mid.close_worship over the last 6 service dates,
+  // matched to the selected service slot label for each campus.
   const allCampuses = await listInstrumentCampuses();
   const allCampusMedians: CrossCampusMedian[] = await Promise.all(
     allCampuses.map(async (c) => {
-      const recentPlans = await readRows<{ id: number }>("plans", {
-        campus_id: `eq.${c.id}`,
-        select: "id",
-        order: "service_date.desc",
-        limit: "6",
+      const [matchingSlots, recentPlans] = await Promise.all([
+        readRows<{ id: number }>("service_slots", {
+          campus_id: `eq.${c.id}`,
+          is_active: "eq.true",
+          slot_label: `eq.${slot.slot_label}`,
+          select: "id",
+          limit: "1",
+        }),
+        readRows<{ id: number }>("plans", {
+          campus_id: `eq.${c.id}`,
+          select: "id",
+          order: "service_date.desc",
+          limit: "6",
+        }),
+      ]);
+      const matchingSlot = matchingSlots[0] ?? null;
+      if (!matchingSlot || recentPlans.length === 0) {
+        return {
+          campusCode: c.code,
+          medianSeconds: null,
+          isActive: c.code === campus.code,
+        };
+      }
+      const planIds = recentPlans.map((p) => p.id);
+      const rows = await readRows<{ plan_id: number; actual_seconds: number | null }>("element_variance", {
+        plan_id: `in.(${planIds.join(",")})`,
+        effective_slot_id: `eq.${matchingSlot.id}`,
+        element_key: `eq.mid.close_worship`,
+        select: "plan_id,actual_seconds",
       });
-      const actuals = await Promise.all(
-        recentPlans.map((p) =>
-          readRows<{ actual_seconds: number | null }>("element_variance", {
-            plan_id: `eq.${p.id}`,
-            element_key: `eq.mid.close_worship`,
-            select: "actual_seconds",
-          }).then((rows) => rows[0]?.actual_seconds ?? null),
-        ),
-      );
+      const actualByPlanId = new Map(rows.map((row) => [row.plan_id, row.actual_seconds]));
+      const actuals = recentPlans.map((p) => actualByPlanId.get(p.id) ?? null);
       return {
         campusCode: c.code,
         medianSeconds: median(actuals),
