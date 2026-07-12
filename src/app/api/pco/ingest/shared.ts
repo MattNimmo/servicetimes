@@ -15,6 +15,9 @@ export async function runSecuredPcoIngest(
   request: Request,
   label: string,
   run: () => Promise<IngestResult>,
+  options: {
+    additionalAuthorization?: (request: Request) => Promise<boolean>;
+  } = {},
 ) {
   const requestId = randomUUID();
   const startedAt = Date.now();
@@ -40,7 +43,12 @@ export async function runSecuredPcoIngest(
     );
     return respond({ ok: false, error: "Cron authentication is not configured" }, 503);
   }
-  if (!authorized(request, secret)) {
+  const hasSharedSecret = authorized(request, secret);
+  const hasAdditionalAuthorization =
+    !hasSharedSecret && options.additionalAuthorization
+      ? await options.additionalAuthorization(request)
+      : false;
+  if (!hasSharedSecret && !hasAdditionalAuthorization) {
     console.warn(
       `[${label}] aborted: requestId=${requestId} unauthorized request (bearer token mismatch)`,
     );

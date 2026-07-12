@@ -13,7 +13,7 @@ function plan(campus: string, pcoPlanId: string) {
   return {
     campus,
     dryRun: true,
-    plan: { pcoPlanId },
+    plan: { pcoPlanId, serviceDate: "2026-07-05" },
     planTimes: [],
     items: [],
     itemTimes: [],
@@ -24,6 +24,11 @@ function plan(campus: string, pcoPlanId: string) {
 }
 
 describe("runRecurringPcoIngestion", () => {
+  const verificationDependencies = {
+    now: () => new Date("2026-07-05T19:00:00Z"),
+    countPersistedCampuses: vi.fn(async () => 4),
+  };
+
   it("previews every campus before committing all four plans", async () => {
     const buildCampusPlan = vi.fn(async (campus: PcoCampus) =>
       plan(campus.code, `plan-${campus.code}`),
@@ -35,10 +40,16 @@ describe("runRecurringPcoIngestion", () => {
     const result = await runRecurringPcoIngestion({
       buildCampusPlan,
       persistPlan: persistPlan as never,
+      ...verificationDependencies,
     });
 
     expect(result.ok).toBe(true);
     expect(result.writesPerformed).toBe(4);
+    expect(result.expectedServiceDate).toBe("2026-07-05");
+    expect(result.verification).toEqual({
+      successfulLocations: 4,
+      expectedLocations: 4,
+    });
     expect(buildCampusPlan).toHaveBeenCalledTimes(4);
     expect(persistPlan).toHaveBeenCalledTimes(4);
   });
@@ -53,6 +64,7 @@ describe("runRecurringPcoIngestion", () => {
     const result = await runRecurringPcoIngestion({
       buildCampusPlan,
       persistPlan: persistPlan as never,
+      ...verificationDependencies,
     });
 
     expect(result.ok).toBe(false);
@@ -71,6 +83,7 @@ describe("runRecurringPcoIngestion", () => {
         if (value.campus === "LV") throw new Error("database unavailable");
         return { ingestRunId: value.campus };
       }) as never,
+      ...verificationDependencies,
     });
 
     expect(result.ok).toBe(false);
@@ -78,6 +91,47 @@ describe("runRecurringPcoIngestion", () => {
     expect(result.campuses).toContainEqual(
       expect.objectContaining({ campus: "LV", status: "write_failed" }),
     );
+  });
+
+  it("rejects a stale campus preview before any write", async () => {
+    const persistPlan = vi.fn();
+    const result = await runRecurringPcoIngestion({
+      buildCampusPlan: async (campus: PcoCampus) => {
+        const value = plan(campus.code, `plan-${campus.code}`);
+        if (campus.code === "MG") value.plan.serviceDate = "2026-06-28";
+        return value;
+      },
+      persistPlan: persistPlan as never,
+      ...verificationDependencies,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.writesPerformed).toBe(0);
+    expect(persistPlan).not.toHaveBeenCalled();
+    expect(result.campuses).toContainEqual(
+      expect.objectContaining({
+        campus: "MG",
+        status: "preview_failed",
+        error: "Expected 2026-07-05, received 2026-06-28",
+      }),
+    );
+  });
+
+  it("does not report success until all expected campuses are persisted", async () => {
+    const result = await runRecurringPcoIngestion({
+      buildCampusPlan: async (campus: PcoCampus) =>
+        plan(campus.code, `plan-${campus.code}`),
+      persistPlan: (async () => ({ ingestRunId: 1 })) as never,
+      now: verificationDependencies.now,
+      countPersistedCampuses: async () => 3,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.writesPerformed).toBe(4);
+    expect(result.verification).toEqual({
+      successfulLocations: 3,
+      expectedLocations: 4,
+    });
   });
 });
 

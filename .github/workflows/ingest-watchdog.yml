@@ -1,0 +1,127 @@
+name: Production ingest watchdog
+
+on:
+  schedule:
+    # After the Sunday Vercel Hobby retry window in both CDT and CST.
+    - cron: "10 21 * * 0"
+    # After the Monday Vercel repair window in both CDT and CST.
+    - cron: "10 12 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+concurrency:
+  group: production-ingest-watchdog
+  cancel-in-progress: false
+
+jobs:
+  verify-and-recover:
+    name: Verify freshness and recover if needed
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      INGEST_ENDPOINT: https://servicetimes.vercel.app/api/pco/ingest/watchdog
+      OIDC_AUDIENCE: servicetimes-ingest-watchdog
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Invoke freshness watchdog
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          audience="$(jq --null-input --raw-output --arg value "${OIDC_AUDIENCE}" '$value | @uri')"
+          token_response="$(
+            curl \
+              --silent \
+              --show-error \
+              --fail-with-body \
+              --header "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+              "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${audience}"
+          )"
+          oidc_token="$(jq --raw-output '.value' <<< "${token_response}")"
+          if [[ -z "${oidc_token}" || "${oidc_token}" == "null" ]]; then
+            echo "GitHub did not return an OIDC token"
+            exit 1
+          fi
+          echo "::add-mask::${oidc_token}"
+
+          response_file="$(mktemp)"
+          status="$({
+            curl \
+              --silent \
+              --show-error \
+              --retry 3 \
+              --retry-delay 5 \
+              --retry-all-errors \
+              --request POST \
+              --header "Authorization: Bearer ${oidc_token}" \
+              --header "X-Ingest-Trigger: github-watchdog" \
+              --output "${response_file}" \
+              --write-out "%{http_code}" \
+              "${INGEST_ENDPOINT}"
+          })"
+
+          jq . "${response_file}"
+          if [[ "${status}" != "200" ]]; then
+            echo "Watchdog returned HTTP ${status}"
+            exit 1
+          fi
+
+          jq --exit-status '
+            .ok == true and
+            .verification.successfulLocations == .verification.expectedLocations
+          ' "${response_file}" > /dev/null
+
+      - name: Open or update operator alert
+        if: failure()
+        shell: bash
+        env:
+          ISSUE_TITLE: Production ingest watchdog failed
+        run: |
+          set -euo pipefail
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          issue_number="$(
+            gh issue list \
+              --repo "${GITHUB_REPOSITORY}" \
+              --state open \
+              --search "${ISSUE_TITLE} in:title" \
+              --json number \
+              --jq '.[0].number // empty'
+          )"
+
+          if [[ -n "${issue_number}" ]]; then
+            gh issue comment "${issue_number}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --body "The production ingest watchdog failed again: ${run_url}"
+          else
+            gh issue create \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "${ISSUE_TITLE}" \
+              --body "The independent production freshness watchdog failed. Review the run, Planning Center LIVE bounds, and production ingest health: ${run_url}"
+          fi
+
+      - name: Close recovered operator alert
+        if: success()
+        shell: bash
+        env:
+          ISSUE_TITLE: Production ingest watchdog failed
+        run: |
+          set -euo pipefail
+          issue_number="$(
+            gh issue list \
+              --repo "${GITHUB_REPOSITORY}" \
+              --state open \
+              --search "${ISSUE_TITLE} in:title" \
+              --json number \
+              --jq '.[0].number // empty'
+          )"
+
+          if [[ -n "${issue_number}" ]]; then
+            gh issue close "${issue_number}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --comment "Freshness verification recovered successfully in run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
+          fi

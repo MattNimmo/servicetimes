@@ -5,7 +5,9 @@ precision (±59 minutes), so the `19:00 UTC` primary is a `19:00–19:59` window
 not an exact trigger. The hardened production schedule adds an idempotent Sunday
 retry at `20:05 UTC`, retains the Monday repair, emits structured request IDs and
 schedule headers in runtime logs, and surfaces missing writes to operators on
-Glance. The current runbook is
+Glance. A second hardening pass now requires the exact expected Sunday, verifies
+persisted 4/4 campus coverage before returning success, and adds an independent
+GitHub Actions watchdog after the Sunday and Monday Vercel windows. The current runbook is
 [`docs/ingest-operations.md`](ingest-operations.md).
 
 Work order for how the weekly ingest finds "the latest completed service."

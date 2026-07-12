@@ -12,6 +12,7 @@ import {
   type IngestionPlan,
   type PcoCampus,
 } from "@/lib/pco/ingestion-plan";
+import { mostRecentChicagoSunday } from "@/lib/pco/ingest-health";
 import { persistIngestionPlan } from "@/lib/pco/ingestion-writer";
 import { PCO_TAXONOMY } from "@/lib/pco/taxonomy";
 import { readRows } from "@/lib/supabase/rest";
@@ -19,11 +20,15 @@ import { readRows } from "@/lib/supabase/rest";
 type Dependencies = {
   buildCampusPlan: typeof buildCampusPlan;
   persistPlan: typeof persistIngestionPlan;
+  countPersistedCampuses: typeof countPersistedCampuses;
+  now: () => Date;
 };
 
 const defaultDependencies: Dependencies = {
   buildCampusPlan,
   persistPlan: persistIngestionPlan,
+  countPersistedCampuses,
+  now: () => new Date(),
 };
 
 const SLOT_BLOCKING_KINDS = [
@@ -61,24 +66,49 @@ function errorMessage(reason: unknown) {
 }
 
 export async function runRecurringPcoIngestion(
-  dependencies: Dependencies = defaultDependencies,
+  dependencyOverrides: Partial<Dependencies> = {},
 ) {
+  const dependencies = { ...defaultDependencies, ...dependencyOverrides };
+  const expectedServiceDate = mostRecentChicagoSunday(dependencies.now());
   const previews = await Promise.allSettled(
-    PCO_CAMPUSES.map(dependencies.buildCampusPlan),
+    PCO_CAMPUSES.map((campus) =>
+      dependencies.buildCampusPlan(campus, expectedServiceDate),
+    ),
   );
 
-  if (previews.some(({ status }) => status === "rejected")) {
+  const hasWrongServiceDate = previews.some(
+    (result) =>
+      result.status === "fulfilled" &&
+      result.value.plan.serviceDate !== expectedServiceDate,
+  );
+
+  if (previews.some(({ status }) => status === "rejected") || hasWrongServiceDate) {
     return {
       ok: false,
       generatedAt: new Date().toISOString(),
+      expectedServiceDate,
       writesPerformed: 0,
+      verification: {
+        successfulLocations: await dependencies.countPersistedCampuses(
+          expectedServiceDate,
+        ),
+        expectedLocations: PCO_CAMPUSES.length,
+      },
       campuses: previews.map((result, index) =>
-        result.status === "fulfilled"
+        result.status === "fulfilled" &&
+        result.value.plan.serviceDate === expectedServiceDate
           ? {
               campus: PCO_CAMPUSES[index].code,
               pcoPlanId: result.value.plan.pcoPlanId,
               status: "previewed" as const,
             }
+          : result.status === "fulfilled"
+            ? {
+                campus: PCO_CAMPUSES[index].code,
+                pcoPlanId: result.value.plan.pcoPlanId,
+                status: "preview_failed" as const,
+                error: `Expected ${expectedServiceDate}, received ${result.value.plan.serviceDate}`,
+              }
           : {
               campus: PCO_CAMPUSES[index].code,
               status: "preview_failed" as const,
@@ -93,11 +123,22 @@ export async function runRecurringPcoIngestion(
     return result.value;
   });
   const writes = await Promise.allSettled(plans.map(dependencies.persistPlan));
+  const successfulLocations = await dependencies.countPersistedCampuses(
+    expectedServiceDate,
+  );
+  const allLocationsCurrent = successfulLocations === PCO_CAMPUSES.length;
 
   return {
-    ok: writes.every(({ status }) => status === "fulfilled"),
+    ok:
+      writes.every(({ status }) => status === "fulfilled") &&
+      allLocationsCurrent,
     generatedAt: new Date().toISOString(),
+    expectedServiceDate,
     writesPerformed: writes.filter(({ status }) => status === "fulfilled").length,
+    verification: {
+      successfulLocations,
+      expectedLocations: PCO_CAMPUSES.length,
+    },
     campuses: writes.map((result, index) =>
       result.status === "fulfilled"
         ? {
@@ -114,6 +155,14 @@ export async function runRecurringPcoIngestion(
           },
     ),
   };
+}
+
+async function countPersistedCampuses(serviceDate: string) {
+  const plans = await readRows<{ campus_id: number }>("plans", {
+    service_date: `eq.${serviceDate}`,
+    select: "campus_id",
+  });
+  return new Set(plans.map(({ campus_id }) => campus_id)).size;
 }
 
 function sinceIso(weeks: number, now: Date) {
