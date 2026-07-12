@@ -24,8 +24,8 @@ function authConfig(): AuthConfig | null {
   const operatorPassword = process.env.OPERATOR_PASSWORD ?? "";
   if (
     secret.length < 32 ||
-    viewerPassword.length < 16 ||
-    operatorPassword.length < 16 ||
+    viewerPassword.length < 6 ||
+    operatorPassword.length < 6 ||
     safePasswordEqual(viewerPassword, operatorPassword)
   ) {
     return null;
