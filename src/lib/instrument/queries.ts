@@ -550,9 +550,10 @@ export type TrendPoint = {
   isMoment: boolean;
 };
 
-export type CrossCampusMedian = {
+export type MidCampusComparison = {
   campusCode: CampusCode;
-  medianSeconds: number | null;
+  actualSeconds: number | null;
+  plannedSeconds: number | null;
   isActive: boolean;
 };
 
@@ -564,7 +565,7 @@ export type WorkbenchData = {
   phases: PhaseBreakdown;
   elements: WorkbenchElementRow[];
   trend: TrendPoint[];
-  allCampusMedians: CrossCampusMedian[];
+  midCampusComparison: MidCampusComparison[];
   referenceTargetSeconds: number;
   isReferenceTargetApproved: boolean;
   availableSlots: Array<{ id: number; label: string; expectedLocalStart: string }>;
@@ -699,14 +700,6 @@ async function campusByCode(code: string): Promise<CampusRow | null> {
 }
 
 
-function median(values: Array<number | null>): number | null {
-  const nums = values.filter((v): v is number => v !== null);
-  if (nums.length === 0) return null;
-  nums.sort((a, b) => a - b);
-  const mid = Math.floor(nums.length / 2);
-  return nums.length % 2 !== 0 ? nums[mid] : nums[mid - 1];
-}
-
 type TriageIncident = {
   id: number;
   plan_time_id: number;
@@ -822,6 +815,77 @@ const SECTION_ORDER = [
 
 // ─── getWorkbenchData ─────────────────────────────────────────────────────────
 
+async function getMidCampusComparison(
+  serviceDate: string,
+  slotLabel: string,
+  activeCampusCode: CampusCode,
+): Promise<MidCampusComparison[]> {
+  const campuses = await listInstrumentCampuses();
+  if (campuses.length === 0) return [];
+
+  const campusIds = campuses.map((campus) => campus.id);
+  const [slots, plans] = await Promise.all([
+    readRows<{ id: number; campus_id: number }>("service_slots", {
+      campus_id: `in.(${campusIds.join(",")})`,
+      is_active: "eq.true",
+      slot_label: `eq.${slotLabel}`,
+      select: "id,campus_id",
+    }),
+    readRows<{ id: number; campus_id: number }>("plans", {
+      campus_id: `in.(${campusIds.join(",")})`,
+      service_date: `eq.${serviceDate}`,
+      select: "id,campus_id",
+      order: "sort_date.desc",
+    }),
+  ]);
+
+  const slotByCampusId = new Map(slots.map((slot) => [slot.campus_id, slot]));
+  const planByCampusId = new Map<number, { id: number; campus_id: number }>();
+  for (const plan of plans) {
+    if (!planByCampusId.has(plan.campus_id)) planByCampusId.set(plan.campus_id, plan);
+  }
+
+  const planIds = [...planByCampusId.values()].map((plan) => plan.id);
+  const slotIds = [...slotByCampusId.values()].map((slot) => slot.id);
+  const midRows =
+    planIds.length > 0 && slotIds.length > 0
+      ? await readRows<{ plan_id: number; planned_seconds: number; actual_seconds: number | null }>(
+          "element_variance",
+          {
+            plan_id: `in.(${planIds.join(",")})`,
+            effective_slot_id: `in.(${slotIds.join(",")})`,
+            section_key: "eq.mid_service",
+            select: "plan_id,planned_seconds,actual_seconds",
+          },
+        )
+      : [];
+
+  const rowsByPlanId = new Map<
+    number,
+    Array<{ planned_seconds: number; actual_seconds: number | null }>
+  >();
+  for (const row of midRows) {
+    const rows = rowsByPlanId.get(row.plan_id) ?? [];
+    rows.push(row);
+    rowsByPlanId.set(row.plan_id, rows);
+  }
+
+  return campuses.map((campus) => {
+    const plan = planByCampusId.get(campus.id);
+    const slot = slotByCampusId.get(campus.id);
+    const rows = plan && slot ? (rowsByPlanId.get(plan.id) ?? []) : [];
+    return {
+      campusCode: campus.code,
+      actualSeconds: sumNullable(rows.map((row) => row.actual_seconds)),
+      plannedSeconds:
+        rows.length > 0
+          ? rows.reduce((total, row) => total + row.planned_seconds, 0)
+          : null,
+      isActive: campus.code === activeCampusCode,
+    };
+  });
+}
+
 export async function getWorkbenchData(
   campusCode: string,
   slotLabel: string,
@@ -853,7 +917,7 @@ export async function getWorkbenchData(
 
   const latestPlan = plans[0];
 
-  const [elements, planTimesForSlot, allIds] = await Promise.all([
+  const [elements, planTimesForSlot, allIds, midCampusComparison] = await Promise.all([
     readRows<FullElementVarianceRow>("element_variance", {
       plan_id: `eq.${latestPlan.id}`,
       effective_slot_id: `eq.${slot.id}`,
@@ -872,6 +936,7 @@ export async function getWorkbenchData(
       },
     ),
     allPlanTimeIds(latestPlan.id),
+    getMidCampusComparison(latestPlan.service_date, slot.slot_label, campus.code),
   ]);
 
   const latestPlanTime = planTimesForSlot[0] ?? null;
@@ -1062,51 +1127,6 @@ export async function getWorkbenchData(
     })
     .reverse(); // chronological (oldest first)
 
-  // Cross-campus medians for mid.close_worship over the last 6 service dates,
-  // matched to the selected service slot label for each campus.
-  const allCampuses = await listInstrumentCampuses();
-  const allCampusMedians: CrossCampusMedian[] = await Promise.all(
-    allCampuses.map(async (c) => {
-      const [matchingSlots, recentPlans] = await Promise.all([
-        readRows<{ id: number }>("service_slots", {
-          campus_id: `eq.${c.id}`,
-          is_active: "eq.true",
-          slot_label: `eq.${slot.slot_label}`,
-          select: "id",
-          limit: "1",
-        }),
-        readRows<{ id: number }>("plans", {
-          campus_id: `eq.${c.id}`,
-          select: "id",
-          order: "service_date.desc",
-          limit: "6",
-        }),
-      ]);
-      const matchingSlot = matchingSlots[0] ?? null;
-      if (!matchingSlot || recentPlans.length === 0) {
-        return {
-          campusCode: c.code,
-          medianSeconds: null,
-          isActive: c.code === campus.code,
-        };
-      }
-      const planIds = recentPlans.map((p) => p.id);
-      const rows = await readRows<{ plan_id: number; actual_seconds: number | null }>("element_variance", {
-        plan_id: `in.(${planIds.join(",")})`,
-        effective_slot_id: `eq.${matchingSlot.id}`,
-        element_key: `eq.mid.close_worship`,
-        select: "plan_id,actual_seconds",
-      });
-      const actualByPlanId = new Map(rows.map((row) => [row.plan_id, row.actual_seconds]));
-      const actuals = recentPlans.map((p) => actualByPlanId.get(p.id) ?? null);
-      return {
-        campusCode: c.code,
-        medianSeconds: median(actuals),
-        isActive: c.code === campus.code,
-      };
-    }),
-  );
-
   return {
     campus: { code: campus.code, name: campus.name },
     serviceDate: latestPlan.service_date,
@@ -1115,7 +1135,7 @@ export async function getWorkbenchData(
     phases: buildPhaseBreakdown(elements),
     elements: elementRows,
     trend: trendPoints,
-    allCampusMedians,
+    midCampusComparison,
     referenceTargetSeconds: campus.reference_target_seconds,
     isReferenceTargetApproved: campus.reference_target_status === "approved",
     availableSlots: allSlots.map((s) => ({
