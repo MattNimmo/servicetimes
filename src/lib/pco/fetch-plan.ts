@@ -53,7 +53,10 @@ async function fetchCompletedPlanBundle(
   };
 }
 
-export async function fetchLatestCompletedPlan(serviceTypeId: string) {
+export async function fetchLatestCompletedPlan(
+  serviceTypeId: string,
+  expectedServiceDate?: string,
+) {
   const [pastPlans, futurePlans] = await Promise.all([
     pcoGet<PcoCollection<PcoPlan>>(
       `/services/v2/service_types/${serviceTypeId}/plans?filter=past&order=-sort_date&per_page=5`,
@@ -71,10 +74,16 @@ export async function fetchLatestCompletedPlan(serviceTypeId: string) {
     planById.set(plan.id, plan);
   }
 
-  const candidates = [...planById.values()].sort(
-    (left, right) =>
-      Date.parse(right.attributes.sort_date) - Date.parse(left.attributes.sort_date),
-  );
+  const candidates = [...planById.values()]
+    .filter(
+      (plan) =>
+        !expectedServiceDate ||
+        plan.attributes.sort_date.slice(0, 10) === expectedServiceDate,
+    )
+    .sort(
+      (left, right) =>
+        Date.parse(right.attributes.sort_date) - Date.parse(left.attributes.sort_date),
+    );
 
   for (const plan of candidates) {
     const bundle = await fetchCompletedPlanBundle(serviceTypeId, plan);
@@ -82,7 +91,9 @@ export async function fetchLatestCompletedPlan(serviceTypeId: string) {
   }
 
   throw new Error(
-    `No completed service was found in the latest ${candidates.length} arrived plans`,
+    expectedServiceDate
+      ? `No completed production service was found for ${expectedServiceDate}`
+      : `No completed service was found in the latest ${candidates.length} arrived plans`,
   );
 }
 

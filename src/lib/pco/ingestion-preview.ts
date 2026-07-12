@@ -4,7 +4,9 @@ import { buildCampusPlan } from "@/lib/pco/build-campus-plan";
 import { PCO_CAMPUSES } from "@/lib/pco/campuses";
 
 export async function previewLatestPcoIngestion() {
-  const results = await Promise.allSettled(PCO_CAMPUSES.map(buildCampusPlan));
+  const results = await Promise.allSettled(
+    PCO_CAMPUSES.map((campus) => buildCampusPlan(campus)),
+  );
 
   return {
     ok: results.every(({ status }) => status === "fulfilled"),

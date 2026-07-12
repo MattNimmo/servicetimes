@@ -5,9 +5,18 @@ vi.mock("@/lib/pco/recurring-ingestion", () => ({
   runRecurringPcoIngestion: vi.fn(),
   runRepairPcoIngestion: vi.fn(),
 }));
+vi.mock("@/lib/pco/ingest-health", () => ({
+  getIngestionHealth: vi.fn(),
+}));
+vi.mock("@/lib/auth/github-actions-oidc", () => ({
+  authorizeGitHubIngestWatchdog: vi.fn(async () => false),
+}));
 
 import { GET, POST } from "@/app/api/pco/ingest/route";
 import { GET as BACKFILL_GET } from "@/app/api/pco/ingest/backfill/route";
+import { POST as WATCHDOG_POST } from "@/app/api/pco/ingest/watchdog/route";
+import { authorizeGitHubIngestWatchdog } from "@/lib/auth/github-actions-oidc";
+import { getIngestionHealth } from "@/lib/pco/ingest-health";
 import {
   runRecurringPcoIngestion,
   runRepairPcoIngestion,
@@ -32,7 +41,9 @@ describe("recurring ingestion route", () => {
     vi.mocked(runRecurringPcoIngestion).mockResolvedValue({
       ok: true,
       generatedAt: "2026-06-24T00:00:00.000Z",
+      expectedServiceDate: "2026-06-21",
       writesPerformed: 4,
+      verification: { successfulLocations: 4, expectedLocations: 4 },
       campuses: [],
     });
     vi.mocked(runRepairPcoIngestion).mockResolvedValue({
@@ -41,6 +52,15 @@ describe("recurring ingestion route", () => {
       writesPerformed: 0,
       campuses: [],
     });
+    vi.mocked(getIngestionHealth).mockResolvedValue({
+      status: "pending",
+      expectedServiceDate: "2026-06-21",
+      successfulLocations: 3,
+      expectedLocations: 4,
+      latestSuccessfulDate: "2026-06-14",
+      retryWindowEndsAt: "2026-06-21T21:04:59.000Z",
+    });
+    vi.mocked(authorizeGitHubIngestWatchdog).mockResolvedValue(false);
   });
 
   afterEach(() => {
@@ -80,7 +100,9 @@ describe("recurring ingestion route", () => {
     vi.mocked(runRecurringPcoIngestion).mockResolvedValue({
       ok: false,
       generatedAt: "2026-06-24T00:00:00.000Z",
+      expectedServiceDate: "2026-06-21",
       writesPerformed: 3,
+      verification: { successfulLocations: 3, expectedLocations: 4 },
       campuses: [],
     });
 
@@ -94,5 +116,47 @@ describe("recurring ingestion route", () => {
 
     expect(response.status).toBe(200);
     expect(runRepairPcoIngestion).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs recovery from the watchdog when freshness is incomplete", async () => {
+    const response = await WATCHDOG_POST(request("POST"));
+
+    expect(response.status).toBe(200);
+    expect(getIngestionHealth).toHaveBeenCalledTimes(1);
+    expect(runRecurringPcoIngestion).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts a verified GitHub OIDC token on the watchdog route", async () => {
+    vi.mocked(authorizeGitHubIngestWatchdog).mockResolvedValue(true);
+
+    const response = await WATCHDOG_POST(request("POST", "github-oidc-token"));
+
+    expect(response.status).toBe(200);
+    expect(authorizeGitHubIngestWatchdog).toHaveBeenCalledTimes(1);
+    expect(runRecurringPcoIngestion).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips watchdog writes when all locations are already current", async () => {
+    vi.mocked(getIngestionHealth).mockResolvedValue({
+      status: "current",
+      expectedServiceDate: "2026-06-21",
+      successfulLocations: 4,
+      expectedLocations: 4,
+      latestSuccessfulDate: "2026-06-21",
+      retryWindowEndsAt: "2026-06-21T21:04:59.000Z",
+    });
+
+    const response = await WATCHDOG_POST(request("POST"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual(
+      expect.objectContaining({
+        ok: true,
+        skipped: "already_current",
+        verification: { successfulLocations: 4, expectedLocations: 4 },
+      }),
+    );
+    expect(runRecurringPcoIngestion).not.toHaveBeenCalled();
   });
 });

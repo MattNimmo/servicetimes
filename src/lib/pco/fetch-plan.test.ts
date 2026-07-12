@@ -106,6 +106,26 @@ describe("fetchLatestCompletedPlan", () => {
     expect(result.plan.id).toBe("old");
   });
 
+  it("does not fall back to an older week when an expected date is required", async () => {
+    const oldPlan = plan("old", "2026-06-28T07:40:00Z");
+    const todayPlan = plan("today", "2026-07-05T07:40:00Z");
+    vi.mocked(pcoGet)
+      .mockResolvedValueOnce(collection([oldPlan]))
+      .mockResolvedValueOnce(collection([todayPlan]));
+    vi.mocked(pcoGetAll).mockResolvedValueOnce(
+      collection([servicePlanTime("today-service", { recorded: false })]),
+    );
+
+    await expect(
+      fetchLatestCompletedPlan("service-type", "2026-07-05"),
+    ).rejects.toThrow(
+      "No completed production service was found for 2026-07-05",
+    );
+    expect(pcoGetAll).not.toHaveBeenCalledWith(
+      "/services/v2/service_types/service-type/plans/old/plan_times?per_page=100",
+    );
+  });
+
   it("ignores future weeks that have not arrived", async () => {
     const oldPlan = plan("old", "2026-06-28T07:40:00Z");
     const nextPlan = plan("next", "2026-07-12T07:40:00Z");

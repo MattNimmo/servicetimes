@@ -14,11 +14,22 @@ per-hour precision, so a job scheduled at `19:00 UTC` may start at any point fro
 | Sunday primary | `0 19 * * 0` | First attempt; 2:00–2:59 PM CDT / 1:00–1:59 PM CST |
 | Sunday retry | `5 20 * * 0` | Idempotent second attempt after the primary window; 3:05–4:04 PM CDT / 2:05–3:04 PM CST |
 | Monday repair | `0 10 * * 1` | Repair missing or incomplete recent plans; 5:00–5:59 AM CDT / 4:00–4:59 AM CST |
+| Independent Sunday watchdog | `10 21 * * 0` | GitHub Actions freshness check after the Vercel retry window; 4:10 PM CDT / 3:10 PM CST |
+| Independent Monday watchdog | `10 12 * * 1` | GitHub Actions verification after the Vercel repair window; 7:10 AM CDT / 6:10 AM CST |
 
 Vercel cron schedules are fixed in UTC. Do not describe the primary as an exact
 2:00 PM Central trigger. Upgrading the project to Vercel Pro is the path to
 per-minute scheduling precision; the application-level retry and health signal
 remain useful even on Pro.
+
+The GitHub Actions watchdog is deliberately outside the Vercel deployment
+lifecycle. It calls `/api/pco/ingest/watchdog`, skips writes when all four
+locations are already current, and invokes the idempotent recurring ingest only
+when freshness is incomplete. It retries transient HTTP failures and opens or
+updates a GitHub issue if the endpoint does not verify all four locations. The
+workflow authenticates without a copied long-lived secret: GitHub issues a
+short-lived OIDC token whose audience, repository ID, main-branch ref, workflow
+path, signature, and event type are validated by the watchdog route.
 
 ## What success looks like
 
@@ -26,6 +37,19 @@ A full weekly run leaves a persisted plan for the expected Sunday at all four
 locations and creates one successful `ingest_runs` row per atomic location
 write. The ingestion writer is idempotent, so the Sunday retry can safely repeat
 a successful pull.
+
+Success is based on persisted coverage, not the number of fulfilled RPC calls.
+The response must contain:
+
+- `ok: true`;
+- the expected Chicago Sunday in `expectedServiceDate`; and
+- matching `verification.successfulLocations` and
+  `verification.expectedLocations`, both equal to four.
+
+Recurring ingestion requires every campus preview to match the expected Sunday.
+If a campus has no completed production service for that date, the route writes
+nothing and returns a failing response instead of silently falling back to an
+older plan.
 
 Every route invocation writes a structured runtime-log start line containing:
 
@@ -49,6 +73,7 @@ have not appeared:
 vercel inspect servicetimes.vercel.app
 vercel env ls production
 vercel logs --environment production --no-branch --since 2h --query '/api/pco/ingest'
+gh run list --workflow 'Production ingest watchdog' --limit 10
 ```
 
 Use the Vercel Cron Jobs settings page to confirm all three schedules are active.
@@ -63,7 +88,13 @@ Interpret the evidence in this order:
 3. **503:** the secret is invalid/missing or database writes are disabled.
 4. **502:** the route ran, but preview or persistence failed; use the request ID
    to correlate the full error.
-5. **200 with four writes:** the weekly ingest completed.
+5. **200 with verified 4/4 coverage:** the weekly ingest completed.
+6. **Four reported writes but verification below 4/4:** treat the run as failed;
+   inspect each campus's returned service date and Planning Center LIVE bounds.
+
+The independent workflow history is the durable scheduler-attempt record for
+post-window checks. An open `Production ingest watchdog failed` issue means the
+latest independent verification did not recover freshness.
 
 ## Manual recovery
 
@@ -77,5 +108,8 @@ curl -X POST https://servicetimes.vercel.app/api/pco/ingest \
 ```
 
 Afterward, confirm four successful rows for the expected Sunday and that the
-operator Glance banner clears. The Monday repair remains the final automated
-backstop for incomplete upstream Planning Center data.
+operator Glance banner clears. A `200` response alone is insufficient; inspect
+the `verification` object. If a campus reports no completed production service,
+correct or finish its LIVE bounds in Planning Center and run recovery again.
+The Monday repair and independent watchdog remain automated backstops for
+incomplete upstream data.
