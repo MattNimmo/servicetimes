@@ -5,7 +5,6 @@ import type { CSSProperties } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
-  CrossCampusMedian,
   PhaseKey,
   TrendPoint,
   WorkbenchData,
@@ -320,77 +319,6 @@ function DivergingBar({
   );
 }
 
-function CrossMedianBars({ medians }: { medians: CrossCampusMedian[] }) {
-  const max = Math.max(1, ...medians.map((m) => m.medianSeconds ?? 0));
-  const summary = medians
-    .map((m) => `${m.campusCode}${m.isActive ? " current" : ""}: ${m.medianSeconds !== null ? formatDuration(m.medianSeconds) : "no median"}`)
-    .join("; ");
-  return (
-    <div
-      aria-label={`Cross-campus close worship medians. ${summary}`}
-      style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}
-    >
-      {medians.map((m) => {
-        const pct = ((m.medianSeconds ?? 0) / max) * 100;
-        const color = campusColorVar(m.campusCode);
-        const label = `${m.campusCode}${m.isActive ? " current campus" : ""}: ${m.medianSeconds !== null ? formatDuration(m.medianSeconds) : "no median"}.`;
-        return (
-          <div key={m.campusCode} title={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span
-              style={{
-                width: 28,
-                fontSize: "var(--type-micro)",
-                fontWeight: m.isActive ? 800 : 700,
-                letterSpacing: "0.1em",
-                color: m.isActive ? "var(--ink)" : "var(--ink-70)",
-                textTransform: "uppercase",
-              }}
-            >
-              {m.campusCode}
-            </span>
-            <div
-              style={{
-                flex: 1,
-                height: 6,
-                borderRadius: 999,
-                background: "var(--ink-fill-chart)",
-                overflow: "hidden",
-                outline: m.isActive ? `2px solid ${color}` : "none",
-                outlineOffset: 2,
-              }}
-            >
-              <div
-                style={{
-                  height: "100%",
-                  width: "100%",
-                  transform: `scaleX(${pct / 100})`,
-                  transformOrigin: "left",
-                  background: m.isActive ? color : "var(--phase-worship)",
-                  borderRadius: 999,
-                  opacity: m.isActive ? 1 : 0.45,
-                  transition: "transform 300ms ease",
-                }}
-              />
-            </div>
-            <span
-              className="tabular"
-              style={{
-                width: 40,
-                fontSize: "var(--type-caption)",
-                textAlign: "right",
-                color: m.isActive ? "var(--ink)" : "var(--ink-70)",
-              }}
-            >
-              {m.medianSeconds !== null ? formatDuration(m.medianSeconds) : "—"}
-            </span>
-            {m.isActive && <span className="pill">Current</span>}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function ElementTable({
   elements,
   slotLabel,
@@ -598,7 +526,6 @@ export default function WorkbenchView({
     slot: slotSummary,
     phases,
     trend,
-    allCampusMedians,
     referenceTargetSeconds,
     isReferenceTargetApproved,
   } = data;
@@ -895,14 +822,6 @@ export default function WorkbenchView({
           >
             {formatDelta(midDelta)}
           </p>
-        </div>
-
-        {/* Cross tile */}
-        <div className="glass-card wb-tile">
-          <p className="tile-label">
-            Close worship · {slotSummary.slotLabel}
-          </p>
-          <CrossMedianBars medians={allCampusMedians} />
         </div>
 
         {/* Trend tile – span 2 */}

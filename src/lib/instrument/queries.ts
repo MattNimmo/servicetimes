@@ -550,12 +550,6 @@ export type TrendPoint = {
   isMoment: boolean;
 };
 
-export type CrossCampusMedian = {
-  campusCode: CampusCode;
-  medianSeconds: number | null;
-  isActive: boolean;
-};
-
 export type WorkbenchData = {
   campus: { code: CampusCode; name: string };
   serviceDate: string;
@@ -564,7 +558,6 @@ export type WorkbenchData = {
   phases: PhaseBreakdown;
   elements: WorkbenchElementRow[];
   trend: TrendPoint[];
-  allCampusMedians: CrossCampusMedian[];
   referenceTargetSeconds: number;
   isReferenceTargetApproved: boolean;
   availableSlots: Array<{ id: number; label: string; expectedLocalStart: string }>;
@@ -698,14 +691,6 @@ async function campusByCode(code: string): Promise<CampusRow | null> {
   return rows[0] ?? null;
 }
 
-
-function median(values: Array<number | null>): number | null {
-  const nums = values.filter((v): v is number => v !== null);
-  if (nums.length === 0) return null;
-  nums.sort((a, b) => a - b);
-  const mid = Math.floor(nums.length / 2);
-  return nums.length % 2 !== 0 ? nums[mid] : nums[mid - 1];
-}
 
 type TriageIncident = {
   id: number;
@@ -1062,51 +1047,6 @@ export async function getWorkbenchData(
     })
     .reverse(); // chronological (oldest first)
 
-  // Cross-campus medians for mid.close_worship over the last 6 service dates,
-  // matched to the selected service slot label for each campus.
-  const allCampuses = await listInstrumentCampuses();
-  const allCampusMedians: CrossCampusMedian[] = await Promise.all(
-    allCampuses.map(async (c) => {
-      const [matchingSlots, recentPlans] = await Promise.all([
-        readRows<{ id: number }>("service_slots", {
-          campus_id: `eq.${c.id}`,
-          is_active: "eq.true",
-          slot_label: `eq.${slot.slot_label}`,
-          select: "id",
-          limit: "1",
-        }),
-        readRows<{ id: number }>("plans", {
-          campus_id: `eq.${c.id}`,
-          select: "id",
-          order: "service_date.desc",
-          limit: "6",
-        }),
-      ]);
-      const matchingSlot = matchingSlots[0] ?? null;
-      if (!matchingSlot || recentPlans.length === 0) {
-        return {
-          campusCode: c.code,
-          medianSeconds: null,
-          isActive: c.code === campus.code,
-        };
-      }
-      const planIds = recentPlans.map((p) => p.id);
-      const rows = await readRows<{ plan_id: number; actual_seconds: number | null }>("element_variance", {
-        plan_id: `in.(${planIds.join(",")})`,
-        effective_slot_id: `eq.${matchingSlot.id}`,
-        element_key: `eq.mid.close_worship`,
-        select: "plan_id,actual_seconds",
-      });
-      const actualByPlanId = new Map(rows.map((row) => [row.plan_id, row.actual_seconds]));
-      const actuals = recentPlans.map((p) => actualByPlanId.get(p.id) ?? null);
-      return {
-        campusCode: c.code,
-        medianSeconds: median(actuals),
-        isActive: c.code === campus.code,
-      };
-    }),
-  );
-
   return {
     campus: { code: campus.code, name: campus.name },
     serviceDate: latestPlan.service_date,
@@ -1115,7 +1055,6 @@ export async function getWorkbenchData(
     phases: buildPhaseBreakdown(elements),
     elements: elementRows,
     trend: trendPoints,
-    allCampusMedians,
     referenceTargetSeconds: campus.reference_target_seconds,
     isReferenceTargetApproved: campus.reference_target_status === "approved",
     availableSlots: allSlots.map((s) => ({
