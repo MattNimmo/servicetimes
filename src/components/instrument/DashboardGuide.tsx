@@ -15,7 +15,7 @@ const GUIDE_SECTIONS: readonly GuideSection[] = [
     title: "Glance",
     items: [
       "Start here Monday. Each card answers one question: did that Location land on plan?",
-      "Open the cards with attention states first; healthy Locations can wait.",
+      "Open the cards for details",
       "Recommendations are prompts, not verdicts — they point at timing worth a look.",
     ],
   },
@@ -24,7 +24,6 @@ const GUIDE_SECTIONS: readonly GuideSection[] = [
     items: [
       "One Location, one service. Use it when you need trend context and element-level detail.",
       "Compare planned, actual, and the phase breakdown before changing anything in Planning Center.",
-      "A confirmed trend usually means the plan is wrong, not the execution — update the planned time.",
     ],
   },
   {
