@@ -5,6 +5,10 @@
       "schedule": "0 19 * * 0"
     },
     {
+      "path": "/api/pco/ingest",
+      "schedule": "5 20 * * 0"
+    },
+    {
       "path": "/api/pco/ingest/backfill",
       "schedule": "0 10 * * 1"
     }

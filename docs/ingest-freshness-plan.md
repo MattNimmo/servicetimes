@@ -1,5 +1,13 @@
 # Ingest freshness fix — drop PCO `filter=past`, reschedule + add a repair backstop
 
+**Operational amendment (2026-07-12):** Vercel Hobby provides per-hour cron
+precision (±59 minutes), so the `19:00 UTC` primary is a `19:00–19:59` window,
+not an exact trigger. The hardened production schedule adds an idempotent Sunday
+retry at `20:05 UTC`, retains the Monday repair, emits structured request IDs and
+schedule headers in runtime logs, and surfaces missing writes to operators on
+Glance. The current runbook is
+[`docs/ingest-operations.md`](ingest-operations.md).
+
 Work order for how the weekly ingest finds "the latest completed service."
 Self-contained; implement without the originating chat.
 
