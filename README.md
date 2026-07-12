@@ -1,4 +1,4 @@
-# ECC Service Times v2
+# Emmanuel Service Times
 
 Plan-versus-actual service timing for Emmanuel Christian Center.
 
@@ -9,7 +9,33 @@ Plan-versus-actual service timing for Emmanuel Christian Center.
 - Supabase/Postgres
 - Vercel
 
-## Build status — 2026-06-23
+## Current product — 2026-07-12
+
+The production app is deployed from `main` to Vercel and presents Emmanuel's
+four sites as **locations** in user-facing copy. Internal code and database
+identifiers continue to use `campus` for compatibility.
+
+- **Glance** (`/instrument/glance`) summarizes the latest Sunday across all
+  four locations, with broadcast-window trends and expandable evidence.
+- **Workbench** (`/instrument/workbench`) provides selected-location and
+  selected-service detail. Its 9am/11am toggle also drives a same-weekend Mid
+  comparison across SLP, ELK, LV, and MG. The element table remains horizontally
+  scrollable on mobile and includes an explicit swipe cue plus a sticky Element
+  column.
+- **Verify** (`/instrument/triage`) is the operator-only correction workflow;
+  the route slug stays `/instrument/triage` to preserve existing links.
+- **Service history** (`/variance`) provides the viewer-facing historical path.
+
+Authentication uses distinct shared viewer and operator passwords with a
+code-enforced minimum of 6 characters, plus a distinct session secret of at
+least 32 characters. Production values should be longer than the code minimum,
+and `/login` should remain protected by the configured Vercel rate limit.
+
+See [`PRODUCT.md`](PRODUCT.md) for the current product principles and
+[`docs/instrument-build-plan.md`](docs/instrument-build-plan.md) for the shipped
+Instrument history and current-state amendments.
+
+## Foundation history — 2026-06-23/24
 
 Shipped to `main`:
 
@@ -59,7 +85,7 @@ variance pages at `/variance`. Slot and element views show planned-versus-actual
 timing while preserving review-state evidence; unapproved campus reference
 targets are deliberately not displayed. See
 [`docs/product-layer-build-plan.md`](docs/product-layer-build-plan.md) for the
-implemented slice and its remaining production deployment gates.
+authentication and product-layer implementation history.
 
 ## Local setup
 

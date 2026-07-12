@@ -6,7 +6,7 @@ before editing.
 
 ## What this app is
 
-ECC Service Times: plan-versus-actual weekend service timing for Emmanuel
+Emmanuel Service Times: plan-versus-actual weekend service timing for Emmanuel
 Christian Center's four campuses. Next.js App Router + TypeScript + Tailwind v4,
 Supabase behind a server-only REST layer. Primary audience is **campus pastors
 and leadership** (role `viewer`); a smaller **operator** role does data triage.

@@ -113,8 +113,10 @@ against `OPERATOR_PASSWORD` then `VIEWER_PASSWORD`, sets the cookie, redirects
 `/`. Wrong password redirects to `/login?error=invalid` so the server-only page
 can show one generic message without a client component. `logoutAction` clears
 the cookie. Config guard: `AUTH_SESSION_SECRET` must be at least 32 characters;
-both passwords must be at least 16 characters and must differ. Missing, short,
-or equal configuration returns a 503-style "auth not configured" result.
+both passwords must be at least 6 characters and must differ. Missing, short,
+or equal configuration returns a 503-style "auth not configured" result. Six
+characters is the compatibility floor enforced by code, not the recommended
+production strength; production passwords should remain substantially longer.
 
 **Launch control**: shared passwords require request throttling. Before the
 production login is exposed, configure a Vercel Firewall rate-limit rule for

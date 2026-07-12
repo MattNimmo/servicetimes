@@ -6,7 +6,7 @@ product
 
 ## Users
 
-Campus pastors and leadership at Emmanuel Christian Center (four campuses: SLP, ELK, LV, MG). They review plan-versus-actual service timing after the weekend — typically scanning summaries between meetings, not living in the tool. A smaller operator group (comms/production) handles data triage and corrections, but leadership consumption is the primary design target.
+Location pastors and leadership at Emmanuel Christian Center (four locations: SLP, ELK, LV, MG). They review plan-versus-actual service timing after the weekend — typically scanning summaries between meetings, not living in the tool. A smaller operator group (comms/production) handles data verification and corrections, but leadership consumption is the primary design target. Internal code and database identifiers retain the historical `campus` and `triage` names.
 
 ## Product Purpose
 
@@ -27,7 +27,7 @@ Executive and polished. Confident, composed, presentation-grade — numbers a le
 2. **Interpretation over inventory** — summarize and rank; never present raw rows as the primary reading.
 3. **Boardroom-grade polish** — typography, alignment, and charts should hold up projected in a staff meeting.
 4. **Evidence on demand** — leadership sees conclusions; review-state caveats and correction evidence stay one click deeper, preserved but not shouted.
-5. **Four campuses, one standard** — campus comparisons are neutral and consistent; the design never reads as a scoreboard shaming a campus or worship leader.
+5. **Four locations, one standard** — location comparisons are neutral and consistent; the design never reads as a scoreboard shaming a location or worship leader.
 
 ## Accessibility & Inclusion
 
