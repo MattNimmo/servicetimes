@@ -1,6 +1,9 @@
-# Build plan — Instrument (Glance · Workbench · Triage)
+# Build plan — Instrument (Glance · Workbench · Verify)
 
-Status: **Complete (as of 2026-06-28).** All phases shipped and merged to `main`. No open instrument work.
+Status: **Complete; current through 2026-07-12.** All phases and the post-launch
+Workbench updates shipped to `main`. The detailed implementation sections below
+preserve the original build specification; the current-state amendments in this
+header supersede any conflicting historical UI copy or behavior.
 
 ## Ship log
 
@@ -11,6 +14,29 @@ Status: **Complete (as of 2026-06-28).** All phases shipped and merged to `main`
 | [#27](https://github.com/MattNimmo/servicetimes/pull/27) | 2026-06-28 | `isHumanAdjusted` wired to `active_item_time_corrections`; element-level trend data (mid/message/worship) using bulk queries instead of N×2 per-plan loop |
 | [#28](https://github.com/MattNimmo/servicetimes/pull/28) | 2026-06-28 | Phase 2 taxonomy grooming: `map_item_to_element` RPC + migration, `mapItemToElementAction` server action, `availableElements[]` in `TriageData`, MapActions component replaces DisabledActions |
 | [#29](https://github.com/MattNimmo/servicetimes/pull/29) | 2026-06-28 | Phase 3 Glance recommendations: rules-based `buildRecommendations` engine (5 rules, no new queries), mid-service lever row, `recWindow` state consumed |
+| [#31](https://github.com/MattNimmo/servicetimes/pull/31) | 2026-07-12 | Workbench mobile table affordance; Close Worship comparison removed; selected-weekend Mid comparison across locations added and wired to the existing service toggle |
+
+## Current-state amendments
+
+- The product name is **Emmanuel Service Times**. The Emmanuel icon set is used
+  for browser and Apple touch icons; the Planning Center API User-Agent remains
+  `ECC Service Times v2` as a stable integration identifier.
+- User-facing terminology is **Location** and **Verify**. Internal identifiers
+  and route compatibility remain `campus` and `/instrument/triage`.
+- Glance is a latest-Sunday review surface. The former plan-preview mode, generic
+  over/on-plan pill, and user-facing "lever" language were removed. Guidance now
+  tells viewers to open cards for details.
+- Public leadership deltas are consistently **vs plan**. Reference targets are
+  available only as operator calibration context in Workbench.
+- Workbench's 9am/11am service toggle controls both the selected location detail
+  and the same-weekend Mid comparison. The comparison uses the matched slot at
+  SLP, ELK, LV, and MG; missing data renders `—`.
+- The Workbench element table intentionally scrolls horizontally on narrow
+  screens. An overflow-aware swipe hint and right-edge fade expose the hidden
+  Variance and Actual columns, while the Element column remains sticky.
+- Shared viewer/operator passwords have a 6-character code minimum and must
+  differ; the session secret remains 32+ characters. Longer production values
+  and Vercel rate limiting remain recommended.
 
 ## Notable implementation deltas vs. original spec
 
@@ -600,9 +626,13 @@ function formatBroadcastTime(isoOrTime: string | null): string | null {
 }
 ```
 
-**Mid lever tile**: amber-tinted glass card (`background: rgba(217,138,32,0.08)`), eyebrow `MID · THE LEVER`, value `phases.mid_service.actualSeconds`, signed delta.
-
-**Cross tile**: eyebrow `CROSS · CLOSE WORSHIP`, spread value (max − min across campuses), per-campus median bars. Active campus bar in its campus color, others in `var(--phase-worship)` gray. Use `allCampusMedians` from query.
+**Current Mid comparison tile**: amber-tinted, span-two glass card. The left side
+shows the selected location's `phases.mid_service.actualSeconds` and signed delta
+vs plan. The right side shows same-weekend Mid actuals for SLP / ELK / LV / MG,
+matched by the active service-toggle slot. The active location is outlined and
+labeled `Current`; missing plan/slot data renders `—`. At mobile widths the two
+halves stack vertically. This replaces the original Close Worship median tile
+and its `allCampusMedians` query.
 
 **Variance trend tile** (span 2): eyebrow `VARIANCE · 12 WK`, metric toggle chips (TOT / MID / MSG / WOR). SVG line chart (width:100%, height:120px):
 - Zero line at `y=50%`, dashed teal median line.
@@ -615,6 +645,12 @@ For non-`total` metrics, Workbench needs element-level trend data too. **Simplif
 
 **Element table panel** (below bento):
 `display:grid; grid-template-columns: 184px 60px 1fr 100px`. Header: `ELEMENT | ALLOT | [bar] | ACTUAL · Δ`.
+
+On narrow screens the table remains horizontally scrollable rather than
+compressing the variance visualization. The card header shows `Swipe for
+variance & actual →` only while overflow exists and the table is at its left
+edge; a right-edge fade reinforces the affordance. The Element column is sticky
+during horizontal scrolling.
 
 Group by section. Section header row: section name uppercase + subtotal row "allot M:SS · actual M:SS".
 
