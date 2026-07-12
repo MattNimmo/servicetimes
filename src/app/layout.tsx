@@ -10,7 +10,7 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: "ECC Service Times",
+  title: "Emmanuel Service Times",
   description: "Plan-versus-actual service timing for Emmanuel Christian Center.",
 };
 

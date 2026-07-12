@@ -16,7 +16,7 @@ export default async function LoginPage({
     <main className="app-page app-page--login app-page--center w-full">
       <div className="glass-tile p-8">
         <p className="instrument-eyebrow">
-          ECC Service Times
+          Emmanuel Service Times
         </p>
         <h1 className="mt-4 text-3xl font-semibold tracking-tight">
           Sign in
