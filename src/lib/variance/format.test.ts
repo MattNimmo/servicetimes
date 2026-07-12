@@ -1,6 +1,31 @@
 import { describe, expect, it } from "vitest";
 
-import { parseDurationInput } from "@/lib/variance/format";
+import {
+  formatDelta,
+  formatDuration,
+  parseDurationInput,
+} from "@/lib/variance/format";
+
+describe("formatDuration", () => {
+  it("formats long durations with total minutes instead of hours", () => {
+    expect(formatDuration(5_141)).toBe("85:41");
+    expect(formatDuration(3_600)).toBe("60:00");
+  });
+
+  it("preserves signs, rounding, zero, and missing values", () => {
+    expect(formatDuration(-5_141)).toBe("−85:41");
+    expect(formatDuration(65.6)).toBe("1:06");
+    expect(formatDuration(0)).toBe("0:00");
+    expect(formatDuration(null)).toBe("—");
+  });
+});
+
+describe("formatDelta", () => {
+  it("formats long deltas with total minutes", () => {
+    expect(formatDelta(5_141)).toBe("+85:41");
+    expect(formatDelta(-5_141)).toBe("−85:41");
+  });
+});
 
 describe("parseDurationInput", () => {
   it("parses minute-second durations", () => {
