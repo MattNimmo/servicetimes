@@ -15,10 +15,13 @@ import {
 
 const secret = "test-cron-secret-123";
 
-function request(method = "GET", token = secret) {
+function request(method = "GET", token = secret, schedule?: string) {
   return new Request("https://servicetimes.example/api/pco/ingest", {
     method,
-    headers: { Authorization: `Bearer ${token}` },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(schedule ? { "x-vercel-cron-schedule": schedule } : {}),
+    },
   });
 }
 
@@ -63,11 +66,13 @@ describe("recurring ingestion route", () => {
   });
 
   it("supports authenticated Vercel GET and manual POST triggers", async () => {
-    const getResponse = await GET(request());
+    const getResponse = await GET(request("GET", secret, "0 19 * * 0"));
     const postResponse = await POST(request("POST"));
 
     expect(getResponse.status).toBe(200);
     expect(postResponse.status).toBe(200);
+    expect(getResponse.headers.get("cache-control")).toBe("no-store");
+    expect(getResponse.headers.get("x-ingest-request-id")).toBeTruthy();
     expect(runRecurringPcoIngestion).toHaveBeenCalledTimes(2);
   });
 

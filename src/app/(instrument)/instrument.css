@@ -837,6 +837,32 @@
 
 /* ── Workbench ─────────────────────────────────────────────────────────────── */
 
+.ingest-health {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+}
+
+.ingest-health--pending {
+  border-color: rgba(221, 138, 32, 0.24);
+  background: rgba(221, 138, 32, 0.08);
+}
+
+.ingest-health--overdue {
+  border-color: var(--review-border);
+  background: var(--review-fill);
+}
+
+.ingest-health__detail {
+  margin: 0.25rem 0 0;
+  color: var(--ink-70);
+  font-size: var(--type-caption);
+  line-height: 1.5;
+}
+
 .wb-bento {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

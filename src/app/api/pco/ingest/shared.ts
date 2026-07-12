@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 
 type IngestResult = {
   ok: boolean;
@@ -16,37 +16,60 @@ export async function runSecuredPcoIngest(
   label: string,
   run: () => Promise<IngestResult>,
 ) {
+  const requestId = randomUUID();
+  const startedAt = Date.now();
+  const schedule = request.headers.get("x-vercel-cron-schedule");
+  const trigger = schedule ? "vercel-cron" : request.method === "POST" ? "manual" : "direct";
+  const respond = (body: Record<string, unknown>, status: number) =>
+    Response.json(body, {
+      status,
+      headers: {
+        "Cache-Control": "no-store",
+        "X-Ingest-Request-Id": requestId,
+      },
+    });
+
+  console.info(
+    `[${label}] start: requestId=${requestId} trigger=${trigger} schedule=${schedule ?? "none"}`,
+  );
+
   const secret = process.env.CRON_SECRET;
   if (!secret || secret.length < 16) {
-    console.error(`[${label}] aborted: CRON_SECRET missing or < 16 chars`);
-    return Response.json(
-      { ok: false, error: "Cron authentication is not configured" },
-      { status: 503 },
+    console.error(
+      `[${label}] aborted: requestId=${requestId} CRON_SECRET missing or < 16 chars`,
     );
+    return respond({ ok: false, error: "Cron authentication is not configured" }, 503);
   }
   if (!authorized(request, secret)) {
-    console.warn(`[${label}] aborted: unauthorized request (bearer token mismatch)`);
-    return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    console.warn(
+      `[${label}] aborted: requestId=${requestId} unauthorized request (bearer token mismatch)`,
+    );
+    return respond({ ok: false, error: "Unauthorized" }, 401);
   }
   if (process.env.ENABLE_PCO_INGESTION_WRITES !== "true") {
-    console.error(`[${label}] aborted: ENABLE_PCO_INGESTION_WRITES is not "true"`);
-    return Response.json({ ok: false, error: "Database ingestion is disabled" }, { status: 503 });
+    console.error(
+      `[${label}] aborted: requestId=${requestId} ENABLE_PCO_INGESTION_WRITES is not "true"`,
+    );
+    return respond({ ok: false, error: "Database ingestion is disabled" }, 503);
   }
 
   try {
     const result = await run();
     console.info(
-      `[${label}] complete: ok=${result.ok} writesPerformed=${result.writesPerformed ?? 0}`,
+      `[${label}] complete: requestId=${requestId} ok=${result.ok} writesPerformed=${result.writesPerformed ?? 0} durationMs=${Date.now() - startedAt}`,
     );
-    return Response.json(result, { status: result.ok ? 200 : 502 });
+    return respond(result, result.ok ? 200 : 502);
   } catch (error) {
-    console.error(`[${label}] threw:`, error instanceof Error ? error.message : "unknown");
-    return Response.json(
+    console.error(
+      `[${label}] threw: requestId=${requestId} durationMs=${Date.now() - startedAt}`,
+      error instanceof Error ? error.message : "unknown",
+    );
+    return respond(
       {
         ok: false,
         error: error instanceof Error ? error.message : "Unknown recurring ingestion error",
       },
-      { status: 502 },
+      502,
     );
   }
 }

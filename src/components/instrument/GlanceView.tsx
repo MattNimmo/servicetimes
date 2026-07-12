@@ -10,6 +10,7 @@ import type {
   PhaseKey,
   ServiceSlotSummary,
 } from "@/lib/instrument/queries";
+import type { IngestionHealth } from "@/lib/pco/ingest-health";
 import { formatDelta, formatDuration, formatServiceDate } from "@/lib/variance/format";
 import { ChartTipBox, useChartTip } from "./ChartTooltip";
 
@@ -650,10 +651,12 @@ function RecommendationsPanel({
 export default function GlanceView({
   campuses,
   broadcastTrend,
+  ingestionHealth,
   isOperator,
 }: {
   campuses: GlanceCampus[];
   broadcastTrend: BroadcastTrendPoint[];
+  ingestionHealth: IngestionHealth | null;
   isOperator: boolean;
 }) {
   const [recWindow, setRecWindow] = useState<6 | 12>(6);
@@ -738,6 +741,29 @@ export default function GlanceView({
           </div>
         </div>
       </section>
+
+      {ingestionHealth && ingestionHealth.status !== "current" && (
+        <section
+          className={`glass-card ingest-health ingest-health--${ingestionHealth.status}`}
+          role={ingestionHealth.status === "overdue" ? "alert" : "status"}
+        >
+          <div>
+            <p className="tile-label">
+              {ingestionHealth.status === "overdue"
+                ? "Weekend ingest is overdue"
+                : "Weekend ingest window is still open"}
+            </p>
+            <p className="ingest-health__detail">
+              {ingestionHealth.status === "overdue"
+                ? `${ingestionHealth.successfulLocations} of ${ingestionHealth.expectedLocations} locations recorded for ${formatServiceDate(ingestionHealth.expectedServiceDate)}. The Monday repair remains scheduled.`
+                : "Vercel Hobby can delay the primary pull by up to 59 minutes. A second Sunday retry follows the primary window."}
+            </p>
+          </div>
+          <span className="pill pill--review">
+            {ingestionHealth.status === "overdue" ? "Action needed" : "Pending"}
+          </span>
+        </section>
+      )}
 
       <div className="glance-grid">
         {campusCards.map(({ campus, selectedSlot, phases, totalPlanned, expanded: isExpanded, recs, midDelta }) => {
