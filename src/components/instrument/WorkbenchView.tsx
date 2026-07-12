@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import type { CSSProperties } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
   CrossCampusMedian,
@@ -391,12 +391,47 @@ function CrossMedianBars({ medians }: { medians: CrossCampusMedian[] }) {
   );
 }
 
-function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
+function ElementTable({
+  elements,
+  slotLabel,
+}: {
+  elements: WorkbenchElementRow[];
+  slotLabel: string;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [hasOverflow, setHasOverflow] = useState(false);
+  const [isAtStart, setIsAtStart] = useState(true);
+
+  useEffect(() => {
+    const scrollArea = scrollRef.current;
+    if (!scrollArea) return;
+
+    const measure = () => {
+      setHasOverflow(scrollArea.scrollWidth > scrollArea.clientWidth + 1);
+      setIsAtStart(scrollArea.scrollLeft <= 1);
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(scrollArea);
+    const table = scrollArea.querySelector("table");
+    if (table) observer.observe(table);
+
+    return () => observer.disconnect();
+  }, [elements.length]);
+
+  const showScrollHint = hasOverflow && isAtStart;
+
   if (elements.length === 0) {
     return (
-      <div style={{ padding: "24px", textAlign: "center", color: "var(--ink-70)", fontSize: 13 }}>
-        No tracked elements for this service yet.
-      </div>
+      <>
+        <div className="wb-element-table__header">
+          <p className="tile-label">Element breakdown · {slotLabel}</p>
+        </div>
+        <div style={{ padding: "24px", textAlign: "center", color: "var(--ink-70)", fontSize: 13 }}>
+          No tracked elements for this service yet.
+        </div>
+      </>
     );
   }
 
@@ -410,8 +445,29 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
   ).sort((a, b) => a.sort - b.sort);
 
   return (
-    <div className="data-table-scroll">
-      <table className="data-table wb-element-table">
+    <>
+      <div className="wb-element-table__header">
+        <p className="tile-label">Element breakdown · {slotLabel}</p>
+        {showScrollHint && (
+          <span className="wb-element-table__swipe-hint" aria-hidden="true">
+            Swipe for variance &amp; actual <span aria-hidden="true">→</span>
+          </span>
+        )}
+      </div>
+      <div className="wb-element-table__scroll-shell">
+        <div
+          ref={scrollRef}
+          className="data-table-scroll"
+          role={hasOverflow ? "region" : undefined}
+          aria-label={
+            hasOverflow
+              ? "Element breakdown. Scroll horizontally for variance and actual timing."
+              : undefined
+          }
+          tabIndex={hasOverflow ? 0 : undefined}
+          onScroll={(event) => setIsAtStart(event.currentTarget.scrollLeft <= 1)}
+        >
+          <table className="data-table wb-element-table">
         <thead>
           <tr>
             <th>Element</th>
@@ -488,8 +544,11 @@ function ElementTable({ elements }: { elements: WorkbenchElementRow[] }) {
             </tbody>
           );
         })}
-      </table>
-    </div>
+          </table>
+        </div>
+        {showScrollHint && <span className="wb-element-table__edge-cue" aria-hidden="true" />}
+      </div>
+    </>
   );
 }
 
@@ -879,12 +938,7 @@ export default function WorkbenchView({
           marginTop: 0,
         }}
       >
-        <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--hairline)" }}>
-          <p className="tile-label">
-            Element breakdown · {slotSummary.slotLabel}
-          </p>
-        </div>
-        <ElementTable elements={data.elements} />
+        <ElementTable elements={data.elements} slotLabel={slotSummary.slotLabel} />
       </div>
       <Toast message={toast} onDismiss={dismissToast} />
     </main>
