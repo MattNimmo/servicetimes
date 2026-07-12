@@ -1,13 +1,9 @@
 export function formatDuration(seconds: number | null) {
   if (seconds === null) return "—";
   const absolute = Math.abs(Math.round(seconds));
-  const hours = Math.floor(absolute / 3600);
-  const minutes = Math.floor((absolute % 3600) / 60);
+  const minutes = Math.floor(absolute / 60);
   const remainder = absolute % 60;
-  const value =
-    hours > 0
-      ? `${hours}:${minutes.toString().padStart(2, "0")}:${remainder.toString().padStart(2, "0")}`
-      : `${minutes}:${remainder.toString().padStart(2, "0")}`;
+  const value = `${minutes}:${remainder.toString().padStart(2, "0")}`;
   return seconds < 0 ? `−${value}` : value;
 }
 
