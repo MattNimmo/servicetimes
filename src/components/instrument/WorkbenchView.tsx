@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
+  MidCampusComparison,
   PhaseKey,
   TrendPoint,
   WorkbenchData,
@@ -315,6 +316,51 @@ function DivergingBar({
           }}
         />
       )}
+    </div>
+  );
+}
+
+function MidCampusBars({ comparisons }: { comparisons: MidCampusComparison[] }) {
+  const max = Math.max(1, ...comparisons.map((comparison) => comparison.actualSeconds ?? 0));
+  const summary = comparisons
+    .map(
+      (comparison) =>
+        `${comparison.campusCode}${comparison.isActive ? " current" : ""}: ${formatDuration(comparison.actualSeconds)}`,
+    )
+    .join("; ");
+
+  return (
+    <div className="wb-mid-comparison__list" aria-label={`Mid-service comparison. ${summary}.`}>
+      {comparisons.map((comparison) => {
+        const width = ((comparison.actualSeconds ?? 0) / max) * 100;
+        const delta =
+          comparison.actualSeconds !== null && comparison.plannedSeconds !== null
+            ? comparison.actualSeconds - comparison.plannedSeconds
+            : null;
+        const label = `${comparison.campusCode}${comparison.isActive ? " current location" : ""}: ${formatDuration(comparison.actualSeconds)}${delta !== null ? `, ${formatDelta(delta)} versus plan` : ""}.`;
+        return (
+          <div key={comparison.campusCode} className="wb-mid-comparison__row" title={label}>
+            <span className={comparison.isActive ? "wb-mid-comparison__code wb-mid-comparison__code--active" : "wb-mid-comparison__code"}>
+              {comparison.campusCode}
+            </span>
+            <span
+              className={comparison.isActive ? "wb-mid-comparison__track wb-mid-comparison__track--active" : "wb-mid-comparison__track"}
+              style={{ "--campus-color": campusColorVar(comparison.campusCode) } as CSSProperties}
+            >
+              <span
+                className="wb-mid-comparison__bar"
+                style={{ transform: `scaleX(${width / 100})` }}
+              />
+            </span>
+            <span className="wb-mid-comparison__value tabular">
+              {formatDuration(comparison.actualSeconds)}
+            </span>
+            <span className="wb-mid-comparison__status">
+              {comparison.isActive && <span className="pill">Current</span>}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -795,33 +841,42 @@ export default function WorkbenchView({
           </p>
         </div>
 
-        {/* Mid phase tile */}
+        {/* Mid phase + cross-location comparison tile */}
         <div
-          className="glass-card wb-tile"
+          className="glass-card wb-tile wb-tile--span2 wb-mid-comparison"
           style={{
             background: "rgba(221,138,32,0.08)",
           }}
         >
-          <p className="tile-label" style={{ color: "var(--phase-mid-text)" }}>
-            Mid
-          </p>
-          <p
-            className="tabular"
-            style={{ margin: "8px 0 0", fontSize: "clamp(1.6rem,2.8vw,2.2rem)", fontWeight: 700, letterSpacing: "-0.05em", color: "var(--phase-mid-text)" }}
-          >
-            {formatDuration(midPhase.actualSeconds)}
-          </p>
-          <p
-            className="tabular"
-            style={{
-              margin: "4px 0 0",
-              fontSize: 13,
-              fontWeight: 700,
-              color: midDelta === null ? "var(--ink-70)" : midDelta > 0 ? "var(--over)" : "var(--under)",
-            }}
-          >
-            {formatDelta(midDelta)}
-          </p>
+          <div className="wb-mid-comparison__summary">
+            <p className="tile-label" style={{ color: "var(--phase-mid-text)" }}>
+              Mid service · {slotSummary.slotLabel}
+            </p>
+            <p
+              className="tabular"
+              style={{ margin: "8px 0 0", fontSize: "clamp(1.6rem,2.8vw,2.2rem)", fontWeight: 700, letterSpacing: "-0.05em", color: "var(--phase-mid-text)" }}
+            >
+              {formatDuration(midPhase.actualSeconds)}
+            </p>
+            <p
+              className="tabular"
+              style={{
+                margin: "4px 0 0",
+                fontSize: 13,
+                fontWeight: 700,
+                color: midDelta === null ? "var(--ink-70)" : midDelta > 0 ? "var(--over)" : "var(--under)",
+              }}
+            >
+              {formatDelta(midDelta)} vs plan
+            </p>
+          </div>
+          <div className="wb-mid-comparison__locations">
+            <div className="wb-mid-comparison__heading">
+              <p className="tile-label">Across locations</p>
+              <span>This weekend</span>
+            </div>
+            <MidCampusBars comparisons={data.midCampusComparison} />
+          </div>
         </div>
 
         {/* Trend tile – span 2 */}
