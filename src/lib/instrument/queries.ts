@@ -102,6 +102,19 @@ function campusSortIndex(code: CampusCode) {
   return index === -1 ? Number.MAX_SAFE_INTEGER : index;
 }
 
+export function resolveMidComparisonSlotLabel(
+  activeCampusCode: CampusCode,
+  activeSlotLabel: string,
+  comparisonCampusCode: CampusCode,
+) {
+  const isFirstServiceComparison =
+    activeSlotLabel === "9am" ||
+    (activeCampusCode === "LV" && activeSlotLabel === "10am");
+
+  if (!isFirstServiceComparison) return activeSlotLabel;
+  return comparisonCampusCode === "LV" ? "10am" : "9am";
+}
+
 function sumNullable(values: Array<number | null>) {
   const numbers = values.filter((value): value is number => typeof value === "number");
   if (numbers.length === 0) return null;
@@ -825,11 +838,10 @@ async function getMidCampusComparison(
 
   const campusIds = campuses.map((campus) => campus.id);
   const [slots, plans] = await Promise.all([
-    readRows<{ id: number; campus_id: number }>("service_slots", {
+    readRows<{ id: number; campus_id: number; slot_label: string }>("service_slots", {
       campus_id: `in.(${campusIds.join(",")})`,
       is_active: "eq.true",
-      slot_label: `eq.${slotLabel}`,
-      select: "id,campus_id",
+      select: "id,campus_id,slot_label",
     }),
     readRows<{ id: number; campus_id: number }>("plans", {
       campus_id: `in.(${campusIds.join(",")})`,
@@ -839,7 +851,23 @@ async function getMidCampusComparison(
     }),
   ]);
 
-  const slotByCampusId = new Map(slots.map((slot) => [slot.campus_id, slot]));
+  const slotByCampusId = new Map<
+    number,
+    { id: number; campus_id: number; slot_label: string }
+  >();
+  for (const campus of campuses) {
+    const comparisonSlotLabel = resolveMidComparisonSlotLabel(
+      activeCampusCode,
+      slotLabel,
+      campus.code,
+    );
+    const slot = slots.find(
+      (candidate) =>
+        candidate.campus_id === campus.id &&
+        candidate.slot_label === comparisonSlotLabel,
+    );
+    if (slot) slotByCampusId.set(campus.id, slot);
+  }
   const planByCampusId = new Map<number, { id: number; campus_id: number }>();
   for (const plan of plans) {
     if (!planByCampusId.has(plan.campus_id)) planByCampusId.set(plan.campus_id, plan);
