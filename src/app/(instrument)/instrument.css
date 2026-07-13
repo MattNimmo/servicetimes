@@ -194,6 +194,12 @@
   flex: 1;
 }
 
+.instrument-nav__account {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
 .instrument-signout {
   border: 0;
   background: transparent;
@@ -1032,7 +1038,7 @@
     order: 1;
   }
 
-  .instrument-nav__inner > form {
+  .instrument-nav__account {
     order: 2;
     margin-left: auto;
   }
@@ -1048,6 +1054,18 @@
 }
 
 @media (max-width: 640px) {
+  .instrument-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(4.75rem, 1fr));
+    gap: 0.25rem;
+  }
+
+  .instrument-tab {
+    justify-content: center;
+    padding: 0.4rem 0.5rem;
+  }
+
   .glance-card__total-row {
     flex-direction: column;
     align-items: flex-start;

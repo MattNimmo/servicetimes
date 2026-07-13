@@ -4,11 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS: Array<{
-  label: "Glance" | "Workbench" | "Verify";
-  href: "/instrument/glance" | "/instrument/workbench" | "/instrument/triage";
+  label: "At a glance" | "Review" | "Workbench" | "Verify";
+  href:
+    | "/variance"
+    | "/instrument/glance"
+    | "/instrument/workbench"
+    | "/instrument/triage";
   operatorOnly?: boolean;
 }> = [
-  { label: "Glance", href: "/instrument/glance" },
+  { label: "At a glance", href: "/variance" },
+  { label: "Review", href: "/instrument/glance" },
   { label: "Workbench", href: "/instrument/workbench" },
   { label: "Verify", href: "/instrument/triage", operatorOnly: true },
 ];
@@ -23,15 +28,17 @@ export default function InstrumentTabs({
   const pathname = usePathname();
 
   return (
-    <nav className="instrument-tabs" aria-label="Instrument views">
+    <nav className="instrument-tabs" aria-label="Service time views">
       {TABS.filter((tab) => !tab.operatorOnly || isOperator).map((tab) => {
-        const active = pathname.startsWith(tab.href);
+        const active =
+          pathname === tab.href || pathname.startsWith(`${tab.href}/`);
 
         return (
           <Link
             key={tab.href}
             href={tab.href}
             className={`instrument-tab${active ? " instrument-tab--active" : ""}`}
+            aria-current={active ? "page" : undefined}
           >
             {tab.label}
             {tab.label === "Verify" && triageBadge > 0 ? (

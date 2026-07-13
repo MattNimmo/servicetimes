@@ -7,9 +7,11 @@ import InstrumentTabs from "./InstrumentTabs";
 export default function InstrumentNav({
   isOperator,
   triageBadge,
+  showRole = false,
 }: {
   isOperator: boolean;
   triageBadge: number;
+  showRole?: boolean;
 }) {
   return (
     <header className="instrument-nav">
@@ -23,11 +25,16 @@ export default function InstrumentNav({
 
         <div className="instrument-nav__spacer" />
 
-        <form action={logoutAction}>
-          <button type="submit" className="instrument-signout">
-            Sign out
-          </button>
-        </form>
+        <div className="instrument-nav__account">
+          {showRole && (
+            <span className="pill">{isOperator ? "Operator" : "Viewer"}</span>
+          )}
+          <form action={logoutAction}>
+            <button type="submit" className="instrument-signout">
+              Sign out
+            </button>
+          </form>
+        </div>
       </div>
     </header>
   );
