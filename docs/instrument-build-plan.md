@@ -15,6 +15,10 @@ header supersede any conflicting historical UI copy or behavior.
 | [#28](https://github.com/MattNimmo/servicetimes/pull/28) | 2026-06-28 | Phase 2 taxonomy grooming: `map_item_to_element` RPC + migration, `mapItemToElementAction` server action, `availableElements[]` in `TriageData`, MapActions component replaces DisabledActions |
 | [#29](https://github.com/MattNimmo/servicetimes/pull/29) | 2026-06-28 | Phase 3 Glance recommendations: rules-based `buildRecommendations` engine (5 rules, no new queries), mid-service lever row, `recWindow` state consumed |
 | [#31](https://github.com/MattNimmo/servicetimes/pull/31) | 2026-07-12 | Workbench mobile table affordance; Close Worship comparison removed; selected-weekend Mid comparison across locations added and wired to the existing service toggle |
+| [#38](https://github.com/MattNimmo/servicetimes/pull/38) | 2026-07-13 | Landing-page emphasis swapped so At a glance is primary and the latest-Sunday instrument entry is presented as Dive deeper |
+| [#39](https://github.com/MattNimmo/servicetimes/pull/39) | 2026-07-13 | First-service Mid comparison pairs Lakeville 10am with SLP, ELK, and MG 9am in both navigation directions |
+| [#40](https://github.com/MattNimmo/servicetimes/pull/40) | 2026-07-13 | Visible Glance terminology renamed to Review; shared sticky navigation added across the viewer and instrument route groups |
+| [#41](https://github.com/MattNimmo/servicetimes/pull/41) | 2026-07-13 | Mobile shared-header polish keeps the navigation compact, readable, and free of horizontal overflow |
 
 ## Current-state amendments
 
@@ -30,6 +34,9 @@ header supersede any conflicting historical UI copy or behavior.
   now tells viewers to open cards for details.
 - The shared sticky navigation exposes **At a glance**, **Review**, and
   **Workbench** from both viewer route groups; operators also see **Verify**.
+- Protected-route UI validation uses the production build and CI gates followed
+  by signed-in Vercel production QA at desktop and mobile widths. The plan does
+  not depend on running a local development server.
 - Public leadership deltas are consistently **vs plan**. Reference targets are
   available only as operator calibration context in Workbench.
 - Workbench's service toggle controls both the selected location detail and the
