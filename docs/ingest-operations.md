@@ -60,7 +60,7 @@ Every route invocation writes a structured runtime-log start line containing:
 Completion and failure lines include the same request ID and elapsed duration.
 The HTTP response also returns `X-Ingest-Request-Id` and `Cache-Control: no-store`.
 
-Operators see an ingest-health banner on Glance when the expected four writes
+Operators see an ingest-health banner on Review when the expected four writes
 have not appeared:
 
 - **Pending** through the end of the Sunday retry window.
@@ -108,7 +108,7 @@ curl -X POST https://servicetimes.vercel.app/api/pco/ingest \
 ```
 
 Afterward, confirm four successful rows for the expected Sunday and that the
-operator Glance banner clears. A `200` response alone is insufficient; inspect
+operator Review banner clears. A `200` response alone is insufficient; inspect
 the `verification` object. If a campus reports no completed production service,
 correct or finish its LIVE bounds in Planning Center and run recovery again.
 The Monday repair and independent watchdog remain automated backstops for

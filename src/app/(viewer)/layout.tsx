@@ -1,11 +1,13 @@
-import Link from "next/link";
-
-import { logoutAction, requireRole } from "@/lib/auth/server";
+import InstrumentNav from "@/components/instrument/InstrumentNav";
+import { requireRole } from "@/lib/auth/server";
+import { getTriageBadgeCount } from "@/lib/instrument/queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function ViewerLayout({ children }: { children: React.ReactNode }) {
   const session = await requireRole("viewer");
+  const isOperator = session.role === "operator";
+  const triageBadge = isOperator ? await getTriageBadgeCount() : 0;
 
   return (
     <div className="instrument-root">
@@ -15,25 +17,11 @@ export default async function ViewerLayout({ children }: { children: React.React
         <div className="instrument-backdrop__glow instrument-backdrop__glow--slp" />
         <div className="instrument-backdrop__glow instrument-backdrop__glow--lv" />
       </div>
-      <header className="instrument-nav">
-        <div className="instrument-nav__inner">
-          <Link href="/" className="instrument-brand">
-            <span className="instrument-brand__mark">ST</span>
-            <span className="instrument-brand__wordmark">Service Times</span>
-          </Link>
-          <div className="instrument-nav__spacer" />
-          <div className="flex items-center gap-4">
-            <span className="pill">
-              {session.role === "operator" ? "Operator" : "Viewer"}
-            </span>
-            <form action={logoutAction}>
-              <button type="submit" className="instrument-signout">
-                Sign out
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
+      <InstrumentNav
+        isOperator={isOperator}
+        triageBadge={triageBadge}
+        showRole
+      />
       <div className="instrument-content">{children}</div>
     </div>
   );

@@ -708,7 +708,7 @@ export default function GlanceView({
       <section className="instrument-hero">
         <div>
           <p className="instrument-eyebrow">
-            The Monday Glance
+            The Monday Review
             {sharedServiceDate ? ` · ${formatServiceDate(sharedServiceDate)}` : ""}
           </p>
           <h1 className="instrument-title">Where did each Location land?</h1>

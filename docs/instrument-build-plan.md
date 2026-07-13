@@ -1,6 +1,6 @@
-# Build plan — Instrument (Glance · Workbench · Verify)
+# Build plan — Instrument (Review · Workbench · Verify)
 
-Status: **Complete; current through 2026-07-12.** All phases and the post-launch
+Status: **Complete; current through 2026-07-13.** All phases and the post-launch
 Workbench updates shipped to `main`. The detailed implementation sections below
 preserve the original build specification; the current-state amendments in this
 header supersede any conflicting historical UI copy or behavior.
@@ -23,14 +23,19 @@ header supersede any conflicting historical UI copy or behavior.
   `ECC Service Times v2` as a stable integration identifier.
 - User-facing terminology is **Location** and **Verify**. Internal identifiers
   and route compatibility remain `campus` and `/instrument/triage`.
-- Glance is a latest-Sunday review surface. The former plan-preview mode, generic
-  over/on-plan pill, and user-facing "lever" language were removed. Guidance now
-  tells viewers to open cards for details.
+- The visible latest-Sunday surface is **Review**. Its existing
+  `/instrument/glance` route, `GlanceView` component, and internal data names
+  remain stable for compatibility. The former plan-preview mode, generic
+  over/on-plan pill, and user-facing "lever" language were removed. Guidance
+  now tells viewers to open cards for details.
+- The shared sticky navigation exposes **At a glance**, **Review**, and
+  **Workbench** from both viewer route groups; operators also see **Verify**.
 - Public leadership deltas are consistently **vs plan**. Reference targets are
   available only as operator calibration context in Workbench.
-- Workbench's 9am/11am service toggle controls both the selected location detail
-  and the same-weekend Mid comparison. The comparison uses the matched slot at
-  SLP, ELK, LV, and MG; missing data renders `—`.
+- Workbench's service toggle controls both the selected location detail and the
+  same-weekend Mid comparison. The first-service cohort pairs Lakeville 10am
+  with SLP, ELK, and MG 9am; the 11am cohort remains same-slot and therefore has
+  no Lakeville value. Missing data renders `—`.
 - The Workbench element table intentionally scrolls horizontally on narrow
   screens. An overflow-aware swipe hint and right-edge fade expose the hidden
   Variance and Actual columns, while the Element column remains sticky.
