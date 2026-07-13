@@ -28,16 +28,16 @@ export default async function Home() {
       <div className="space-y-6">
         <div className="flex flex-wrap gap-4">
           <Link
-            href="/instrument/glance"
+            href="/variance"
             className="btn btn--primary"
           >
             This weekend at a glance
           </Link>
           <Link
-            href="/variance"
+            href="/instrument/glance"
             className="btn btn--ghost"
           >
-            Service history by Location
+            Dive deeper
           </Link>
           {isOperator && (
             <Link
