@@ -1054,6 +1054,10 @@
 }
 
 @media (max-width: 640px) {
+  .instrument-nav__account .pill {
+    display: none;
+  }
+
   .instrument-tabs {
     width: 100%;
     display: grid;
@@ -1063,7 +1067,9 @@
 
   .instrument-tab {
     justify-content: center;
-    padding: 0.4rem 0.5rem;
+    padding: 0.4rem 0.3rem;
+    font-size: var(--type-micro);
+    white-space: nowrap;
   }
 
   .glance-card__total-row {
