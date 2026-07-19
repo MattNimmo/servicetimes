@@ -103,12 +103,86 @@ describe("recurring ingestion route", () => {
       expectedServiceDate: "2026-06-21",
       writesPerformed: 3,
       verification: { successfulLocations: 3, expectedLocations: 4 },
-      campuses: [],
+      campuses: [
+        {
+          campus: "SLP",
+          pcoPlanId: "plan-SLP",
+          status: "committed",
+          result: {
+            ingestRunId: 1,
+            pcoPlanId: "plan-SLP",
+            planTimesUpserted: 2,
+            itemsUpserted: 10,
+            itemTimesUpserted: 20,
+            incidentsObserved: 0,
+          },
+        },
+        {
+          campus: "MG",
+          status: "preview_failed",
+          error: "No completed production service was found for 2026-06-21",
+        },
+      ],
     });
 
     const response = await GET(request());
+    const body = await response.json();
 
     expect(response.status).toBe(502);
+    expect(body).toEqual(
+      expect.objectContaining({
+        ok: false,
+        writesPerformed: 3,
+        verification: { successfulLocations: 3, expectedLocations: 4 },
+        campuses: expect.arrayContaining([
+          expect.objectContaining({ campus: "SLP", status: "committed" }),
+          expect.objectContaining({ campus: "MG", status: "preview_failed" }),
+        ]),
+      }),
+    );
+  });
+
+  it("returns 200 when a targeted retry restores final four-of-four coverage", async () => {
+    vi.mocked(runRecurringPcoIngestion).mockResolvedValue({
+      ok: true,
+      generatedAt: "2026-06-24T00:00:00.000Z",
+      expectedServiceDate: "2026-06-21",
+      writesPerformed: 1,
+      verification: { successfulLocations: 4, expectedLocations: 4 },
+      campuses: [
+        {
+          campus: "SLP",
+          pcoPlanId: "existing-SLP",
+          planId: 1,
+          status: "skipped_complete",
+        },
+        {
+          campus: "MG",
+          pcoPlanId: "recovered-MG",
+          status: "committed",
+          result: {
+            ingestRunId: 2,
+            pcoPlanId: "recovered-MG",
+            planTimesUpserted: 2,
+            itemsUpserted: 10,
+            itemTimesUpserted: 20,
+            incidentsObserved: 0,
+          },
+        },
+      ],
+    });
+
+    const response = await POST(request("POST"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual(
+      expect.objectContaining({
+        ok: true,
+        writesPerformed: 1,
+        verification: { successfulLocations: 4, expectedLocations: 4 },
+      }),
+    );
   });
 
   it("uses the same auth gates for the Monday repair route", async () => {

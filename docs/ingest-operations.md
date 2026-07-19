@@ -35,8 +35,9 @@ path, signature, and event type are validated by the watchdog route.
 
 A full weekly run leaves a persisted plan for the expected Sunday at all four
 locations and creates one successful `ingest_runs` row per atomic location
-write. The ingestion writer is idempotent, so the Sunday retry can safely repeat
-a successful pull.
+write. Each Sunday attempt checks persisted completeness by campus and date
+before contacting Planning Center. A retry reports complete locations as
+`skipped_complete` and targets only missing or incomplete locations.
 
 Success is based on persisted coverage, not the number of fulfilled RPC calls.
 The response must contain:
@@ -46,10 +47,22 @@ The response must contain:
 - matching `verification.successfulLocations` and
   `verification.expectedLocations`, both equal to four.
 
-Recurring ingestion requires every campus preview to match the expected Sunday.
-If a campus has no completed production service for that date, the route writes
-nothing and returns a failing response instead of silently falling back to an
-older plan.
+Recurring ingestion validates every campus preview against the expected Sunday
+independently. A missing, unqualified, stale, or failed campus is not written,
+but it does not prevent other qualified campuses from committing. The response
+remains a failure (`ok: false` and HTTP 502) until final persisted verification
+reaches four of four, so the Sunday retry and watchdog remain active after a
+partial commit.
+
+Campus result statuses have these recovery meanings:
+
+- `committed`: this attempt wrote a current plan for the campus;
+- `skipped_complete`: existing campus/date data passed the full completeness
+  checks, so the attempt deliberately did not rewrite it;
+- `preview_failed`: Planning Center retrieval, qualification, plan construction,
+  freshness checking, or exact-date validation failed for this campus; and
+- `write_failed`: the campus had a valid current preview, but its atomic write
+  failed.
 
 Every route invocation writes a structured runtime-log start line containing:
 
@@ -86,11 +99,14 @@ Interpret the evidence in this order:
 1. **No route request in Vercel logs:** the scheduler has not invoked the route.
 2. **401:** Vercel invoked it, but the bearer token did not match `CRON_SECRET`.
 3. **503:** the secret is invalid/missing or database writes are disabled.
-4. **502:** the route ran, but preview or persistence failed; use the request ID
-   to correlate the full error.
+4. **502:** the route ran, but final coverage is below four of four; successful
+   campus writes remain committed. Use the request ID and per-campus statuses to
+   identify the missing, preview-failed, or write-failed location.
 5. **200 with verified 4/4 coverage:** the weekly ingest completed.
 6. **Four reported writes but verification below 4/4:** treat the run as failed;
    inspect each campus's returned service date and Planning Center LIVE bounds.
+7. **`skipped_complete`:** no recovery action is needed for that campus; focus
+   on the locations that were retried or failed.
 
 The independent workflow history is the durable scheduler-attempt record for
 post-window checks. An open `Production ingest watchdog failed` issue means the

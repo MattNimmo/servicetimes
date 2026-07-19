@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import { buildCampusPlan } from "@/lib/pco/build-campus-plan";
 import { PCO_CAMPUSES } from "@/lib/pco/campuses";
 import {
@@ -20,6 +22,7 @@ import { readRows } from "@/lib/supabase/rest";
 type Dependencies = {
   buildCampusPlan: typeof buildCampusPlan;
   persistPlan: typeof persistIngestionPlan;
+  getCampusDateFreshness: typeof getCampusDateFreshness;
   countPersistedCampuses: typeof countPersistedCampuses;
   now: () => Date;
 };
@@ -27,6 +30,7 @@ type Dependencies = {
 const defaultDependencies: Dependencies = {
   buildCampusPlan,
   persistPlan: persistIngestionPlan,
+  getCampusDateFreshness,
   countPersistedCampuses,
   now: () => new Date(),
 };
@@ -38,10 +42,46 @@ const SLOT_BLOCKING_KINDS = [
   "reconciliation_gap",
 ] as const;
 
-type PlanFreshness =
+export type PlanFreshness =
   | { status: "missing" }
-  | { status: "complete"; planId: number }
-  | { status: "incomplete"; planId: number; reasons: string[] };
+  | { status: "complete"; planId: number; pcoPlanId: string }
+  | {
+      status: "incomplete";
+      planId: number;
+      pcoPlanId: string;
+      reasons: string[];
+    };
+
+export type CampusDateFreshness = PlanFreshness;
+
+type RecurringCampusResult =
+  | {
+      campus: PcoCampus["code"];
+      pcoPlanId: string;
+      planId: number;
+      status: "skipped_complete";
+    }
+  | {
+      campus: PcoCampus["code"];
+      pcoPlanId?: string;
+      planId?: number;
+      status: "preview_failed";
+      error: string;
+    }
+  | {
+      campus: PcoCampus["code"];
+      pcoPlanId: string;
+      planId?: number;
+      status: "write_failed";
+      error: string;
+    }
+  | {
+      campus: PcoCampus["code"];
+      pcoPlanId: string;
+      planId?: number;
+      status: "committed";
+      result: Awaited<ReturnType<typeof persistIngestionPlan>>;
+    };
 
 type RepairDependencies = {
   listPastPlans: typeof listPastPlansSince;
@@ -62,98 +102,219 @@ const defaultRepairDependencies: RepairDependencies = {
 };
 
 function errorMessage(reason: unknown) {
-  return reason instanceof Error ? reason.message : "Unknown ingestion error";
+  const message = reason instanceof Error ? reason.message : "Unknown ingestion error";
+  return message
+    .replace(/(bearer|basic)\s+\S+/gi, "$1 [REDACTED]")
+    .replace(/[\r\n\t]+/g, " ")
+    .slice(0, 500);
+}
+
+function logRecurringCampusResult(
+  invocationId: string,
+  expectedServiceDate: string,
+  stage: "freshness" | "preview" | "date_validation" | "write",
+  result: RecurringCampusResult,
+  startedAt: number,
+) {
+  console.info(
+    "[pco-recurring-campus]",
+    JSON.stringify({
+      invocationId,
+      campus: result.campus,
+      stage,
+      status: result.status,
+      expectedServiceDate,
+      ...(result.pcoPlanId ? { pcoPlanId: result.pcoPlanId } : {}),
+      ...(result.planId ? { planId: result.planId } : {}),
+      ...(result.status === "preview_failed" || result.status === "write_failed"
+        ? { error: result.error }
+        : {}),
+      durationMs: Date.now() - startedAt,
+    }),
+  );
+  return result;
+}
+
+async function runRecurringCampusIngestion(
+  campus: PcoCampus,
+  expectedServiceDate: string,
+  dependencies: Dependencies,
+  invocationId: string,
+): Promise<RecurringCampusResult> {
+  const startedAt = Date.now();
+  let freshness: CampusDateFreshness;
+
+  try {
+    freshness = await dependencies.getCampusDateFreshness(
+      campus,
+      expectedServiceDate,
+    );
+  } catch (error) {
+    return logRecurringCampusResult(
+      invocationId,
+      expectedServiceDate,
+      "freshness",
+      {
+        campus: campus.code,
+        status: "preview_failed",
+        error: errorMessage(error),
+      },
+      startedAt,
+    );
+  }
+
+  if (freshness.status === "complete") {
+    return logRecurringCampusResult(
+      invocationId,
+      expectedServiceDate,
+      "freshness",
+      {
+        campus: campus.code,
+        pcoPlanId: freshness.pcoPlanId,
+        planId: freshness.planId,
+        status: "skipped_complete",
+      },
+      startedAt,
+    );
+  }
+
+  let preview: IngestionPlan;
+  try {
+    preview = await dependencies.buildCampusPlan(campus, expectedServiceDate);
+  } catch (error) {
+    return logRecurringCampusResult(
+      invocationId,
+      expectedServiceDate,
+      "preview",
+      {
+        campus: campus.code,
+        ...(freshness.status === "incomplete"
+          ? { pcoPlanId: freshness.pcoPlanId, planId: freshness.planId }
+          : {}),
+        status: "preview_failed",
+        error: errorMessage(error),
+      },
+      startedAt,
+    );
+  }
+
+  if (preview.plan.serviceDate !== expectedServiceDate) {
+    return logRecurringCampusResult(
+      invocationId,
+      expectedServiceDate,
+      "date_validation",
+      {
+        campus: campus.code,
+        pcoPlanId: preview.plan.pcoPlanId,
+        ...(freshness.status === "incomplete" ? { planId: freshness.planId } : {}),
+        status: "preview_failed",
+        error: `Expected ${expectedServiceDate}, received ${preview.plan.serviceDate}`,
+      },
+      startedAt,
+    );
+  }
+
+  try {
+    const result = await dependencies.persistPlan(preview);
+    return logRecurringCampusResult(
+      invocationId,
+      expectedServiceDate,
+      "write",
+      {
+        campus: campus.code,
+        pcoPlanId: preview.plan.pcoPlanId,
+        ...(freshness.status === "incomplete" ? { planId: freshness.planId } : {}),
+        status: "committed",
+        result,
+      },
+      startedAt,
+    );
+  } catch (error) {
+    return logRecurringCampusResult(
+      invocationId,
+      expectedServiceDate,
+      "write",
+      {
+        campus: campus.code,
+        pcoPlanId: preview.plan.pcoPlanId,
+        ...(freshness.status === "incomplete" ? { planId: freshness.planId } : {}),
+        status: "write_failed",
+        error: errorMessage(error),
+      },
+      startedAt,
+    );
+  }
 }
 
 export async function runRecurringPcoIngestion(
   dependencyOverrides: Partial<Dependencies> = {},
 ) {
   const dependencies = { ...defaultDependencies, ...dependencyOverrides };
+  const invocationId = randomUUID();
   const expectedServiceDate = mostRecentChicagoSunday(dependencies.now());
-  const previews = await Promise.allSettled(
+  const startedAt = Date.now();
+  const campusSettlements = await Promise.allSettled(
     PCO_CAMPUSES.map((campus) =>
-      dependencies.buildCampusPlan(campus, expectedServiceDate),
+      runRecurringCampusIngestion(
+        campus,
+        expectedServiceDate,
+        dependencies,
+        invocationId,
+      ),
     ),
   );
-
-  const hasWrongServiceDate = previews.some(
-    (result) =>
-      result.status === "fulfilled" &&
-      result.value.plan.serviceDate !== expectedServiceDate,
-  );
-
-  if (previews.some(({ status }) => status === "rejected") || hasWrongServiceDate) {
-    return {
-      ok: false,
-      generatedAt: new Date().toISOString(),
-      expectedServiceDate,
-      writesPerformed: 0,
-      verification: {
-        successfulLocations: await dependencies.countPersistedCampuses(
+  const campuses = campusSettlements.map((settlement, index) =>
+    settlement.status === "fulfilled"
+      ? settlement.value
+      : logRecurringCampusResult(
+          invocationId,
           expectedServiceDate,
+          "preview",
+          {
+            campus: PCO_CAMPUSES[index].code,
+            status: "preview_failed",
+            error: errorMessage(settlement.reason),
+          },
+          startedAt,
         ),
-        expectedLocations: PCO_CAMPUSES.length,
-      },
-      campuses: previews.map((result, index) =>
-        result.status === "fulfilled" &&
-        result.value.plan.serviceDate === expectedServiceDate
-          ? {
-              campus: PCO_CAMPUSES[index].code,
-              pcoPlanId: result.value.plan.pcoPlanId,
-              status: "previewed" as const,
-            }
-          : result.status === "fulfilled"
-            ? {
-                campus: PCO_CAMPUSES[index].code,
-                pcoPlanId: result.value.plan.pcoPlanId,
-                status: "preview_failed" as const,
-                error: `Expected ${expectedServiceDate}, received ${result.value.plan.serviceDate}`,
-              }
-          : {
-              campus: PCO_CAMPUSES[index].code,
-              status: "preview_failed" as const,
-              error: errorMessage(result.reason),
-            },
-      ),
-    };
-  }
-
-  const plans = previews.map((result) => {
-    if (result.status === "rejected") throw result.reason;
-    return result.value;
-  });
-  const writes = await Promise.allSettled(plans.map(dependencies.persistPlan));
+  );
   const successfulLocations = await dependencies.countPersistedCampuses(
     expectedServiceDate,
   );
-  const allLocationsCurrent = successfulLocations === PCO_CAMPUSES.length;
+  const writesPerformed = campuses.filter(
+    ({ status }) => status === "committed",
+  ).length;
+  const counts = {
+    committed: writesPerformed,
+    skippedComplete: campuses.filter(
+      ({ status }) => status === "skipped_complete",
+    ).length,
+    previewFailed: campuses.filter(({ status }) => status === "preview_failed")
+      .length,
+    writeFailed: campuses.filter(({ status }) => status === "write_failed").length,
+  };
+
+  console.info(
+    "[pco-recurring-summary]",
+    JSON.stringify({
+      invocationId,
+      expectedServiceDate,
+      ...counts,
+      successfulLocations,
+      expectedLocations: PCO_CAMPUSES.length,
+    }),
+  );
 
   return {
-    ok:
-      writes.every(({ status }) => status === "fulfilled") &&
-      allLocationsCurrent,
+    ok: successfulLocations === PCO_CAMPUSES.length,
     generatedAt: new Date().toISOString(),
     expectedServiceDate,
-    writesPerformed: writes.filter(({ status }) => status === "fulfilled").length,
+    writesPerformed,
     verification: {
       successfulLocations,
       expectedLocations: PCO_CAMPUSES.length,
     },
-    campuses: writes.map((result, index) =>
-      result.status === "fulfilled"
-        ? {
-            campus: PCO_CAMPUSES[index].code,
-            pcoPlanId: plans[index].plan.pcoPlanId,
-            status: "committed" as const,
-            result: result.value,
-          }
-        : {
-            campus: PCO_CAMPUSES[index].code,
-            pcoPlanId: plans[index].plan.pcoPlanId,
-            status: "write_failed" as const,
-            error: errorMessage(result.reason),
-          },
-    ),
+    campuses,
   };
 }
 
@@ -178,14 +339,53 @@ export async function getPlanFreshness(
   campus: PcoCampus,
   pcoPlanId: string,
 ): Promise<PlanFreshness> {
-  const plans = await readRows<{ id: number; campus_id: number }>("plans", {
+  const plans = await readRows<{ id: number; pco_plan_id: string }>("plans", {
     pco_plan_id: `eq.${pcoPlanId}`,
-    select: "id,campus_id",
+    select: "id,pco_plan_id",
     limit: "1",
   });
   const plan = plans[0];
   if (!plan) return { status: "missing" };
 
+  return evaluatePersistedPlanFreshness(campus, plan);
+}
+
+export async function getCampusDateFreshness(
+  campus: PcoCampus,
+  serviceDate: string,
+): Promise<CampusDateFreshness> {
+  const campuses = await readRows<{ id: number }>("campuses", {
+    code: `eq.${campus.code}`,
+    select: "id",
+    limit: "1",
+  });
+  const campusId = campuses[0]?.id;
+  if (!campusId) {
+    throw new Error(`Campus ${campus.code} is not configured`);
+  }
+
+  const plans = await readRows<{ id: number; pco_plan_id: string }>("plans", {
+    campus_id: `eq.${campusId}`,
+    service_date: `eq.${serviceDate}`,
+    select: "id,pco_plan_id",
+    order: "sort_date.desc",
+  });
+  if (plans.length === 0) return { status: "missing" };
+
+  const incomplete: Array<Extract<PlanFreshness, { status: "incomplete" }>> = [];
+  for (const plan of plans) {
+    const freshness = await evaluatePersistedPlanFreshness(campus, plan);
+    if (freshness.status === "complete") return freshness;
+    if (freshness.status === "incomplete") incomplete.push(freshness);
+  }
+
+  return incomplete[0] ?? { status: "missing" };
+}
+
+async function evaluatePersistedPlanFreshness(
+  campus: PcoCampus,
+  plan: { id: number; pco_plan_id: string },
+): Promise<Exclude<PlanFreshness, { status: "missing" }>> {
   const planTimes = await readRows<{
     id: number;
     effective_slot_id: number | null;
@@ -249,8 +449,13 @@ export async function getPlanFreshness(
   }
 
   return reasons.length > 0
-    ? { status: "incomplete", planId: plan.id, reasons }
-    : { status: "complete", planId: plan.id };
+    ? {
+        status: "incomplete",
+        planId: plan.id,
+        pcoPlanId: plan.pco_plan_id,
+        reasons,
+      }
+    : { status: "complete", planId: plan.id, pcoPlanId: plan.pco_plan_id };
 }
 
 function committedCampusResult(
