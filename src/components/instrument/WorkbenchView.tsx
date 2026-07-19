@@ -494,8 +494,10 @@ function ElementTable({
                         {el.isHumanAdjusted && <span className="pill">ADJ</span>}
                       </span>
                     </td>
-                    <td className="muted tabular">{formatDuration(el.plannedSeconds)}</td>
-                    <td>
+                    <td className="wb-element-table__planned muted tabular">
+                      {formatDuration(el.plannedSeconds)}
+                    </td>
+                    <td className="wb-element-table__variance">
                       <DivergingBar planned={el.plannedSeconds} actual={el.actualSeconds} />
                     </td>
                     <td className="wb-element-table__actual tabular" style={{ color: actualColor }}>
@@ -503,9 +505,14 @@ function ElementTable({
                         <span className="pill pill--review">Needs review</span>
                       ) : (
                         <>
-                          {formatDuration(el.actualSeconds)}{" "}
+                          <span className="wb-element-table__actual-value">
+                            {formatDuration(el.actualSeconds)}
+                          </span>{" "}
                           {delta !== null && (
-                            <span style={{ fontSize: "var(--type-caption)" }}>
+                            <span
+                              className="wb-element-table__actual-delta"
+                              style={{ fontSize: "var(--type-caption)" }}
+                            >
                               {formatDelta(delta)}
                             </span>
                           )}

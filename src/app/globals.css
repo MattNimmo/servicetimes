@@ -408,32 +408,91 @@ a {
 }
 
 @media (max-width: 768px) {
-  .wb-element-table__swipe-hint,
-  .wb-element-table__edge-cue {
+  .wb-element-table__scroll-shell .data-table-scroll {
+    overflow-x: hidden;
+  }
+
+  .wb-element-table {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .wb-element-table thead,
+  .wb-element-table tbody {
     display: block;
   }
 
-  .wb-element-table thead th:first-child,
-  .wb-element-table tbody tr:not(.data-table__section) td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: rgba(255, 255, 255, 0.82);
-    box-shadow: 0.4rem 0 0.65rem -0.65rem rgba(28, 32, 48, 0.45);
-    backdrop-filter: blur(12px);
+  .wb-element-table thead tr,
+  .wb-element-table tbody tr:not(.data-table__section) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 4rem 7rem;
+    align-items: center;
   }
 
-  .wb-element-table thead th:first-child {
-    z-index: 3;
-    background: rgba(255, 255, 255, 0.92);
+  .wb-element-table .data-table__section {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .wb-element-table .data-table__section td:first-child {
+    grid-column: 1;
+  }
+
+  .wb-element-table .data-table__section-summary {
+    grid-column: 2;
+  }
+
+  .wb-element-table th,
+  .wb-element-table td {
+    min-width: 0;
+    padding: 0.75rem 0.65rem;
+  }
+
+  .wb-element-table__bar,
+  .wb-element-table__variance {
+    display: none;
+  }
+
+  .wb-element-table__allot,
+  .wb-element-table__planned,
+  .wb-element-table__actual {
+    width: auto;
+    text-align: right;
+  }
+
+  .wb-element-table__name {
+    align-items: flex-start;
+    overflow-wrap: anywhere;
+  }
+
+  .wb-element-table__actual-value,
+  .wb-element-table__actual-delta {
+    display: block;
+    white-space: nowrap;
+  }
+
+  .wb-element-table__actual-delta {
+    margin-top: 0.15rem;
+  }
+
+  .wb-element-table__swipe-hint,
+  .wb-element-table__edge-cue {
+    display: none;
   }
 }
 
-@media (max-width: 420px) {
-  .wb-element-table__header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.2rem;
+@media (max-width: 350px) {
+  .wb-element-table thead tr,
+  .wb-element-table tbody tr:not(.data-table__section) {
+    grid-template-columns: minmax(0, 1fr) 3.6rem 6.5rem;
+  }
+
+  .wb-element-table th,
+  .wb-element-table td {
+    padding-right: 0.5rem;
+    padding-left: 0.5rem;
   }
 }
 
