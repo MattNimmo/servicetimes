@@ -86,7 +86,7 @@ describe("recurring ingestion route", () => {
   });
 
   it("supports authenticated Vercel GET and manual POST triggers", async () => {
-    const getResponse = await GET(request("GET", secret, "0 19 * * 0"));
+    const getResponse = await GET(request("GET", secret, "0 18 * * 0"));
     const postResponse = await POST(request("POST"));
 
     expect(getResponse.status).toBe(200);

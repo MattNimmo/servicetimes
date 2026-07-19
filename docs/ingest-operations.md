@@ -6,19 +6,19 @@ the Planning Center actuals ingest.
 ## Scheduling model
 
 The Vercel project currently runs on the Hobby plan. Hobby cron expressions have
-per-hour precision, so a job scheduled at `19:00 UTC` may start at any point from
-`19:00` through `19:59 UTC`. The schedule is deliberately layered:
+per-hour precision, so a job scheduled at `18:00 UTC` may start at any point from
+`18:00` through `18:59 UTC`. The schedule is deliberately layered:
 
 | Layer | Schedule | Purpose |
 |---|---|---|
-| Sunday primary | `0 19 * * 0` | First attempt; 2:00–2:59 PM CDT / 1:00–1:59 PM CST |
-| Sunday retry | `5 20 * * 0` | Idempotent second attempt after the primary window; 3:05–4:04 PM CDT / 2:05–3:04 PM CST |
+| Sunday primary | `0 18 * * 0` | First attempt; 1:00–1:59 PM CDT / 12:00–12:59 PM CST |
+| Sunday retry | `5 19 * * 0` | Idempotent second attempt after the primary window; 2:05–3:04 PM CDT / 1:05–2:04 PM CST |
 | Monday repair | `0 10 * * 1` | Repair missing or incomplete recent plans; 5:00–5:59 AM CDT / 4:00–4:59 AM CST |
 | Independent Sunday watchdog | `10 21 * * 0` | GitHub Actions freshness check after the Vercel retry window; 4:10 PM CDT / 3:10 PM CST |
 | Independent Monday watchdog | `10 12 * * 1` | GitHub Actions verification after the Vercel repair window; 7:10 AM CDT / 6:10 AM CST |
 
 Vercel cron schedules are fixed in UTC. Do not describe the primary as an exact
-2:00 PM Central trigger. Upgrading the project to Vercel Pro is the path to
+1:00 PM Central trigger. Upgrading the project to Vercel Pro is the path to
 per-minute scheduling precision; the application-level retry and health signal
 remain useful even on Pro.
 

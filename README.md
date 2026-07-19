@@ -79,15 +79,15 @@ The atomic writer is called only by the server-side
 [`docs/ingestion-write-path.md`](docs/ingestion-write-path.md).
 
 Recurring ingestion is exposed at `/api/pco/ingest`. On Vercel Hobby, the
-secured GET has a Sunday primary window beginning at 19:00 UTC and an
-idempotent retry window beginning at 20:05 UTC; an authenticated POST supports
+secured GET has a Sunday primary window beginning at 18:00 UTC and an
+idempotent retry window beginning at 19:05 UTC; an authenticated POST supports
 manual triggers. Both require `Authorization: Bearer <CRON_SECRET>` and the independent
-`ENABLE_PCO_INGESTION_WRITES=true` kill switch. Every campus is previewed before
-any writes begin, every preview must match the expected Chicago Sunday, and each
-campus write remains atomic and idempotent. Success requires persisted 4/4
-campus verification. An independent GitHub Actions watchdog runs after the
-Sunday retry and Monday repair windows, retries missing freshness, and opens an
-operator issue when recovery still does not verify. See
+`ENABLE_PCO_INGESTION_WRITES=true` kill switch. Each campus is checked,
+previewed, date-validated, and written independently; complete campuses are
+skipped on retries, and each campus write remains atomic and idempotent. Success
+requires persisted 4/4 campus verification. An independent GitHub Actions
+watchdog runs after the Sunday retry and Monday repair windows, retries missing
+freshness, and opens an operator issue when recovery still does not verify. See
 [`docs/ingest-operations.md`](docs/ingest-operations.md) for exact Hobby timing
 windows, health signals, evidence, and recovery steps.
 

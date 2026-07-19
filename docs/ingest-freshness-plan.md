@@ -1,5 +1,11 @@
 # Ingest freshness fix — drop PCO `filter=past`, reschedule + add a repair backstop
 
+**Current schedule amendment (2026-07-19):** The Sunday primary and retry were
+advanced one hour for the daylight-time operating window: `18:00 UTC` primary
+(1:00–1:59 PM CDT) and `19:05 UTC` retry (2:05–3:04 PM CDT). This supersedes the
+historical schedule decisions below; the current source of truth is
+[`docs/ingest-operations.md`](ingest-operations.md).
+
 **Operational amendment (2026-07-12):** Vercel Hobby provides per-hour cron
 precision (±59 minutes), so the `19:00 UTC` primary is a `19:00–19:59` window,
 not an exact trigger. The hardened production schedule adds an idempotent Sunday
