@@ -628,6 +628,7 @@ function ItemRow({
   onToast,
   availableElements,
   elementName,
+  elementDestination,
   overlapHint,
 }: {
   item: TriageItem;
@@ -637,6 +638,7 @@ function ItemRow({
   onToast: (msg: string) => void;
   availableElements: AvailableElement[];
   elementName: Map<string, string>;
+  elementDestination: Map<string, string>;
   overlapHint?: string;
 }) {
   const cfg = STATUS_CONFIG[item.status];
@@ -646,6 +648,7 @@ function ItemRow({
       : null;
   const actualClock = formatActualClock(item.liveStartAt);
   const actualLen = item.actualSeconds !== null ? formatDuration(item.actualSeconds) : null;
+  const effectiveElementKey = item.mappedElementKey ?? item.elementKey;
 
   return (
     <div
@@ -709,9 +712,11 @@ function ItemRow({
           <span>{item.plannedSeconds !== null ? formatDuration(item.plannedSeconds) : "—"}</span>
           {actualLen && <span>{actualLen}</span>}
         </p>
-        {item.elementKey && item.elementKey !== item.rawTitle && (
+        {effectiveElementKey && effectiveElementKey !== item.rawTitle && (
           <p style={{ margin: 0, fontSize: "var(--type-caption)", color: "var(--ink-70)" }}>
-            {elementName.get(item.elementKey) ?? item.elementKey}
+            {item.hasOverride
+              ? `Mapped to ${elementDestination.get(effectiveElementKey) ?? effectiveElementKey}`
+              : elementName.get(effectiveElementKey) ?? effectiveElementKey}
           </p>
         )}
         {overlapHint && (
@@ -848,6 +853,12 @@ export default function TriageView({
   const canNext = currentDateIdx > 0 && currentDateIdx !== -1;
 
   const elementName = new Map(data.availableElements.map((e) => [e.key, e.displayName]));
+  const elementDestination = new Map(
+    data.availableElements.map((element) => [
+      element.key,
+      `${element.sectionLabel} · ${element.displayName}`,
+    ]),
+  );
 
   const redirectTo = `/instrument/triage?campus=${campus}&date=${data.serviceDate}`;
   const goodCount = data.slots
@@ -1135,6 +1146,7 @@ export default function TriageView({
                         onToast={showToast}
                         availableElements={data.availableElements}
                         elementName={elementName}
+                        elementDestination={elementDestination}
                         overlapHint={overlapHints.get(item.id)}
                       />
                     ))}

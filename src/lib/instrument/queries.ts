@@ -633,6 +633,8 @@ export type TriageItem = {
   resolvedIncidentId: number | null;
   resolutionLabel: string | null;
   hasOverride: boolean;
+  mappedSectionKey: string | null;
+  mappedElementKey: string | null;
 };
 
 export type TriageSection = {
@@ -746,14 +748,20 @@ async function resolvedTriageIncidents(planTimeIds: number[]): Promise<ResolvedT
   });
 }
 
-async function activeItemOverrides(itemIds: number[]): Promise<Set<number>> {
-  if (itemIds.length === 0) return new Set();
-  const rows = await readRows<{ item_id: number }>("item_bucket_overrides", {
+type ActiveItemOverride = {
+  item_id: number;
+  section_key: string;
+  element_key: string;
+};
+
+async function activeItemOverrides(itemIds: number[]): Promise<Map<number, ActiveItemOverride>> {
+  if (itemIds.length === 0) return new Map();
+  const rows = await readRows<ActiveItemOverride>("item_bucket_overrides", {
     item_id: `in.(${itemIds.join(",")})`,
     revoked_at: "is.null",
-    select: "item_id",
+    select: "item_id,section_key,element_key",
   });
-  return new Set(rows.map((r) => r.item_id));
+  return new Map(rows.map((row) => [row.item_id, row]));
 }
 
 type FullElementVarianceRow = {
@@ -1237,7 +1245,7 @@ export async function getTriageData(
 
   const itemIds = items.map((i) => i.id);
 
-  const [itemTimes, resolvedIncidentsList, overriddenItemIds] = await Promise.all([
+  const [itemTimes, resolvedIncidentsList, overridesByItemId] = await Promise.all([
     planTimeIds.length > 0
       ? readRows<TriageItemTimeRow>("item_times", {
           plan_time_id: `in.(${planTimeIds.join(",")})`,
@@ -1335,7 +1343,8 @@ export async function getTriageData(
       const itemTime = ptItemTimes.get(item.id);
       const incidentForItem = itemIncidentByItemId.get(item.id);
       const resolvedForItem = resolvedIncidentByItemId.get(item.id);
-      const itemHasOverride = overriddenItemIds.has(item.id);
+      const itemOverride = overridesByItemId.get(item.id) ?? null;
+      const itemHasOverride = itemOverride !== null;
 
       let status: TriageItemStatus;
       let incident: TriageItemIncident | null = null;
@@ -1407,6 +1416,8 @@ export async function getTriageData(
         resolvedIncidentId,
         resolutionLabel,
         hasOverride: itemHasOverride,
+        mappedSectionKey: itemOverride?.section_key ?? null,
+        mappedElementKey: itemOverride?.element_key ?? null,
       };
     });
 
