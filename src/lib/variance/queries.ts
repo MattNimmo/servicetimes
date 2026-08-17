@@ -40,7 +40,7 @@ type EffectivePlanTime = {
   id: number;
   effective_slot_id: number;
   planned_target_seconds: number | null;
-  actual_service_seconds: number | null;
+  service_actual_seconds: number | null;
   slot_resolution_state: "auto" | "review";
 };
 
@@ -217,13 +217,13 @@ export async function listServiceDates(code: string) {
           id: number;
           effective_slot_id: number;
           planned_target_seconds: number | null;
-          actual_service_seconds: number | null;
+          service_actual_seconds: number | null;
         }>("effective_plan_times", {
           plan_id: `eq.${plan.id}`,
           effective_slot_id: "not.is.null",
           time_type: "eq.service",
           is_manually_excluded: "eq.false",
-          select: "id,effective_slot_id,planned_target_seconds,actual_service_seconds",
+          select: "id,effective_slot_id,planned_target_seconds,service_actual_seconds",
         }),
         allPlanTimeIds(plan.id),
       ]);
@@ -243,7 +243,7 @@ export async function listServiceDates(code: string) {
           computeVariance(
             planTime.planned_target_seconds,
             correctionByPlanTimeId.get(planTime.id)?.corrected_actual_seconds ??
-              planTime.actual_service_seconds,
+              planTime.service_actual_seconds,
             isSlotBlocked(incidents, planTime.id, planTime.effective_slot_id),
           ),
         )
@@ -287,7 +287,7 @@ export async function getVarianceDashboard(code: string, serviceDate: string) {
       time_type: "eq.service",
       is_manually_excluded: "eq.false",
       select:
-        "id,effective_slot_id,planned_target_seconds,actual_service_seconds,slot_resolution_state",
+        "id,effective_slot_id,planned_target_seconds,service_actual_seconds,slot_resolution_state",
     }),
     allPlanTimeIds(plan.id),
     readRows<ServiceSlot>("service_slots", {
@@ -326,7 +326,7 @@ export async function getVarianceDashboard(code: string, serviceDate: string) {
           variance: computeVariance(
             planTime.planned_target_seconds,
             correctionByPlanTimeId.get(planTime.id)?.corrected_actual_seconds ??
-              planTime.actual_service_seconds,
+              planTime.service_actual_seconds,
             isSlotBlocked(incidents, planTime.id, planTime.effective_slot_id),
           ),
         };

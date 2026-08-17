@@ -68,7 +68,7 @@ type EffectivePlanTimeRow = {
   id: number;
   effective_slot_id: number;
   planned_target_seconds: number | null;
-  actual_service_seconds: number | null;
+  service_actual_seconds: number | null;
   live_starts_at: string | null;
   live_ends_at: string | null;
 };
@@ -245,7 +245,7 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
       time_type: "eq.service",
       is_manually_excluded: "eq.false",
       select:
-        "id,effective_slot_id,planned_target_seconds,actual_service_seconds,live_starts_at,live_ends_at",
+        "id,effective_slot_id,planned_target_seconds,service_actual_seconds,live_starts_at,live_ends_at",
     }),
     allPlanTimeIds(plan.id),
     readRows<ServiceSlotRow>("service_slots", {
@@ -303,7 +303,7 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
         plannedSeconds: planTime.planned_target_seconds,
         actualSeconds:
           correctionByPlanTimeId.get(planTime.id)?.corrected_actual_seconds ??
-          planTime.actual_service_seconds,
+          planTime.service_actual_seconds,
         broadcastStartsAt: planTime.live_starts_at,
         broadcastEndsAt: planTime.live_ends_at,
         broadcastIsMessageBlock: false,
@@ -785,7 +785,7 @@ type TriagePlanTimeRow = {
   pco_name: string | null;
   starts_at: string | null;
   planned_target_seconds: number | null;
-  actual_service_seconds: number | null;
+  service_actual_seconds: number | null;
 };
 
 type TriageItemRow = {
@@ -961,14 +961,14 @@ export async function getWorkbenchData(
         "element_key,element_name,section_key,section_name,section_sort_order,element_sort_order,item_ids,planned_seconds,actual_seconds,actual_is_complete,plan_time_id,effective_slot_id",
       order: "section_sort_order.asc,element_sort_order.asc",
     }),
-    readRows<{ id: number; planned_target_seconds: number | null; actual_service_seconds: number | null; live_starts_at: string | null; live_ends_at: string | null }>(
+    readRows<{ id: number; planned_target_seconds: number | null; service_actual_seconds: number | null; live_starts_at: string | null; live_ends_at: string | null }>(
       "effective_plan_times",
       {
         plan_id: `eq.${latestPlan.id}`,
         effective_slot_id: `eq.${slot.id}`,
         is_manually_excluded: "eq.false",
         time_type: "eq.service",
-        select: "id,planned_target_seconds,actual_service_seconds,live_starts_at,live_ends_at",
+        select: "id,planned_target_seconds,service_actual_seconds,live_starts_at,live_ends_at",
       },
     ),
     allPlanTimeIds(latestPlan.id),
@@ -1005,7 +1005,7 @@ export async function getWorkbenchData(
 
   const actualSecondsForSlot = latestPlanTime
     ? (correctionMap.get(latestPlanTime.id)?.corrected_actual_seconds ??
-        latestPlanTime.actual_service_seconds)
+        latestPlanTime.service_actual_seconds)
     : null;
   const itemTimesByItemId = new Map(slotItemTimes.map((itemTime) => [itemTime.item_id, itemTime]));
   const elementItemIds = (elementKey: string) =>
@@ -1056,7 +1056,7 @@ export async function getWorkbenchData(
   }));
   // Build trend data with bulk queries (5 queries regardless of horizon depth)
   const allPlanIds = plans.map((p) => p.id);
-  type TrendPlanTimeRow = { id: number; plan_id: number; planned_target_seconds: number | null; actual_service_seconds: number | null };
+  type TrendPlanTimeRow = { id: number; plan_id: number; planned_target_seconds: number | null; service_actual_seconds: number | null };
   type TrendElementRow = { plan_id: number; actual_seconds: number | null; planned_seconds: number };
 
   const [allTrendPlanTimes, allMidVariance, allMessageVariance, allWorshipVariance] =
@@ -1066,7 +1066,7 @@ export async function getWorkbenchData(
         effective_slot_id: `eq.${slot.id}`,
         is_manually_excluded: "eq.false",
         time_type: "eq.service",
-        select: "id,plan_id,planned_target_seconds,actual_service_seconds",
+        select: "id,plan_id,planned_target_seconds,service_actual_seconds",
       }),
       readRows<TrendElementRow>("element_variance", {
         plan_id: `in.(${allPlanIds.join(",")})`,
@@ -1151,7 +1151,7 @@ export async function getWorkbenchData(
       return {
         serviceDate: plan.service_date,
         plannedSeconds: pt.planned_target_seconds,
-        actualSeconds: isMoment ? null : pt.actual_service_seconds,
+        actualSeconds: isMoment ? null : pt.service_actual_seconds,
         midActualSeconds: isMoment ? null : (mid?.actualSeconds ?? null),
         midPlannedSeconds: mid?.plannedSeconds ?? null,
         messageActualSeconds: isMoment ? null : (msg?.actual_seconds ?? null),
@@ -1216,7 +1216,7 @@ export async function getTriageData(
     is_manually_excluded: "eq.false",
     effective_slot_id: "not.is.null",
     time_type: "eq.service",
-    select: "id,effective_slot_id,pco_name,starts_at,planned_target_seconds,actual_service_seconds",
+    select: "id,effective_slot_id,pco_name,starts_at,planned_target_seconds,service_actual_seconds",
     order: "starts_at.asc",
   });
 
@@ -1318,7 +1318,7 @@ export async function getTriageData(
         planTimeId: pt.id,
         canCorrectPlanTimeActual: inc.kind !== "slot_resolution",
         canResolveSlotResolution: inc.kind === "slot_resolution",
-        rawActualSeconds: pt.actual_service_seconds,
+        rawActualSeconds: pt.service_actual_seconds,
         plannedSeconds: pt.planned_target_seconds,
         availableSlots: availableSlotsList,
       }));

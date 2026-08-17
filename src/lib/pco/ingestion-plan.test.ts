@@ -183,6 +183,170 @@ describe("buildIngestionPlan", () => {
     expect(result.itemTimes[0].sourceFingerprint).toMatch(/^[a-f0-9]{64}$/);
   });
 
+  it("excludes the countdown when item timers tile the service window", () => {
+    const countdownItems = [
+      pcoItem("header-pre", 1, "Pre Service", "header", 0),
+      pcoItem("countdown", 2, "Countdown Video", "media", 300),
+      pcoItem("header-live", 3, "Live Time", "header", 0),
+      pcoItem("message", 4, "Message", "item", 3300),
+      pcoItem("header-local", 5, "Local Response", "header", 0),
+      pcoItem("final-prayer", 6, "Final Prayer", "item", 600),
+    ];
+    const countdownItemTimes = [
+      itemTime(
+        "countdown-time",
+        "countdown",
+        productionTime.id,
+        300,
+        "2026-06-21T15:00:00Z",
+        "2026-06-21T15:05:00Z",
+      ),
+      itemTime(
+        "message-time",
+        "message",
+        productionTime.id,
+        3300,
+        "2026-06-21T15:05:00Z",
+        "2026-06-21T16:00:00Z",
+      ),
+      itemTime(
+        "prayer-time",
+        "final-prayer",
+        productionTime.id,
+        600,
+        "2026-06-21T16:00:00Z",
+        "2026-06-21T16:10:00Z",
+      ),
+    ];
+
+    const result = buildIngestionPlan(
+      campus,
+      {
+        plan,
+        planTimes: [productionTime],
+        items: countdownItems,
+        itemTimes: countdownItemTimes,
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(
+      result.incidents.filter(({ kind }) => kind === "reconciliation_gap"),
+    ).toHaveLength(0);
+  });
+
+  it("preserves the SLP 9am negative 42-second reconciliation gap", () => {
+    const serviceStart = "2026-06-21T14:00:00Z";
+    const slpPlanTime = planTime("slp-gap-time", serviceStart, {
+      live_ends_at: new Date(Date.parse(serviceStart) + 5211 * 1_000).toISOString(),
+    });
+    const result = buildIngestionPlan(
+      slpCampus,
+      {
+        plan,
+        planTimes: [slpPlanTime],
+        items: [
+          pcoItem("header-pre", 1, "Pre Service", "header", 0),
+          pcoItem("countdown", 2, "Countdown Video", "media", 278),
+          pcoItem("header-live", 3, "Live Time", "header", 0),
+          pcoItem("message", 4, "Message", "item", 4975),
+        ],
+        itemTimes: [
+          itemTime(
+            "slp-countdown-time",
+            "countdown",
+            slpPlanTime.id,
+            278,
+            serviceStart,
+            new Date(Date.parse(serviceStart) + 278 * 1_000).toISOString(),
+          ),
+          itemTime(
+            "slp-message-time",
+            "message",
+            slpPlanTime.id,
+            4975,
+            new Date(Date.parse(serviceStart) + 278 * 1_000).toISOString(),
+            new Date(Date.parse(serviceStart) + 5253 * 1_000).toISOString(),
+          ),
+        ],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(
+      result.incidents.find(({ kind }) => kind === "reconciliation_gap"),
+    ).toMatchObject({
+      itemIds: ["message"],
+      evidence: {
+        rawActualServiceSeconds: 5211,
+        serviceActualSeconds: 4933,
+        summedActualSeconds: 4975,
+        excludedPreServiceItemTimeCount: 1,
+        excludedPreServiceSeconds: 278,
+        gapSeconds: -42,
+      },
+    });
+  });
+
+  it("treats an unmapped item as service rather than pre-service", () => {
+    const result = buildIngestionPlan(
+      campus,
+      {
+        plan,
+        planTimes: [productionTime],
+        items: [pcoItem("unmapped-service-item", 1, "Mystery Moment", "item", 4200)],
+        itemTimes: [
+          itemTime(
+            "unmapped-service-time",
+            "unmapped-service-item",
+            productionTime.id,
+            4200,
+            "2026-06-21T15:00:00Z",
+            "2026-06-21T16:10:00Z",
+          ),
+        ],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(result.items[0].sectionKey).toBeNull();
+    expect(
+      result.incidents.filter(({ kind }) => kind === "reconciliation_gap"),
+    ).toHaveLength(0);
+  });
+
+  it("uses a zero service window when the only timer is pre-service", () => {
+    const onlyCountdown = planTime("only-countdown-time", "2026-06-21T15:00:00Z", {
+      live_ends_at: "2026-06-21T15:05:00Z",
+    });
+    const result = buildIngestionPlan(
+      campus,
+      {
+        plan,
+        planTimes: [onlyCountdown],
+        items: [
+          pcoItem("header-pre", 1, "Pre Service", "header", 0),
+          pcoItem("countdown", 2, "Countdown Video", "media", 300),
+        ],
+        itemTimes: [
+          itemTime(
+            "only-countdown-item-time",
+            "countdown",
+            onlyCountdown.id,
+            300,
+            "2026-06-21T15:00:00Z",
+            "2026-06-21T15:05:00Z",
+          ),
+        ],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(
+      result.incidents.filter(({ kind }) => kind === "reconciliation_gap"),
+    ).toHaveLength(0);
+  });
+
   it("refuses to guess when multiple PlanTimes match one production slot", () => {
     const duplicate = planTime("time-duplicate", "2026-06-21T15:05:00Z");
     const result = buildIngestionPlan(

@@ -621,30 +621,65 @@ export function buildIngestionPlan(
     if (candidateWins) bestItemTimeByPair.set(key, candidate);
   }
   const itemTimes = [...bestItemTimeByPair.values()];
+  const preServiceItemIds = new Set(
+    items
+      .filter(({ sectionKey }) => sectionKey === "pre_service")
+      .map(({ pcoItemId }) => pcoItemId),
+  );
 
   for (const planTime of planTimes.filter(({ detectedSlotLabel }) => detectedSlotLabel)) {
-    if (planTime.actualServiceSeconds === null) continue;
-    const matching = itemTimes.filter(
+    if (!planTime.liveEndsAt) continue;
+    const allMatching = itemTimes.filter(
       ({ pcoPlanTimeId }) => pcoPlanTimeId === planTime.pcoPlanTimeId,
+    );
+    const excludedPreService = allMatching.filter(({ pcoItemId }) =>
+      preServiceItemIds.has(pcoItemId),
+    );
+    const matching = allMatching.filter(
+      ({ pcoItemId }) => !preServiceItemIds.has(pcoItemId),
     );
     const completed = matching.filter(({ actualSeconds }) => actualSeconds !== null);
     const summedActualSeconds = completed.reduce(
       (total, { actualSeconds }) => total + (actualSeconds ?? 0),
       0,
     );
-    const gapSeconds = planTime.actualServiceSeconds - summedActualSeconds;
+    const firstServiceStartAt = matching.reduce<string | null>(
+      (earliest, { liveStartAt }) =>
+        liveStartAt && (!earliest || liveStartAt < earliest) ? liveStartAt : earliest,
+      null,
+    );
+    const derivedServiceSeconds = firstServiceStartAt
+      ? durationSeconds(firstServiceStartAt, planTime.liveEndsAt)
+      : null;
+    const serviceActualSeconds =
+      derivedServiceSeconds !== null
+        ? Math.max(0, derivedServiceSeconds)
+        : excludedPreService.length > 0
+          ? 0
+          : planTime.actualServiceSeconds;
+    if (serviceActualSeconds === null) continue;
+
+    const excludedPreServiceSeconds = excludedPreService.reduce(
+      (total, { actualSeconds }) => total + (actualSeconds ?? 0),
+      0,
+    );
+    const gapSeconds = serviceActualSeconds - summedActualSeconds;
 
     if (Math.abs(gapSeconds) > 1) {
       incidents.push(
-        incident("reconciliation_gap", "Item timers do not reconcile to the PlanTime LIVE window.", {
+        incident("reconciliation_gap", "Item timers do not reconcile to the service window.", {
           planTimeId: planTime.pcoPlanTimeId,
           slotLabel: planTime.detectedSlotLabel,
           itemIds: matching.map(({ pcoItemId }) => pcoItemId),
           evidence: {
-            actualServiceSeconds: planTime.actualServiceSeconds,
+            rawActualServiceSeconds: planTime.actualServiceSeconds,
+            serviceActualSeconds,
+            firstServiceStartAt,
             itemTimeCount: matching.length,
             completedItemTimeCount: completed.length,
             summedActualSeconds,
+            excludedPreServiceItemTimeCount: excludedPreService.length,
+            excludedPreServiceSeconds,
             gapSeconds,
           },
         }),
