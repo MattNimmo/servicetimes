@@ -1,6 +1,6 @@
 # Elk River second-service schedule transition plan
 
-**Status:** Production rollout in progress; database migration applied
+**Status:** Complete and live on `servicetimes.vercel.app`
 
 **Effective date:** Sunday, August 30, 2026
 
@@ -40,10 +40,25 @@ production and read back successfully. Slot ID `2` remained intact, and both
 date-effective schedule ranges are present.
 
 Application verification is green: typecheck, 126 unit tests, lint, and the
-production build pass. Local migration execution, pgTAP, and database lint
-could not run because no Docker-compatible runtime is installed. The hosted
-migration executed successfully despite the local-runtime limitation. App
-deployment and targeted production re-ingestion remain in progress.
+production build pass. GitHub CI supplied the unavailable local Docker runtime
+and passed a clean migration reset, the complete pgTAP suite, and database
+lint. The first pgTAP run exposed an ambiguous PL/pgSQL variable in the
+stable-key compatibility wrapper; forward migration
+`20260913173000_fix_stable_slot_rpc_lookup.sql` corrected it before any affected
+plans were written.
+
+Commits `bcf40d8`, `20a86e6`, and `b63e434` were deployed from `main`. Targeted
+atomic re-ingestion committed Elk River's August 30 plan as ingest run `334`
+and September 6 plan as run `335`. Both second-service PlanTimes now resolve to
+the original slot ID `2`; all four stale slot-resolution incidents are closed,
+and both plans pass the shared completeness view with two of two expected
+services.
+
+Authenticated production checks passed for the ELK second-service Workbench,
+the August 23 historical `11am` label, the August 30 `10:30am` label, Verify
+with no unresolved run-through, and legacy `slot=11am` canonicalization to
+`slot=second`. The production Vercel deployment is Ready and the cron schedules
+remain unchanged.
 
 ## Objective
 
