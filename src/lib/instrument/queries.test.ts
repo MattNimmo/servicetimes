@@ -67,14 +67,24 @@ describe("Verify service visibility", () => {
         }
         if (table === "plans") return [{ id: 10, title: "Weekend" }];
         if (table === "effective_plan_times") {
-          return [{
-            id: 20,
-            effective_slot_id: null,
-            pco_name: "10:30 Service",
-            starts_at: "2026-08-30T15:30:00Z",
-            planned_target_seconds: 3600,
-            service_actual_seconds: 3600,
-          }];
+          return [
+            {
+              id: 19,
+              effective_slot_id: null,
+              pco_name: "Full Service Run Through",
+              starts_at: "2026-08-30T12:45:00Z",
+              planned_target_seconds: 3600,
+              service_actual_seconds: 3600,
+            },
+            {
+              id: 20,
+              effective_slot_id: null,
+              pco_name: "10:30 Service",
+              starts_at: "2026-08-30T15:30:00Z",
+              planned_target_seconds: 3600,
+              service_actual_seconds: 3600,
+            },
+          ];
         }
         if (table === "review_incidents" && query.plan_time_id === "is.null") {
           return [{

@@ -6,6 +6,7 @@ import {
   readServiceSlotsForCampuses,
   type ResolvedServiceSlot,
 } from "@/lib/service-slots";
+import { isNonProductionName } from "@/lib/pco/non-production";
 import { readRows } from "@/lib/supabase/rest";
 import { isElementBlocked, isSlotBlocked, listServiceDates, type ReviewIncident } from "@/lib/variance/queries";
 
@@ -1232,13 +1233,16 @@ export async function getTriageData(
 
   // Include unresolved production PlanTimes so configuration drift remains
   // visible and actionable in Verify.
-  const planTimesRows = await readRows<TriagePlanTimeRow>("effective_plan_times", {
-    plan_id: `eq.${plan.id}`,
-    is_manually_excluded: "eq.false",
-    time_type: "eq.service",
-    select: "id,effective_slot_id,pco_name,starts_at,planned_target_seconds,service_actual_seconds",
-    order: "starts_at.asc",
-  });
+  const planTimesRows = (
+    await readRows<TriagePlanTimeRow>("effective_plan_times", {
+      plan_id: `eq.${plan.id}`,
+      is_manually_excluded: "eq.false",
+      time_type: "eq.service",
+      select:
+        "id,effective_slot_id,pco_name,starts_at,planned_target_seconds,service_actual_seconds",
+      order: "starts_at.asc",
+    })
+  ).filter((planTime) => !isNonProductionName(planTime.pco_name));
 
   const planTimeIds = planTimesRows.map(({ id }) => id);
 
