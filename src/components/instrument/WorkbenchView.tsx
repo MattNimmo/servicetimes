@@ -12,6 +12,7 @@ import type {
   WorkbenchElementRow,
   WorkbenchHorizon,
 } from "@/lib/instrument/queries";
+import type { ServiceSlotKey } from "@/lib/service-slot-identity";
 import { formatDelta, formatDuration, formatServiceDate } from "@/lib/variance/format";
 import { ChartTipBox, useChartTip } from "./ChartTooltip";
 import Toast from "./Toast";
@@ -325,7 +326,7 @@ function MidCampusBars({ comparisons }: { comparisons: MidCampusComparison[] }) 
   const summary = comparisons
     .map(
       (comparison) =>
-        `${comparison.campusCode}${comparison.isActive ? " current" : ""}: ${formatDuration(comparison.actualSeconds)}`,
+        `${comparison.campusCode}${comparison.slotLabel ? ` ${comparison.slotLabel}` : ""}${comparison.isActive ? " current" : ""}: ${formatDuration(comparison.actualSeconds)}`,
     )
     .join("; ");
 
@@ -337,7 +338,7 @@ function MidCampusBars({ comparisons }: { comparisons: MidCampusComparison[] }) 
           comparison.actualSeconds !== null && comparison.plannedSeconds !== null
             ? comparison.actualSeconds - comparison.plannedSeconds
             : null;
-        const label = `${comparison.campusCode}${comparison.isActive ? " current location" : ""}: ${formatDuration(comparison.actualSeconds)}${delta !== null ? `, ${formatDelta(delta)} versus plan` : ""}.`;
+        const label = `${comparison.campusCode}${comparison.slotLabel ? ` ${comparison.slotLabel}` : ""}${comparison.isActive ? " current location" : ""}: ${formatDuration(comparison.actualSeconds)}${delta !== null ? `, ${formatDelta(delta)} versus plan` : ""}.`;
         return (
           <div key={comparison.campusCode} className="wb-mid-comparison__row" title={label}>
             <span className={comparison.isActive ? "wb-mid-comparison__code wb-mid-comparison__code--active" : "wb-mid-comparison__code"}>
@@ -542,7 +543,7 @@ export default function WorkbenchView({
 }: {
   data: WorkbenchData;
   campus: string;
-  slot: string;
+  slot: ServiceSlotKey;
   horizon: WorkbenchHorizon;
   isOperator: boolean;
 }) {
@@ -564,7 +565,7 @@ export default function WorkbenchView({
 
   function navigate(params: {
     campus?: string;
-    slot?: string;
+    slot?: ServiceSlotKey;
     horizon?: WorkbenchHorizon;
   }) {
     const p = new URLSearchParams({
@@ -698,12 +699,12 @@ export default function WorkbenchView({
               key={s.id}
               type="button"
               className={
-                slot === s.label
+                slot === s.key
                   ? "slot-picker__option slot-picker__option--active"
                   : "slot-picker__option"
               }
-              aria-pressed={slot === s.label}
-              onClick={() => navigate({ slot: s.label })}
+              aria-pressed={slot === s.key}
+              onClick={() => navigate({ slot: s.key })}
             >
               {s.label}
             </button>

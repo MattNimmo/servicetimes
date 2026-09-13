@@ -1,5 +1,6 @@
 import "server-only";
 
+import { readServiceSlots } from "@/lib/service-slots";
 import { readRows } from "@/lib/supabase/rest";
 
 export type VarianceStatus = "complete" | "needs_review" | "no_plan";
@@ -47,12 +48,6 @@ type EffectivePlanTime = {
 type ActivePlanTimeCorrection = {
   plan_time_id: number;
   corrected_actual_seconds: number | null;
-};
-
-type ServiceSlot = {
-  id: number;
-  slot_label: string;
-  expected_local_start: string;
 };
 
 type ElementVarianceRow = {
@@ -290,12 +285,7 @@ export async function getVarianceDashboard(code: string, serviceDate: string) {
         "id,effective_slot_id,planned_target_seconds,service_actual_seconds,slot_resolution_state",
     }),
     allPlanTimeIds(plan.id),
-    readRows<ServiceSlot>("service_slots", {
-      campus_id: `eq.${campus.id}`,
-      is_active: "eq.true",
-      select: "id,slot_label,expected_local_start",
-      order: "expected_local_start.asc",
-    }),
+    readServiceSlots(campus.id, plan.service_date),
     readRows<ElementVarianceRow>("element_variance", {
       plan_id: `eq.${plan.id}`,
       select: "*",
@@ -316,11 +306,33 @@ export async function getVarianceDashboard(code: string, serviceDate: string) {
     plan,
     openIncidentCount: incidents.length,
     unmappedCount: unmapped,
-    slots: planTimes
-      .map((planTime) => {
-        const slot = slots.find(({ id }) => id === planTime.effective_slot_id);
+    slots: slots
+      .map((slot) => {
+        const planTime = planTimes.find(
+          ({ effective_slot_id }) => effective_slot_id === slot.id,
+        );
+        if (!planTime) {
+          return {
+            id: -slot.id,
+            effective_slot_id: slot.id,
+            planned_target_seconds: null,
+            service_actual_seconds: null,
+            slot_resolution_state: "review" as const,
+            slotKey: slot.slot_key,
+            slotLabel: slot.slot_label,
+            expectedLocalStart: slot.expected_local_start,
+            variance: {
+              status: "needs_review" as const,
+              plannedSeconds: null,
+              actualSeconds: null,
+              deltaSeconds: null,
+              deltaPercent: null,
+            },
+          };
+        }
         return {
           ...planTime,
+          slotKey: slot?.slot_key ?? null,
           slotLabel: slot?.slot_label ?? "Unknown slot",
           expectedLocalStart: slot?.expected_local_start ?? null,
           variance: computeVariance(

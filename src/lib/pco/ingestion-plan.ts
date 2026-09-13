@@ -7,7 +7,11 @@ import {
   type TaxonomyConfig,
 } from "@/lib/pco/normalize";
 import { isNonProductionName } from "@/lib/pco/non-production";
-import type { PCO_CAMPUSES } from "@/lib/pco/campuses";
+import {
+  resolveServiceSlotSchedule,
+  type PcoCampusConfiguration,
+  type ServiceSlotKey,
+} from "@/lib/pco/campuses";
 import type {
   PcoItem,
   PcoItemTime,
@@ -16,7 +20,7 @@ import type {
   PcoRelationship,
 } from "@/lib/pco/types";
 
-export type PcoCampus = (typeof PCO_CAMPUSES)[number];
+export type PcoCampus = PcoCampusConfiguration;
 
 export type IngestionIncidentKind =
   | "slot_resolution"
@@ -31,6 +35,7 @@ export type IngestionIncidentKind =
 export type IngestionIncident = {
   kind: IngestionIncidentKind;
   planTimeId: string | null;
+  slotKey: ServiceSlotKey | null;
   slotLabel: string | null;
   itemIds: string[];
   sourceFingerprint: string;
@@ -118,6 +123,7 @@ function incident(
   detail: string,
   options: {
     planTimeId?: string | null;
+    slotKey?: ServiceSlotKey | null;
     slotLabel?: string | null;
     itemIds?: string[];
     evidence: unknown;
@@ -126,6 +132,7 @@ function incident(
   return {
     kind,
     planTimeId: options.planTimeId ?? null,
+    slotKey: options.slotKey ?? null,
     slotLabel: options.slotLabel ?? null,
     itemIds: options.itemIds ?? [],
     sourceFingerprint: sourceFingerprint(options.evidence),
@@ -141,23 +148,36 @@ function isNonProductionPlanTime(planTime: Pick<PcoPlanTime, "attributes">) {
   );
 }
 
-function assignSlots(campus: PcoCampus, planTimes: PcoPlanTime[]) {
-  const assignments = new Map<string, string>();
+function assignSlots(
+  campus: PcoCampus,
+  serviceDate: string,
+  planTimes: PcoPlanTime[],
+) {
+  const assignments = new Map<
+    string,
+    { key: ServiceSlotKey; label: string }
+  >();
   const incidents: IngestionIncident[] = [];
   const productionCandidates = planTimes.filter(
     (planTime) => !isNonProductionPlanTime(planTime),
   );
 
   for (const slot of campus.slots) {
-    const expectedMinutes = slotMinutes(slot.localStart);
+    const schedule = resolveServiceSlotSchedule(slot, serviceDate);
+    if (!schedule) {
+      throw new Error(
+        `No ${campus.code} ${slot.key} service schedule covers ${serviceDate}`,
+      );
+    }
+    const expectedMinutes = slotMinutes(schedule.localStart);
     const candidates = productionCandidates.filter(({ attributes }) => {
       if (!attributes.starts_at) return false;
       const { minutes } = localParts(attributes.starts_at, campus.timezone);
-      return minuteDistance(minutes, expectedMinutes) <= slot.toleranceMinutes;
+      return minuteDistance(minutes, expectedMinutes) <= schedule.toleranceMinutes;
     });
 
     if (candidates.length === 1) {
-      assignments.set(candidates[0].id, slot.label);
+      assignments.set(candidates[0].id, { key: slot.key, label: schedule.label });
       continue;
     }
 
@@ -165,13 +185,14 @@ function assignSlots(campus: PcoCampus, planTimes: PcoPlanTime[]) {
       incident(
         "slot_resolution",
         candidates.length === 0
-          ? `No PlanTime matched the ${slot.label} production slot.`
-          : `${candidates.length} PlanTimes matched the ${slot.label} production slot.`,
+          ? `No PlanTime matched the ${schedule.label} production slot.`
+          : `${candidates.length} PlanTimes matched the ${schedule.label} production slot.`,
         {
-          slotLabel: slot.label,
+          slotKey: slot.key,
+          slotLabel: schedule.label,
           itemIds: [],
           evidence: {
-            slot,
+            slot: { key: slot.key, ...schedule },
             candidatePlanTimeIds: candidates.map(({ id }) => id).sort(),
           },
         },
@@ -212,7 +233,7 @@ function assignSlots(campus: PcoCampus, planTimes: PcoPlanTime[]) {
 function analyzeTimedBundles(
   items: PcoItem[],
   normalizedById: Map<string, { elementKey: string | null }>,
-  assignments: Map<string, string>,
+  assignments: Map<string, { key: ServiceSlotKey; label: string }>,
   campus: PcoCampus,
 ) {
   const ordered = [...items].sort(
@@ -279,13 +300,14 @@ function analyzeTimedBundles(
     }
 
     incidents.push(
-      ...[...assignments].map(([planTimeId, slotLabel]) =>
+      ...[...assignments].map(([planTimeId, slot]) =>
         incident(
           "bundle_overlap",
           "Timed parent and following songs may represent overlapping planned time.",
           {
             planTimeId,
-            slotLabel,
+            slotKey: slot.key,
+            slotLabel: slot.label,
             itemIds: [parent.id, ...children.map(({ id }) => id)],
             evidence: {
               planTimeId,
@@ -427,8 +449,13 @@ export function buildIngestionPlan(
   bundle: PlanBundle,
   taxonomy: TaxonomyConfig,
 ) {
+  const serviceDate = localParts(
+    bundle.plan.attributes.sort_date,
+    campus.timezone,
+  ).date;
   const { assignments, incidents: slotIncidents } = assignSlots(
     campus,
+    serviceDate,
     bundle.planTimes,
   );
   const incidents: IngestionIncident[] = [...slotIncidents];
@@ -465,7 +492,9 @@ export function buildIngestionPlan(
       attributes.live_starts_at,
       attributes.live_ends_at,
     );
-    const detectedSlotLabel = assignments.get(id) ?? null;
+    const assignedSlot = assignments.get(id) ?? null;
+    const detectedSlotKey = assignedSlot?.key ?? null;
+    const detectedSlotLabel = assignedSlot?.label ?? null;
     const needsLiveReview =
       detectedSlotLabel !== null &&
       (!attributes.live_starts_at ||
@@ -476,6 +505,7 @@ export function buildIngestionPlan(
       incidents.push(
         incident("missing_live_bounds", "Mapped production slot has incomplete LIVE bounds.", {
           planTimeId: id,
+          slotKey: detectedSlotKey,
           slotLabel: detectedSlotLabel,
           evidence: { id, attributes },
         }),
@@ -484,6 +514,7 @@ export function buildIngestionPlan(
       incidents.push(
         incident("zero_live_window", "Mapped production slot has a zero-length LIVE window.", {
           planTimeId: id,
+          slotKey: detectedSlotKey,
           slotLabel: detectedSlotLabel,
           evidence: { id, attributes },
         }),
@@ -493,6 +524,7 @@ export function buildIngestionPlan(
     return {
       pcoPlanTimeId: id,
       pcoPlanId: bundle.plan.id,
+      detectedSlotKey,
       detectedSlotLabel,
       slotResolutionState:
         detectedSlotLabel && !needsLiveReview
@@ -669,6 +701,7 @@ export function buildIngestionPlan(
       incidents.push(
         incident("reconciliation_gap", "Item timers do not reconcile to the service window.", {
           planTimeId: planTime.pcoPlanTimeId,
+          slotKey: planTime.detectedSlotKey,
           slotLabel: planTime.detectedSlotLabel,
           itemIds: matching.map(({ pcoItemId }) => pcoItemId),
           evidence: {
@@ -708,7 +741,7 @@ export function buildIngestionPlan(
     plan: {
       pcoPlanId: bundle.plan.id,
       campusCode: campus.code,
-      serviceDate: localParts(bundle.plan.attributes.sort_date, campus.timezone).date,
+      serviceDate,
       sortDate: bundle.plan.attributes.sort_date,
       seriesTitle: bundle.plan.attributes.series_title,
       title: bundle.plan.attributes.title,

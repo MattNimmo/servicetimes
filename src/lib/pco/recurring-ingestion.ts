@@ -35,13 +35,6 @@ const defaultDependencies: Dependencies = {
   now: () => new Date(),
 };
 
-const SLOT_BLOCKING_KINDS = [
-  "slot_resolution",
-  "missing_live_bounds",
-  "zero_live_window",
-  "reconciliation_gap",
-] as const;
-
 export type PlanFreshness =
   | { status: "missing" }
   | { status: "complete"; planId: number; pcoPlanId: string }
@@ -53,6 +46,18 @@ export type PlanFreshness =
     };
 
 export type CampusDateFreshness = PlanFreshness;
+
+type IngestionLocationHealthRow = {
+  plan_id: number;
+  pco_plan_id: string;
+  expected_slot_count: number;
+  actual_plan_time_count: number;
+  actual_slot_count: number;
+  all_have_live_bounds: boolean;
+  all_elements_complete: boolean;
+  blocking_incident_count: number;
+  is_complete: boolean;
+};
 
 type RecurringCampusResult =
   | {
@@ -319,8 +324,9 @@ export async function runRecurringPcoIngestion(
 }
 
 async function countPersistedCampuses(serviceDate: string) {
-  const plans = await readRows<{ campus_id: number }>("plans", {
+  const plans = await readRows<{ campus_id: number }>("ingestion_location_health", {
     service_date: `eq.${serviceDate}`,
+    is_complete: "eq.true",
     select: "campus_id",
   });
   return new Set(plans.map(({ campus_id }) => campus_id)).size;
@@ -336,18 +342,19 @@ function sinceIso(weeks: number, now: Date) {
 }
 
 export async function getPlanFreshness(
-  campus: PcoCampus,
+  _campus: PcoCampus,
   pcoPlanId: string,
 ): Promise<PlanFreshness> {
-  const plans = await readRows<{ id: number; pco_plan_id: string }>("plans", {
-    pco_plan_id: `eq.${pcoPlanId}`,
-    select: "id,pco_plan_id",
-    limit: "1",
-  });
-  const plan = plans[0];
-  if (!plan) return { status: "missing" };
-
-  return evaluatePersistedPlanFreshness(campus, plan);
+  const rows = await readRows<IngestionLocationHealthRow>(
+    "ingestion_location_health",
+    {
+      pco_plan_id: `eq.${pcoPlanId}`,
+      select:
+        "plan_id,pco_plan_id,expected_slot_count,actual_plan_time_count,actual_slot_count,all_have_live_bounds,all_elements_complete,blocking_incident_count,is_complete",
+      limit: "1",
+    },
+  );
+  return rows[0] ? freshnessFromHealth(rows[0]) : { status: "missing" };
 }
 
 export async function getCampusDateFreshness(
@@ -364,98 +371,56 @@ export async function getCampusDateFreshness(
     throw new Error(`Campus ${campus.code} is not configured`);
   }
 
-  const plans = await readRows<{ id: number; pco_plan_id: string }>("plans", {
-    campus_id: `eq.${campusId}`,
-    service_date: `eq.${serviceDate}`,
-    select: "id,pco_plan_id",
-    order: "sort_date.desc",
-  });
-  if (plans.length === 0) return { status: "missing" };
+  const rows = await readRows<IngestionLocationHealthRow>(
+    "ingestion_location_health",
+    {
+      campus_id: `eq.${campusId}`,
+      service_date: `eq.${serviceDate}`,
+      select:
+        "plan_id,pco_plan_id,expected_slot_count,actual_plan_time_count,actual_slot_count,all_have_live_bounds,all_elements_complete,blocking_incident_count,is_complete",
+    },
+  );
+  if (rows.length === 0) return { status: "missing" };
 
-  const incomplete: Array<Extract<PlanFreshness, { status: "incomplete" }>> = [];
-  for (const plan of plans) {
-    const freshness = await evaluatePersistedPlanFreshness(campus, plan);
-    if (freshness.status === "complete") return freshness;
-    if (freshness.status === "incomplete") incomplete.push(freshness);
-  }
-
-  return incomplete[0] ?? { status: "missing" };
+  const results = rows.map(freshnessFromHealth);
+  return results.find((result) => result.status === "complete") ?? results[0];
 }
 
-async function evaluatePersistedPlanFreshness(
-  campus: PcoCampus,
-  plan: { id: number; pco_plan_id: string },
-): Promise<Exclude<PlanFreshness, { status: "missing" }>> {
-  const planTimes = await readRows<{
-    id: number;
-    effective_slot_id: number | null;
-    live_starts_at: string | null;
-    live_ends_at: string | null;
-  }>("effective_plan_times", {
-    plan_id: `eq.${plan.id}`,
-    time_type: "eq.service",
-    is_manually_excluded: "eq.false",
-    effective_slot_id: "not.is.null",
-    select: "id,effective_slot_id,live_starts_at,live_ends_at",
-  });
-
+function freshnessFromHealth(
+  row: IngestionLocationHealthRow,
+): Exclude<PlanFreshness, { status: "missing" }> {
+  if (row.is_complete) {
+    return {
+      status: "complete",
+      planId: row.plan_id,
+      pcoPlanId: row.pco_plan_id,
+    };
+  }
   const reasons: string[] = [];
-  const effectiveSlotCount = new Set(planTimes.map((pt) => pt.effective_slot_id)).size;
-  if (effectiveSlotCount < campus.slots.length) {
+  if (
+    row.actual_plan_time_count !== row.expected_slot_count ||
+    row.actual_slot_count !== row.expected_slot_count
+  ) {
     reasons.push(
-      `expected ${campus.slots.length} production slots, found ${effectiveSlotCount}`,
+      `expected ${row.expected_slot_count} production slots, found ${row.actual_slot_count}`,
     );
   }
-  if (planTimes.some((pt) => !pt.live_starts_at || !pt.live_ends_at)) {
+  if (!row.all_have_live_bounds) {
     reasons.push("production slot is missing LIVE bounds");
   }
-
-  const planTimeIds = planTimes.map(({ id }) => id);
-  const [elementRows, planIncidents, planTimeIncidents] = await Promise.all([
-    readRows<{ plan_time_id: number; actual_is_complete: boolean }>("element_variance", {
-      plan_id: `eq.${plan.id}`,
-      select: "plan_time_id,actual_is_complete",
-    }),
-    readRows<{ id: number }>("review_incidents", {
-      plan_id: `eq.${plan.id}`,
-      status: "eq.open",
-      kind: `in.(${SLOT_BLOCKING_KINDS.join(",")})`,
-      select: "id",
-    }),
-    planTimeIds.length > 0
-      ? readRows<{ id: number }>("review_incidents", {
-          plan_time_id: `in.(${planTimeIds.join(",")})`,
-          status: "eq.open",
-          kind: `in.(${SLOT_BLOCKING_KINDS.join(",")})`,
-          select: "id",
-        })
-      : Promise.resolve([]),
-  ]);
-
-  const elementRowsByPlanTime = new Map<number, typeof elementRows>();
-  for (const row of elementRows) {
-    const rows = elementRowsByPlanTime.get(row.plan_time_id) ?? [];
-    rows.push(row);
-    elementRowsByPlanTime.set(row.plan_time_id, rows);
+  if (!row.all_elements_complete) {
+    reasons.push("production slot has incomplete item actuals");
   }
-  for (const planTime of planTimes) {
-    const rows = elementRowsByPlanTime.get(planTime.id) ?? [];
-    if (rows.length === 0 || rows.some((row) => !row.actual_is_complete)) {
-      reasons.push(`plan_time ${planTime.id} has incomplete item actuals`);
-    }
-  }
-  if (planIncidents.length + planTimeIncidents.length > 0) {
+  if (row.blocking_incident_count > 0) {
     reasons.push("open slot-blocking incidents remain");
   }
 
-  return reasons.length > 0
-    ? {
-        status: "incomplete",
-        planId: plan.id,
-        pcoPlanId: plan.pco_plan_id,
-        reasons,
-      }
-    : { status: "complete", planId: plan.id, pcoPlanId: plan.pco_plan_id };
+  return {
+    status: "incomplete",
+    planId: row.plan_id,
+    pcoPlanId: row.pco_plan_id,
+    reasons,
+  };
 }
 
 function committedCampusResult(

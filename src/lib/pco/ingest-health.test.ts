@@ -39,7 +39,7 @@ describe("ingestion health", () => {
 
   it("requires all four successful location writes for the expected Sunday", async () => {
     vi.mocked(readRows).mockImplementation(async (table) =>
-      table === "plans"
+      table === "ingestion_location_health"
         ? Array.from({ length: 4 }, (_, index) => ({ campus_id: index + 1 }))
         : [
             { window_start: "2026-07-12", started_at: "2026-07-12T19:30:00Z" },
@@ -50,5 +50,9 @@ describe("ingestion health", () => {
 
     expect(health.status).toBe("current");
     expect(health.successfulLocations).toBe(4);
+    expect(readRows).toHaveBeenCalledWith(
+      "ingestion_location_health",
+      expect.objectContaining({ is_complete: "eq.true" }),
+    );
   });
 });

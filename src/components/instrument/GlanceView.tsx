@@ -445,7 +445,7 @@ function buildRecommendations(
 ): GlanceRecommendation[] {
   const recs: GlanceRecommendation[] = [];
   const verifyHref = `/instrument/triage?campus=${campus.code}&date=${campus.serviceDate}`;
-  const workbenchHref = `/instrument/workbench?campus=${campus.code}&slot=${selectedSlot?.slotLabel ?? ""}`;
+  const workbenchHref = `/instrument/workbench?campus=${campus.code}&slot=${selectedSlot?.slotKey ?? "first"}`;
   const isBlocked = selectedSlot?.isBlocked ?? false;
 
   // Verify is operator-only, so Verify-routed housekeeping recommendations
@@ -953,7 +953,7 @@ export default function GlanceView({
 
                     <div className="glance-card__actions">
                       <Link
-                        href={`/instrument/workbench?campus=${campus.code}&slot=${selectedSlot?.slotLabel ?? ""}`}
+                        href={`/instrument/workbench?campus=${campus.code}&slot=${selectedSlot?.slotKey ?? "first"}`}
                         className="glance-link"
                       >
                         Open workbench →

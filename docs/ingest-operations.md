@@ -33,11 +33,21 @@ path, signature, and event type are validated by the watchdog route.
 
 ## What success looks like
 
-A full weekly run leaves a persisted plan for the expected Sunday at all four
-locations and creates one successful `ingest_runs` row per atomic location
-write. Each Sunday attempt checks persisted completeness by campus and date
-before contacting Planning Center. A retry reports complete locations as
-`skipped_complete` and targets only missing or incomplete locations.
+A full weekly run leaves a complete persisted plan for the expected Sunday at
+all four locations and creates one successful `ingest_runs` row per atomic
+location write. Completeness means every expected service identity has exactly
+one production PlanTime, LIVE bounds, complete tracked-element actuals, and no
+open slot-blocking incident. A plan row by itself is not success. Each Sunday
+attempt checks that shared database result by campus and date before contacting
+Planning Center. A retry reports complete locations as `skipped_complete` and
+targets only missing or incomplete locations.
+
+Service identities are stable even when their meeting times differ. The
+`first` cohort is SLP 9am, ELK 9am, MG 9am, and LV 10am. The `second` cohort is
+SLP 11am, MG 11am, and ELK 10:30am beginning August 30, 2026; Elk River history
+through August 23 continues to display 11am. Treat an unresolved Elk River
+10:30 PlanTime as incomplete, not as evidence that the location has only one
+service.
 
 Success is based on persisted coverage, not the number of fulfilled RPC calls.
 The response must contain:
@@ -73,8 +83,8 @@ Every route invocation writes a structured runtime-log start line containing:
 Completion and failure lines include the same request ID and elapsed duration.
 The HTTP response also returns `X-Ingest-Request-Id` and `Cache-Control: no-store`.
 
-Operators see an ingest-health banner on Review when the expected four writes
-have not appeared:
+Operators see an ingest-health banner on Review when fewer than four locations
+pass the shared completeness check:
 
 - **Pending** through the end of the Sunday retry window.
 - **Action needed** after the retry window closes.

@@ -11,6 +11,7 @@ const plan = {
   planTimes: [
     {
       pcoPlanTimeId: "time-1",
+      detectedSlotKey: "first",
       detectedSlotLabel: "9am",
       slotResolutionState: "auto",
     },
@@ -49,7 +50,7 @@ describe("verifyIngestionPlan", () => {
           pco_plan_time_id: "time-1",
           detected_slot_id: 30,
           slot_resolution_state: "auto",
-          service_slots: { slot_label: "9am" },
+          service_slots: { slot_key: "first" },
         },
       ],
       items: [{ id: 40 }],

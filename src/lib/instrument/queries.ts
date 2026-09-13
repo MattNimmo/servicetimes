@@ -1,5 +1,11 @@
 import "server-only";
 
+import type { ServiceSlotKey } from "@/lib/service-slot-identity";
+import {
+  readServiceSlots,
+  readServiceSlotsForCampuses,
+  type ResolvedServiceSlot,
+} from "@/lib/service-slots";
 import { readRows } from "@/lib/supabase/rest";
 import { isElementBlocked, isSlotBlocked, listServiceDates, type ReviewIncident } from "@/lib/variance/queries";
 
@@ -13,6 +19,7 @@ export type PhaseBreakdown = Record<
 
 export type ServiceSlotSummary = {
   slotId: number;
+  slotKey: ServiceSlotKey;
   slotLabel: string;
   planTimeId: number;
   plannedSeconds: number | null;
@@ -73,13 +80,6 @@ type EffectivePlanTimeRow = {
   live_ends_at: string | null;
 };
 
-type ServiceSlotRow = {
-  id: number;
-  slot_label: string;
-  expected_local_start: string;
-  is_active: boolean;
-};
-
 type ElementVarianceRow = {
   effective_slot_id: number;
   section_key: string;
@@ -102,17 +102,8 @@ function campusSortIndex(code: CampusCode) {
   return index === -1 ? Number.MAX_SAFE_INTEGER : index;
 }
 
-export function resolveMidComparisonSlotLabel(
-  activeCampusCode: CampusCode,
-  activeSlotLabel: string,
-  comparisonCampusCode: CampusCode,
-) {
-  const isFirstServiceComparison =
-    activeSlotLabel === "9am" ||
-    (activeCampusCode === "LV" && activeSlotLabel === "10am");
-
-  if (!isFirstServiceComparison) return activeSlotLabel;
-  return comparisonCampusCode === "LV" ? "10am" : "9am";
+export function resolveMidComparisonSlotKey(activeSlotKey: ServiceSlotKey) {
+  return activeSlotKey;
 }
 
 function sumNullable(values: Array<number | null>) {
@@ -248,12 +239,7 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
         "id,effective_slot_id,planned_target_seconds,service_actual_seconds,live_starts_at,live_ends_at",
     }),
     allPlanTimeIds(plan.id),
-    readRows<ServiceSlotRow>("service_slots", {
-      campus_id: `eq.${campus.id}`,
-      is_active: "eq.true",
-      select: "id,slot_label,expected_local_start,is_active",
-      order: "expected_local_start.asc",
-    }),
+    readServiceSlots(campus.id, plan.service_date),
     readRows<ElementVarianceRow>("element_variance", {
       plan_id: `eq.${plan.id}`,
       select: "effective_slot_id,section_key,planned_seconds,actual_seconds",
@@ -298,6 +284,7 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
 
       return {
         slotId: slot.id,
+        slotKey: slot.slot_key,
         slotLabel: slot.slot_label,
         planTimeId: planTime.id,
         plannedSeconds: planTime.planned_target_seconds,
@@ -319,6 +306,7 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
     .sort((left, right) => left.expectedLocalStart.localeCompare(right.expectedLocalStart))
     .map((summary) => ({
       slotId: summary.slotId,
+      slotKey: summary.slotKey,
       slotLabel: summary.slotLabel,
       planTimeId: summary.planTimeId,
       plannedSeconds: summary.plannedSeconds,
@@ -329,6 +317,23 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
       isBlocked: summary.isBlocked,
       phases: summary.phases,
     }));
+
+  const expectedSummaries = slots.map(
+    (slot) =>
+      summaries.find((summary) => summary.slotId === slot.id) ?? {
+        slotId: slot.id,
+        slotKey: slot.slot_key,
+        slotLabel: slot.slot_label,
+        planTimeId: 0,
+        plannedSeconds: null,
+        actualSeconds: null,
+        broadcastStartsAt: null,
+        broadcastEndsAt: null,
+        broadcastIsMessageBlock: false,
+        isBlocked: true,
+        phases: buildPhaseBreakdown([]),
+      },
+  );
 
   // ── Windowed element patterns (6/12wk) ──────────────────────────────────
   // Per element, one delta per Sunday (summed across slots; only weeks where
@@ -378,7 +383,7 @@ async function buildCampusGlance(campus: CampusRow): Promise<GlanceCampus | null
     isReferenceTargetApproved: campus.reference_target_status === "approved",
     serviceDate: plan.service_date,
     planId: plan.id,
-    slots: summaries,
+    slots: expectedSummaries,
     openIncidentCount: incidents.length,
     unmappedCount: unmapped,
     elementPatterns,
@@ -437,10 +442,7 @@ export async function getBroadcastWindowTrend(): Promise<BroadcastTrendPoint[]> 
       is_manually_excluded: "eq.false",
       select: "id,plan_id,effective_slot_id,live_starts_at,live_ends_at",
     }),
-    readRows<ServiceSlotRow>("service_slots", {
-      campus_id: `eq.${origin.id}`,
-      select: "id,slot_label,expected_local_start,is_active",
-    }),
+    readServiceSlots(origin.id, plans[0].service_date),
     readRows<{ id: number; plan_id: number; element_key: string }>("items", {
       plan_id: `in.(${planIds.join(",")})`,
       element_key: "in.(live.bumper,live.message)",
@@ -565,6 +567,7 @@ export type TrendPoint = {
 
 export type MidCampusComparison = {
   campusCode: CampusCode;
+  slotLabel: string | null;
   actualSeconds: number | null;
   plannedSeconds: number | null;
   isActive: boolean;
@@ -581,7 +584,12 @@ export type WorkbenchData = {
   midCampusComparison: MidCampusComparison[];
   referenceTargetSeconds: number;
   isReferenceTargetApproved: boolean;
-  availableSlots: Array<{ id: number; label: string; expectedLocalStart: string }>;
+  availableSlots: Array<{
+    id: number;
+    key: ServiceSlotKey;
+    label: string;
+    expectedLocalStart: string;
+  }>;
 };
 
 // ─── Triage ───────────────────────────────────────────────────────────────────
@@ -594,7 +602,7 @@ export type SlotIncident = {
   canResolveSlotResolution: boolean;
   rawActualSeconds: number | null;
   plannedSeconds: number | null;
-  availableSlots: Array<{ id: number; label: string }>;
+  availableSlots: Array<{ id: number; key: ServiceSlotKey; label: string }>;
 };
 
 export type TriageItemStatus =
@@ -646,6 +654,7 @@ export type TriageSection = {
 
 export type TriageSlot = {
   planTimeId: number;
+  slotKey: ServiceSlotKey | null;
   slotLabel: string;
   pcoName: string | null;
   startsAt: string | null;
@@ -654,6 +663,14 @@ export type TriageSlot = {
   expectedLocalStart: string | null;
   slotIncidents: SlotIncident[];
   sections: TriageSection[];
+};
+
+export type TriagePlanIncident = {
+  id: number;
+  kind: string;
+  slotKey: ServiceSlotKey | null;
+  slotLabel: string;
+  detail: string;
 };
 
 export type AvailableElement = {
@@ -668,6 +685,7 @@ export type TriageData = {
   serviceDate: string;
   planTitle: string;
   slots: TriageSlot[];
+  planIncidents: TriagePlanIncident[];
   totalAttentionCount: number;
   availableElements: AvailableElement[];
 };
@@ -732,6 +750,23 @@ async function openTriageIncidents(planTimeIds: number[]): Promise<TriageInciden
   });
 }
 
+type PlanTriageIncidentRow = {
+  id: number;
+  slot_id: number | null;
+  kind: string;
+  detail: string;
+};
+
+async function openPlanTriageIncidents(planId: number) {
+  return readRows<PlanTriageIncidentRow>("review_incidents", {
+    plan_id: `eq.${planId}`,
+    plan_time_id: "is.null",
+    status: "eq.open",
+    kind: `in.(${[...SLOT_BLOCKING_KINDS].join(",")})`,
+    select: "id,slot_id,kind,detail",
+  });
+}
+
 type ResolvedTriageIncident = {
   id: number;
   plan_time_id: number;
@@ -781,7 +816,7 @@ type FullElementVarianceRow = {
 
 type TriagePlanTimeRow = {
   id: number;
-  effective_slot_id: number;
+  effective_slot_id: number | null;
   pco_name: string | null;
   starts_at: string | null;
   planned_target_seconds: number | null;
@@ -838,7 +873,7 @@ const SECTION_ORDER = [
 
 async function getMidCampusComparison(
   serviceDate: string,
-  slotLabel: string,
+  slotKey: ServiceSlotKey,
   activeCampusCode: CampusCode,
 ): Promise<MidCampusComparison[]> {
   const campuses = await listInstrumentCampuses();
@@ -846,11 +881,7 @@ async function getMidCampusComparison(
 
   const campusIds = campuses.map((campus) => campus.id);
   const [slots, plans] = await Promise.all([
-    readRows<{ id: number; campus_id: number; slot_label: string }>("service_slots", {
-      campus_id: `in.(${campusIds.join(",")})`,
-      is_active: "eq.true",
-      select: "id,campus_id,slot_label",
-    }),
+    readServiceSlotsForCampuses(campusIds, serviceDate),
     readRows<{ id: number; campus_id: number }>("plans", {
       campus_id: `in.(${campusIds.join(",")})`,
       service_date: `eq.${serviceDate}`,
@@ -859,20 +890,12 @@ async function getMidCampusComparison(
     }),
   ]);
 
-  const slotByCampusId = new Map<
-    number,
-    { id: number; campus_id: number; slot_label: string }
-  >();
+  const slotByCampusId = new Map<number, ResolvedServiceSlot>();
   for (const campus of campuses) {
-    const comparisonSlotLabel = resolveMidComparisonSlotLabel(
-      activeCampusCode,
-      slotLabel,
-      campus.code,
-    );
     const slot = slots.find(
       (candidate) =>
         candidate.campus_id === campus.id &&
-        candidate.slot_label === comparisonSlotLabel,
+        candidate.slot_key === resolveMidComparisonSlotKey(slotKey),
     );
     if (slot) slotByCampusId.set(campus.id, slot);
   }
@@ -906,39 +929,31 @@ async function getMidCampusComparison(
     rowsByPlanId.set(row.plan_id, rows);
   }
 
-  return campuses.map((campus) => {
+  return campuses.flatMap((campus) => {
     const plan = planByCampusId.get(campus.id);
     const slot = slotByCampusId.get(campus.id);
+    if (!slot) return [];
     const rows = plan && slot ? (rowsByPlanId.get(plan.id) ?? []) : [];
-    return {
+    return [{
       campusCode: campus.code,
+      slotLabel: slot?.slot_label ?? null,
       actualSeconds: sumNullable(rows.map((row) => row.actual_seconds)),
       plannedSeconds:
         rows.length > 0
           ? rows.reduce((total, row) => total + row.planned_seconds, 0)
           : null,
       isActive: campus.code === activeCampusCode,
-    };
+    }];
   });
 }
 
 export async function getWorkbenchData(
   campusCode: string,
-  slotLabel: string,
+  slotKey: ServiceSlotKey,
   horizon: WorkbenchHorizon,
 ): Promise<WorkbenchData | null> {
   const campus = await campusByCode(campusCode);
   if (!campus) return null;
-
-  const allSlots = await readRows<ServiceSlotRow>("service_slots", {
-    campus_id: `eq.${campus.id}`,
-    is_active: "eq.true",
-    select: "id,slot_label,expected_local_start,is_active",
-    order: "expected_local_start.asc",
-  });
-
-  const slot = allSlots.find((s) => s.slot_label === slotLabel) ?? allSlots[0];
-  if (!slot) return null;
 
   const horizonLimit = { last: 1, "6wk": 6, "6mo": 26, "12mo": 52 }[horizon];
 
@@ -952,6 +967,9 @@ export async function getWorkbenchData(
   if (plans.length === 0) return null;
 
   const latestPlan = plans[0];
+  const allSlots = await readServiceSlots(campus.id, latestPlan.service_date);
+  const slot = allSlots.find((candidate) => candidate.slot_key === slotKey) ?? allSlots[0];
+  if (!slot) return null;
 
   const [elements, planTimesForSlot, allIds, midCampusComparison] = await Promise.all([
     readRows<FullElementVarianceRow>("element_variance", {
@@ -972,7 +990,7 @@ export async function getWorkbenchData(
       },
     ),
     allPlanTimeIds(latestPlan.id),
-    getMidCampusComparison(latestPlan.service_date, slot.slot_label, campus.code),
+    getMidCampusComparison(latestPlan.service_date, slot.slot_key, campus.code),
   ]);
 
   const latestPlanTime = planTimesForSlot[0] ?? null;
@@ -1028,6 +1046,7 @@ export async function getWorkbenchData(
 
   const slotSummary: ServiceSlotSummary = {
     slotId: slot.id,
+    slotKey: slot.slot_key,
     slotLabel: slot.slot_label,
     planTimeId: latestPlanTime?.id ?? 0,
     plannedSeconds: latestPlanTime?.planned_target_seconds ?? null,
@@ -1037,7 +1056,7 @@ export async function getWorkbenchData(
     broadcastIsMessageBlock: bumperEndAt !== null && messageEndAt !== null,
     isBlocked: latestPlanTime
       ? isSlotBlocked(incidents, latestPlanTime.id, slot.id)
-      : false,
+      : true,
     phases: buildPhaseBreakdown(elements),
   };
 
@@ -1176,6 +1195,7 @@ export async function getWorkbenchData(
     isReferenceTargetApproved: campus.reference_target_status === "approved",
     availableSlots: allSlots.map((s) => ({
       id: s.id,
+      key: s.slot_key,
       label: s.slot_label,
       expectedLocalStart: s.expected_local_start,
     })),
@@ -1210,11 +1230,11 @@ export async function getTriageData(
   const plan = plans[0];
   if (!plan) return null;
 
-  // Production plan_times only (no rehearsal, no excluded)
+  // Include unresolved production PlanTimes so configuration drift remains
+  // visible and actionable in Verify.
   const planTimesRows = await readRows<TriagePlanTimeRow>("effective_plan_times", {
     plan_id: `eq.${plan.id}`,
     is_manually_excluded: "eq.false",
-    effective_slot_id: "not.is.null",
     time_type: "eq.service",
     select: "id,effective_slot_id,pco_name,starts_at,planned_target_seconds,service_actual_seconds",
     order: "starts_at.asc",
@@ -1222,14 +1242,16 @@ export async function getTriageData(
 
   const planTimeIds = planTimesRows.map(({ id }) => id);
 
-  const [allSlots, triageIncidentsList, items, rawElements] = await Promise.all([
-    readRows<ServiceSlotRow>("service_slots", {
-      campus_id: `eq.${campus.id}`,
-      is_active: "eq.true",
-      select: "id,slot_label,expected_local_start,is_active",
-      order: "expected_local_start.asc",
-    }),
+  const [
+    allSlots,
+    triageIncidentsList,
+    planIncidentRows,
+    items,
+    rawElements,
+  ] = await Promise.all([
+    readServiceSlots(campus.id, resolvedDate),
     openTriageIncidents(planTimeIds),
+    openPlanTriageIncidents(plan.id),
     readRows<TriageItemRow>("items", {
       plan_id: `eq.${plan.id}`,
       select: "id,sequence,raw_title,item_type,service_position,section_key,element_key,planned_seconds,is_rollup_child",
@@ -1257,7 +1279,21 @@ export async function getTriageData(
   ]);
 
   const slotById = new Map(allSlots.map((s) => [s.id, s]));
-  const availableSlotsList = allSlots.map((s) => ({ id: s.id, label: s.slot_label }));
+  const availableSlotsList = allSlots.map((s) => ({
+    id: s.id,
+    key: s.slot_key,
+    label: s.slot_label,
+  }));
+  const planIncidents: TriagePlanIncident[] = planIncidentRows.map((incident) => {
+    const slot = incident.slot_id === null ? undefined : slotById.get(incident.slot_id);
+    return {
+      id: incident.id,
+      kind: incident.kind,
+      slotKey: slot?.slot_key ?? null,
+      slotLabel: slot?.slot_label ?? "Expected service",
+      detail: incident.detail,
+    };
+  });
 
   // item_times lookup: planTimeId → itemId → { id, actualSeconds, live window }
   const itemTimesByPlanTime = new Map<
@@ -1303,10 +1339,13 @@ export async function getTriageData(
     }
   }
 
-  let totalAttentionCount = 0;
+  let totalAttentionCount = planIncidents.length;
 
   const triageSlots: TriageSlot[] = planTimesRows.map((pt) => {
-    const slot = slotById.get(pt.effective_slot_id);
+    const slot =
+      pt.effective_slot_id === null
+        ? undefined
+        : slotById.get(pt.effective_slot_id);
     const ptIncidents = incidentsByPlanTime.get(pt.id) ?? [];
     const ptItemTimes = itemTimesByPlanTime.get(pt.id) ?? new Map();
 
@@ -1467,7 +1506,8 @@ export async function getTriageData(
 
     return {
       planTimeId: pt.id,
-      slotLabel: slot?.slot_label ?? "Unknown",
+      slotKey: slot?.slot_key ?? null,
+      slotLabel: slot?.slot_label ?? "Unresolved service",
       pcoName: pt.pco_name,
       startsAt: pt.starts_at,
       expectedLocalStart: slot?.expected_local_start ?? null,
@@ -1501,6 +1541,7 @@ export async function getTriageData(
     serviceDate: resolvedDate,
     planTitle: plan.title ?? `Service ${resolvedDate}`,
     slots: triageSlots,
+    planIncidents,
     totalAttentionCount,
     availableElements,
   };

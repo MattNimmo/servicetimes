@@ -12,6 +12,7 @@ const plan = {
   planTimes: [
     {
       pcoPlanTimeId: "time-1",
+      detectedSlotKey: "first",
       detectedSlotLabel: "9am",
       slotResolutionState: "auto",
     },

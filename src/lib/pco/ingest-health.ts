@@ -54,8 +54,9 @@ export async function getIngestionHealth(
 ): Promise<IngestionHealth> {
   const expectedServiceDate = mostRecentChicagoSunday(now);
   const [plans, rows] = await Promise.all([
-    readRows<PlanRow>("plans", {
+    readRows<PlanRow>("ingestion_location_health", {
       service_date: `eq.${expectedServiceDate}`,
+      is_complete: "eq.true",
       select: "campus_id",
     }),
     readRows<IngestRunRow>("ingest_runs", {

@@ -13,18 +13,58 @@ on conflict (code) do update set
   is_broadcast_origin = excluded.is_broadcast_origin;
 
 insert into public.service_slots
-  (campus_id, slot_label, expected_local_start)
+  (campus_id, slot_key, slot_label, expected_local_start)
 values
-  ((select id from public.campuses where code = 'ELK'), '9am', '09:00'),
-  ((select id from public.campuses where code = 'ELK'), '11am', '11:00'),
-  ((select id from public.campuses where code = 'LV'), '10am', '10:00'),
-  ((select id from public.campuses where code = 'MG'), '9am', '09:00'),
-  ((select id from public.campuses where code = 'MG'), '11am', '11:00'),
-  ((select id from public.campuses where code = 'SLP'), '9am', '09:00'),
-  ((select id from public.campuses where code = 'SLP'), '11am', '11:00')
+  ((select id from public.campuses where code = 'ELK'), 'first', '9am', '09:00'),
+  ((select id from public.campuses where code = 'ELK'), 'second', '11am', '11:00'),
+  ((select id from public.campuses where code = 'LV'), 'first', '10am', '10:00'),
+  ((select id from public.campuses where code = 'MG'), 'first', '9am', '09:00'),
+  ((select id from public.campuses where code = 'MG'), 'second', '11am', '11:00'),
+  ((select id from public.campuses where code = 'SLP'), 'first', '9am', '09:00'),
+  ((select id from public.campuses where code = 'SLP'), 'second', '11am', '11:00')
 on conflict (campus_id, slot_label) do update set
+  slot_key = excluded.slot_key,
   expected_local_start = excluded.expected_local_start,
   is_active = true;
+
+insert into public.service_slot_schedules
+  (slot_id, effective_during, display_label, expected_local_start, match_tolerance_minutes, created_by)
+select
+  s.id,
+  daterange(null, null, '[)'),
+  s.slot_label,
+  s.expected_local_start,
+  s.match_tolerance_minutes,
+  'seed'
+from public.service_slots s
+join public.campuses c on c.id = s.campus_id
+where not (c.code = 'ELK' and s.slot_key = 'second')
+on conflict (slot_id, effective_during) do update set
+  display_label = excluded.display_label,
+  expected_local_start = excluded.expected_local_start,
+  match_tolerance_minutes = excluded.match_tolerance_minutes;
+
+insert into public.service_slot_schedules
+  (slot_id, effective_during, display_label, expected_local_start, match_tolerance_minutes, created_by)
+select
+  s.id,
+  schedule.effective_during,
+  schedule.display_label,
+  schedule.expected_local_start,
+  10,
+  'seed'
+from public.service_slots s
+join public.campuses c on c.id = s.campus_id
+cross join (
+  values
+    (daterange(null, '2026-08-30', '[)'), '11am'::text, '11:00'::time),
+    (daterange('2026-08-30', null, '[)'), '10:30am'::text, '10:30'::time)
+) as schedule(effective_during, display_label, expected_local_start)
+where c.code = 'ELK' and s.slot_key = 'second'
+on conflict (slot_id, effective_during) do update set
+  display_label = excluded.display_label,
+  expected_local_start = excluded.expected_local_start,
+  match_tolerance_minutes = excluded.match_tolerance_minutes;
 
 insert into public.sections
   (key, display_name, sort_order, is_analytics_eligible)

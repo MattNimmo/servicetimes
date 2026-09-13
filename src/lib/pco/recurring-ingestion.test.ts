@@ -419,38 +419,27 @@ describe("runRecurringPcoIngestion", () => {
 });
 
 describe("persisted plan freshness", () => {
-  it("uses the same completeness evaluator for PCO-plan and campus-date lookups", async () => {
+  it("uses the shared location-health result for PCO-plan and campus-date lookups", async () => {
     const readRowsMock = vi.mocked(readRows);
     readRowsMock.mockReset();
     readRowsMock.mockImplementation(
       (async (table: string) => {
         if (table === "campuses") return [{ id: 10 }];
-        if (table === "plans") {
-          return [{ id: 20, pco_plan_id: "plan-SLP" }];
-        }
-        if (table === "effective_plan_times") {
+        if (table === "ingestion_location_health") {
           return [
             {
-              id: 30,
-              effective_slot_id: 1,
-              live_starts_at: "2026-07-05T14:00:00Z",
-              live_ends_at: "2026-07-05T15:00:00Z",
-            },
-            {
-              id: 31,
-              effective_slot_id: 2,
-              live_starts_at: "2026-07-05T16:00:00Z",
-              live_ends_at: "2026-07-05T17:00:00Z",
+              plan_id: 20,
+              pco_plan_id: "plan-SLP",
+              expected_slot_count: 2,
+              actual_plan_time_count: 2,
+              actual_slot_count: 2,
+              all_have_live_bounds: true,
+              all_elements_complete: true,
+              blocking_incident_count: 0,
+              is_complete: true,
             },
           ];
         }
-        if (table === "element_variance") {
-          return [
-            { plan_time_id: 30, actual_is_complete: true },
-            { plan_time_id: 31, actual_is_complete: true },
-          ];
-        }
-        if (table === "review_incidents") return [];
         throw new Error(`Unexpected table ${table}`);
       }) as never,
     );
@@ -469,12 +458,41 @@ describe("persisted plan freshness", () => {
     });
     expect(byCampusDate).toEqual(byPcoPlan);
     expect(readRowsMock).toHaveBeenCalledWith(
-      "plans",
+      "ingestion_location_health",
       expect.objectContaining({
         campus_id: "eq.10",
         service_date: `eq.${expectedServiceDate}`,
       }),
     );
+  });
+
+  it("keeps unresolved or incomplete services from satisfying freshness", async () => {
+    const readRowsMock = vi.mocked(readRows);
+    readRowsMock.mockReset();
+    readRowsMock.mockResolvedValueOnce([
+      {
+        plan_id: 20,
+        pco_plan_id: "plan-SLP",
+        expected_slot_count: 2,
+        actual_plan_time_count: 1,
+        actual_slot_count: 1,
+        all_have_live_bounds: true,
+        all_elements_complete: false,
+        blocking_incident_count: 1,
+        is_complete: false,
+      },
+    ] as never);
+
+    await expect(getPlanFreshness(PCO_CAMPUSES[0], "plan-SLP")).resolves.toEqual({
+      status: "incomplete",
+      planId: 20,
+      pcoPlanId: "plan-SLP",
+      reasons: [
+        "expected 2 production slots, found 1",
+        "production slot has incomplete item actuals",
+        "open slot-blocking incidents remain",
+      ],
+    });
   });
 });
 

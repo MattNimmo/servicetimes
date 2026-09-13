@@ -9,7 +9,7 @@ Plan-versus-actual service timing for Emmanuel Christian Center.
 - Supabase/Postgres
 - Vercel
 
-## Current product — 2026-07-13
+## Current product — 2026-09-13
 
 The production app is deployed from `main` to Vercel and presents Emmanuel's
 four sites as **locations** in user-facing copy. Internal code and database
@@ -19,7 +19,10 @@ identifiers continue to use `campus` for compatibility.
   four locations, with broadcast-window trends and expandable evidence.
 - **Workbench** (`/instrument/workbench`) provides selected-location and
   selected-service detail. Its first-service Mid comparison pairs Lakeville's
-  10am with the other locations' 9am; the 11am cohort remains same-slot. The
+  10am with the other locations' 9am. Service comparisons use stable first- and
+  second-service identities, so Elk River's 10:30am service (effective August
+  30, 2026) remains comparable with Spring Lake Park and Maple Grove at 11am.
+  Historical Elk River dates retain their former 11am label. The
   element table remains horizontally scrollable on mobile and includes an
   explicit swipe cue plus a sticky Element column.
 - **Verify** (`/instrument/triage`) is the operator-only correction workflow;

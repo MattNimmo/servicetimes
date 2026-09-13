@@ -73,11 +73,11 @@ export async function verifyIngestionPlan(
       pco_plan_time_id: string;
       detected_slot_id: number | null;
       slot_resolution_state: string;
-      service_slots: { slot_label: string } | null;
+      service_slots: { slot_key: string } | null;
     }>("plan_times", {
       plan_id: `eq.${persistedPlan.id}`,
       select:
-        "id,pco_plan_time_id,detected_slot_id,slot_resolution_state,service_slots(slot_label)",
+        "id,pco_plan_time_id,detected_slot_id,slot_resolution_state,service_slots(slot_key)",
     }),
     readRows<{ id: number }>("items", {
       plan_id: `eq.${persistedPlan.id}`,
@@ -97,8 +97,8 @@ export async function verifyIngestionPlan(
     checks.push(
       check(
         `PlanTime ${expected.pcoPlanTimeId} slot`,
-        expected.detectedSlotLabel ?? "unresolved",
-        actual?.service_slots?.slot_label ?? "unresolved",
+        expected.detectedSlotKey ?? "unresolved",
+        actual?.service_slots?.slot_key ?? "unresolved",
       ),
       check(
         `PlanTime ${expected.pcoPlanTimeId} state`,

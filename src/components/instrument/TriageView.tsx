@@ -897,13 +897,32 @@ export default function TriageView({
               return `${dateFlagged} flagged item${dateFlagged === 1 ? "" : "s"} on this date sit on a non-production plan — nothing to clear in service order.`;
             }
             if (data.totalAttentionCount > 0) {
-              return `${data.totalAttentionCount} item${data.totalAttentionCount === 1 ? "" : "s"} need attention, surfaced inline in service order below.`;
+              return `${data.totalAttentionCount} service issue${data.totalAttentionCount === 1 ? "" : "s"} need attention, surfaced in context below.`;
             }
             return "All items are clear.";
           })()}{" "}
           {goodCount > 0 && `${goodCount} good to go.`}
         </p>
       </section>
+
+      {data.planIncidents.length > 0 && (
+        <section
+          aria-label="Missing expected services"
+          className="instrument-panel"
+          style={{ marginBottom: 16, padding: "14px 16px" }}
+        >
+          <p className="instrument-eyebrow" style={{ marginBottom: 6 }}>
+            Expected service missing
+          </p>
+          {data.planIncidents.map((incident) => (
+            <p key={incident.id} style={{ margin: "4px 0", fontSize: 13 }}>
+              <strong>{incident.slotLabel}:</strong> {incident.detail} Map the
+              matching unresolved service below, or re-run ingestion after the
+              upstream schedule is corrected.
+            </p>
+          ))}
+        </section>
+      )}
 
       {/* Campus selector + date picker + plan label */}
       <div

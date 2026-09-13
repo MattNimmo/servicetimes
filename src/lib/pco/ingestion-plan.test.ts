@@ -135,6 +135,106 @@ describe("sourceFingerprint", () => {
 });
 
 describe("buildIngestionPlan", () => {
+  it("keeps Elk River's second-service identity across the August 30 transition", () => {
+    const before = buildIngestionPlan(
+      elkCampus,
+      {
+        plan: {
+          ...plan,
+          id: "elk-before",
+          attributes: {
+            ...plan.attributes,
+            sort_date: "2026-08-23T15:00:00Z",
+          },
+        },
+        planTimes: [planTime("elk-11", "2026-08-23T16:00:00Z")],
+        items: [],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+    const after = buildIngestionPlan(
+      elkCampus,
+      {
+        plan: {
+          ...plan,
+          id: "elk-after",
+          attributes: {
+            ...plan.attributes,
+            sort_date: "2026-08-30T15:00:00Z",
+          },
+        },
+        planTimes: [planTime("elk-1030", "2026-08-30T15:30:00Z")],
+        items: [],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(before.planTimes[0]).toMatchObject({
+      detectedSlotKey: "second",
+      detectedSlotLabel: "11am",
+    });
+    expect(after.planTimes[0]).toMatchObject({
+      detectedSlotKey: "second",
+      detectedSlotLabel: "10:30am",
+    });
+  });
+
+  it("does not map the old Elk River second-service time after the transition", () => {
+    const result = buildIngestionPlan(
+      elkCampus,
+      {
+        plan: {
+          ...plan,
+          id: "elk-old-time-after-transition",
+          attributes: {
+            ...plan.attributes,
+            sort_date: "2026-08-30T15:00:00Z",
+          },
+        },
+        planTimes: [planTime("elk-11-late", "2026-08-30T16:00:00Z")],
+        items: [],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(result.planTimes[0].detectedSlotKey).toBeNull();
+    expect(result.incidents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "slot_resolution", slotKey: "second" }),
+      ]),
+    );
+  });
+
+  it("does not map the new Elk River second-service time before the transition", () => {
+    const result = buildIngestionPlan(
+      elkCampus,
+      {
+        plan: {
+          ...plan,
+          id: "elk-new-time-before-transition",
+          attributes: {
+            ...plan.attributes,
+            sort_date: "2026-08-23T15:00:00Z",
+          },
+        },
+        planTimes: [planTime("elk-1030-early", "2026-08-23T15:30:00Z")],
+        items: [],
+        itemTimes: [],
+      },
+      PCO_TAXONOMY,
+    );
+
+    expect(result.planTimes[0].detectedSlotKey).toBeNull();
+    expect(result.incidents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "slot_resolution", slotKey: "second" }),
+      ]),
+    );
+  });
+
   it("resolves the production slot and emits row-shaped normalized data", () => {
     const result = buildIngestionPlan(
       campus,
