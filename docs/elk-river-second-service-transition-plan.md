@@ -60,6 +60,11 @@ with no unresolved run-through, and legacy `slot=11am` canonicalization to
 `slot=second`. The production Vercel deployment is Ready and the cron schedules
 remain unchanged.
 
+The first post-transition Sunday was also verified in production. Watchdog run
+`34785029436` reported `expectedServiceDate: 2026-09-13`, four of four complete
+locations, and `writesPerformed: 0` with `skipped: already_current`, confirming
+the normal ingest had already completed successfully without recovery.
+
 ## Objective
 
 Represent a service's stable identity separately from the clock time at which
